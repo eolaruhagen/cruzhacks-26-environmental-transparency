@@ -20,7 +20,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${quicksand.variable} font-sans antialiased bg-[#5A9F68]`}>
+      <body className={`${quicksand.variable} font-sans antialiased bg-main`}>
         <Navbar />
         {children}
       </body>
