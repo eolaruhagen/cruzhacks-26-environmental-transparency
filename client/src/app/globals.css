@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-quicksand: 'Quicksand', sans-serif;
+  --color-primary: #5A9F68;
+  --color-primary-dark: #4A8F58;
+  --color-primary-darker: #3D7A4A;
+  --color-text-dark: #2D5A3B;
+  --color-text-muted: #4A6B4F;
+  --color-bg-light: #E8F5E9;
+  --color-offwhite: #FAF9F6;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-quicksand);
+  min-height: 100vh;
+}
+
+/* Custom scrollbar - pastel theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #E8F5E9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #7BC68F;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5A9F68;
+}
+
+/* Selection */
+::selection {
+  background: rgba(90, 159, 104, 0.4);
+  color: #2D5A3B;
+}
