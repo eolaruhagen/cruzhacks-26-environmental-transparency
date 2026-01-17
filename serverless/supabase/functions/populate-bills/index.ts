@@ -91,13 +91,34 @@ function parseDate(dateStr: string): string | null {
 }
 
 /**
- * Generate embedding text from bill data
- * Uses Title + Committees for semantic representation
+ * Strip HTML tags from text
  */
-function createEmbeddingText(title: string, committees: string): string {
+function cleanHtml(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/<[^>]*>/g, "") // Remove HTML tags
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .trim();
+}
+
+/**
+ * Generate embedding text from bill data
+ * Uses Title + Committees + Summary (if available) for semantic representation
+ */
+function createEmbeddingText(title: string, committees: string, summary?: string | null): string {
   const parts: string[] = [];
   if (title) parts.push(title);
   if (committees) parts.push(`Committees: ${committees}`);
+  if (summary) {
+    const cleanSummary = cleanHtml(summary);
+    if (cleanSummary) parts.push(`Summary: ${cleanSummary}`);
+  }
   return parts.join("\n\n");
 }
 
@@ -265,6 +286,8 @@ Deno.serve(async (req: Request) => {
       
       const title = values[colIndex.title]?.trim() || "";
       const committees = values[colIndex.committees]?.trim() || null;
+      const rawSummary = values[colIndex.latestSummary]?.trim() || null;
+      const cleanedSummary = rawSummary ? cleanHtml(rawSummary) : null;
       
       const bill: BillData = {
         legislation_number: legislationNumberUnique,
@@ -282,11 +305,11 @@ Deno.serve(async (req: Request) => {
         num_cosponsors: parseInt(values[colIndex.numCosponsors]?.trim() || "0") || cosponsors.length,
         subject_terms: subjectTerms,
         bill_policy_area: values[colIndex.billPolicyArea]?.trim() || null,
-        latest_summary: values[colIndex.latestSummary]?.trim() || null,
+        latest_summary: cleanedSummary, // Store cleaned HTML in DB
       };
       
       bills.push(bill);
-      embeddingTexts.push(createEmbeddingText(title, committees || ""));
+      embeddingTexts.push(createEmbeddingText(title, committees || "", cleanedSummary));
     }
 
     if (bills.length === 0) {
