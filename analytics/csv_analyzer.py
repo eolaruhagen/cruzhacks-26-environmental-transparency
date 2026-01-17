@@ -14,8 +14,8 @@ from collections import defaultdict
 from typing import Any
 
 
-# Columns to ignore (as specified)
-IGNORE_PATTERNS = ["billSubjectTerm"]
+# Columns to ignore in main analysis (expanded horizontally)
+IGNORE_PATTERNS = ["Cosponsor"]  # billSubjectTerm now has useful data!
 
 # ANSI colors for terminal output
 class Colors:
@@ -75,11 +75,21 @@ def analyze_csv(filepath: str) -> dict[str, Any]:
         for _ in range(3):
             next(f)
         
-        reader = csv.DictReader(f)
-        headers = reader.fieldnames or []
+        # Read headers manually to track column indices
+        header_line = next(f)
+        all_headers = list(csv.reader([header_line]))[0]
         
-        # Filter out ignored columns
-        relevant_headers = [h for h in headers if not should_ignore_column(h)]
+        # Find indices of billSubjectTerm and Cosponsor columns
+        subject_term_indices = [i for i, h in enumerate(all_headers) if h == "billSubjectTerm"]
+        cosponsor_indices = [i for i, h in enumerate(all_headers) if h == "Cosponsor"]
+        
+        # Get unique headers for main analysis (excluding repeated columns)
+        seen = set()
+        relevant_headers = []
+        for h in all_headers:
+            if h not in seen and h != "billSubjectTerm" and not should_ignore_column(h):
+                seen.add(h)
+                relevant_headers.append(h)
         
         # Initialize counters
         stats = {
@@ -93,13 +103,49 @@ def analyze_csv(filepath: str) -> dict[str, Any]:
             for col in relevant_headers
         }
         
+        # Track billSubjectTerms separately
+        subject_term_counts: dict[str, int] = defaultdict(int)
+        bills_with_subject_terms = 0
+        
+        # Track cosponsor stats
+        total_cosponsors = 0
+        bills_with_cosponsors = 0
+        
         total_rows = 0
         
-        for row in reader:
+        reader = csv.reader(f)
+        for row_values in reader:
             total_rows += 1
             
+            # Extract subject terms from their specific columns
+            row_subject_terms = []
+            for idx in subject_term_indices:
+                if idx < len(row_values) and row_values[idx] and row_values[idx].strip():
+                    term = row_values[idx].strip()
+                    row_subject_terms.append(term)
+                    subject_term_counts[term] += 1
+            
+            if row_subject_terms:
+                bills_with_subject_terms += 1
+            
+            # Extract cosponsor count
+            row_cosponsors = 0
+            for idx in cosponsor_indices:
+                if idx < len(row_values) and row_values[idx] and row_values[idx].strip():
+                    row_cosponsors += 1
+            
+            if row_cosponsors > 0:
+                bills_with_cosponsors += 1
+                total_cosponsors += row_cosponsors
+            
+            # Create a dict for this row using unique headers
+            row_dict = {}
+            for i, h in enumerate(all_headers):
+                if h in relevant_headers and h not in row_dict:
+                    row_dict[h] = row_values[i] if i < len(row_values) else ""
+            
             for col in relevant_headers:
-                value = row.get(col, "")
+                value = row_dict.get(col, "")
                 stats[col]["total"] += 1
                 
                 if value and value.strip():
@@ -121,6 +167,13 @@ def analyze_csv(filepath: str) -> dict[str, Any]:
         "total_rows": total_rows,
         "columns": stats,
         "relevant_headers": relevant_headers,
+        "subject_terms": dict(subject_term_counts),
+        "bills_with_subject_terms": bills_with_subject_terms,
+        "cosponsor_stats": {
+            "bills_with_cosponsors": bills_with_cosponsors,
+            "total_cosponsors": total_cosponsors,
+            "avg_per_bill": total_cosponsors / bills_with_cosponsors if bills_with_cosponsors > 0 else 0,
+        }
     }
 
 
@@ -206,6 +259,36 @@ def print_report(analysis: dict[str, Any]) -> None:
             print(f"    Type: {Colors.CYAN}{primary_type}{Colors.END}")
     else:
         print("  (none)")
+    
+    # Print Cosponsor Analysis
+    cosponsor_stats = analysis.get("cosponsor_stats", {})
+    if cosponsor_stats:
+        print(f"\n{Colors.CYAN}{Colors.BOLD}👥 COSPONSOR ANALYSIS{Colors.END}")
+        print("-" * 70)
+        print(f"  Bills with cosponsors: {cosponsor_stats['bills_with_cosponsors']:,} / {total_rows:,} ({cosponsor_stats['bills_with_cosponsors']/total_rows*100:.1f}%)")
+        print(f"  Total cosponsors: {cosponsor_stats['total_cosponsors']:,}")
+        print(f"  Avg cosponsors per bill: {cosponsor_stats['avg_per_bill']:.1f}")
+    
+    # Print billSubjectTerm Analysis
+    subject_terms = analysis.get("subject_terms", {})
+    bills_with_terms = analysis.get("bills_with_subject_terms", 0)
+    
+    print(f"\n{Colors.CYAN}{Colors.BOLD}🏷️  BILL SUBJECT TERMS ANALYSIS{Colors.END}")
+    print("-" * 70)
+    print(f"  Bills with subject terms: {bills_with_terms:,} / {total_rows:,} ({bills_with_terms/total_rows*100:.1f}%)")
+    print(f"  Unique subject terms: {len(subject_terms):,}")
+    
+    if subject_terms:
+        # Sort by frequency
+        sorted_terms = sorted(subject_terms.items(), key=lambda x: x[1], reverse=True)
+        print(f"\n  {Colors.BOLD}Top 30 Subject Terms:{Colors.END}")
+        for term, count in sorted_terms[:30]:
+            bar_len = int((count / sorted_terms[0][1]) * 30)
+            bar = "█" * bar_len
+            print(f"    {count:>4} {bar} {term}")
+        
+        if len(sorted_terms) > 30:
+            print(f"\n    ... and {len(sorted_terms) - 30} more terms")
     
     # Print DB Schema Recommendation
     print(f"\n{Colors.BOLD}{'='*70}")
