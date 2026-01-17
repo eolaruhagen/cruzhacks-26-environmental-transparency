@@ -1,3 +1,26 @@
+/**
+ * CSV Parser Edge Function
+ * 
+ * Purpose: Parse CSV from Supabase Storage bucket and return JSON format
+ * for LLM categorization of environmental bills.
+ * 
+ * Extracts from CSV:
+ * - congress (parsed from "113th Congress (2013-2014)" → "113")
+ * - billType (parsed from "H.R. 5861" → "H.R.")
+ * - billNumber (parsed from "H.R. 5861" → "5861")
+ * - title
+ * - committees
+ * - latestAction
+ * 
+ * Supports pagination via offset/limit for batching to avoid model context overflow.
+ * 
+ * Environment Variables:
+ * - SUPABASE_URL (auto-provided)
+ * - SUPABASE_SERVICE_ROLE_KEY (auto-provided)
+ * - CSV_BUCKET_NAME (optional, defaults to "csv-data")
+ * - KICKSTART_CSV_NAME (optional, defaults to "all_bills.csv")
+ */
+
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -6,32 +29,52 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * Parse CSV string into array of objects
- */
-function parseCSV(csvText: string): Record<string, string>[] {
-  const lines = csvText.trim().split("\n");
-  if (lines.length === 0) return [];
+// Default pagination values
+const DEFAULT_OFFSET = 0;
+const DEFAULT_LIMIT = 30;
 
-  // Parse header row
-  const headers = parseCSVLine(lines[0]);
-  
-  // Parse data rows
-  const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
-    const row: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      row[header.trim()] = (values[index] || "").trim();
-    });
-    rows.push(row);
-  }
-  
-  return rows;
+interface BillForCategorization {
+  congress: string;
+  billType: string;
+  billNumber: string;
+  title: string;
+  committees: string;
+  latestAction: string;
+  summary?: string; // Only included if available (~48% of bills have this)
 }
 
 /**
- * Parse a single CSV line, handling quoted values
+ * Parse "Legislation Number" to extract bill type and number
+ * e.g., "H.R. 5861" -> { billType: "H.R.", billNumber: "5861" }
+ * e.g., "S. 1234" -> { billType: "S.", billNumber: "1234" }
+ * e.g., "H.J.Res. 138" -> { billType: "H.J.Res.", billNumber: "138" }
+ */
+function parseLegislationNumber(legNum: string): { billType: string; billNumber: string } | null {
+  if (!legNum) return null;
+  
+  // Match patterns like "H.R. 5861", "S. 1234", "H.J.Res. 138", "S.Con.Res. 5", etc.
+  const match = legNum.match(/^([A-Z][A-Za-z.]*\.(?:\s*[A-Za-z]+\.)*)\s*(\d+)$/i);
+  if (match) {
+    return {
+      billType: match[1].trim(),
+      billNumber: match[2],
+    };
+  }
+  return null;
+}
+
+/**
+ * Parse "Congress" column to extract congress number
+ * e.g., "113th Congress (2013-2014)" -> "113"
+ */
+function parseCongressNumber(congress: string): string | null {
+  if (!congress) return null;
+  const match = congress.match(/^(\d+)/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Parse CSV string handling quoted values
  */
 function parseCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -40,7 +83,6 @@ function parseCSVLine(line: string): string[] {
   
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-    
     if (char === '"') {
       inQuotes = !inQuotes;
     } else if (char === "," && !inQuotes) {
@@ -51,100 +93,27 @@ function parseCSVLine(line: string): string[] {
     }
   }
   result.push(current);
-  
   return result;
 }
 
-/**
- * Infer and convert value types (string -> int/float/bool/null)
- */
-function inferType(value: string): string | number | boolean | null {
-  if (value === "" || value.toLowerCase() === "null" || value.toLowerCase() === "none") {
-    return null;
-  }
-  if (value.toLowerCase() === "true" || value.toLowerCase() === "yes") {
-    return true;
-  }
-  if (value.toLowerCase() === "false" || value.toLowerCase() === "no") {
-    return false;
-  }
-  
-  // Try integer
-  if (/^-?\d+$/.test(value)) {
-    return parseInt(value, 10);
-  }
-  
-  // Try float
-  if (/^-?\d+\.\d+$/.test(value)) {
-    return parseFloat(value);
-  }
-  
-  return value;
-}
-
-/**
- * Escape value for TOON format (handle commas, newlines)
- */
-function escapeToonValue(value: string | number | boolean | null): string {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value.toString();
-  if (typeof value === "number") return value.toString();
-  
-  // String: escape if contains comma, newline, or starts/ends with whitespace
-  const str = value.toString();
-  if (str.includes(",") || str.includes("\n") || str.startsWith(" ") || str.endsWith(" ")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-/**
- * Convert rows to TOON format
- * TOON uses tabular format: collection[N]{field1,field2,...}:\nval1,val2,...
- */
-function toTOON(rows: Record<string, string>[], rootName: string = "records"): string {
-  if (rows.length === 0) {
-    return `${rootName}[0]{}:`;
-  }
-  
-  // Get headers from first row
-  const headers = Object.keys(rows[0]);
-  
-  // Build TOON header
-  const toonHeader = `${rootName}[${rows.length}]{${headers.join(",")}}:`;
-  
-  // Build TOON rows
-  const toonRows = rows.map(row => {
-    return headers.map(header => {
-      const rawValue = row[header];
-      const typedValue = inferType(rawValue);
-      return escapeToonValue(typedValue);
-    }).join(",");
-  });
-  
-  return toonHeader + "\n" + toonRows.join("\n");
-}
-
 Deno.serve(async (req: Request) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get parameters from request body
+    // Get parameters with defaults
     const body = await req.json().catch(() => ({}));
-    const bucket = body.bucket || Deno.env.get("SUPABASE_BUCKET_NAME") || "csv-data";
-    const fileName = body.fileName || Deno.env.get("KICKSTART_CSV_NAME") || "kickstart.csv";
-    const rootName = body.rootName || "records";
-    const format = body.format || "toon"; // "toon" or "json"
+    const bucket = body.bucket || Deno.env.get("CSV_BUCKET_NAME") || "csv-data";
+    const fileName = body.fileName || Deno.env.get("KICKSTART_CSV_NAME") || "all_bills.csv";
+    const offset = typeof body.offset === "number" ? body.offset : DEFAULT_OFFSET;
+    const limit = typeof body.limit === "number" ? body.limit : DEFAULT_LIMIT;
 
-    // Download CSV from storage
+    // Download CSV
     const { data: fileData, error: downloadError } = await supabase
       .storage
       .from(bucket)
@@ -156,47 +125,90 @@ Deno.serve(async (req: Request) => {
           error: "Failed to download CSV", 
           details: downloadError.message,
           bucket,
-          fileName 
+          fileName,
         }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     // Parse CSV
     const csvText = await fileData.text();
-    const rows = parseCSV(csvText);
+    const lines = csvText.trim().split("\n");
+    
+    // Skip first 3 metadata rows, get header on line 4 (index 3)
+    const headerLine = lines[3];
+    const headers = parseCSVLine(headerLine);
+    
+    // Find column indices
+    const colIndex = {
+      legislationNumber: headers.indexOf("Legislation Number"),
+      congress: headers.indexOf("Congress"),
+      title: headers.indexOf("Title"),
+      committees: headers.indexOf("Committees"),
+      latestAction: headers.indexOf("Latest Action"),
+      latestSummary: headers.indexOf("Latest Summary"),
+    };
 
-    // Convert to requested format
-    let output: string;
-    let contentType: string;
+    // Parse data rows (starting from line 5, index 4)
+    const dataLines = lines.slice(4);
+    const totalRows = dataLines.length;
+    
+    // Apply pagination
+    const paginatedLines = dataLines.slice(offset, offset + limit);
+    
+    const bills: BillForCategorization[] = [];
 
-    if (format === "json") {
-      output = JSON.stringify(rows, null, 2);
-      contentType = "application/json";
-    } else {
-      // Default: TOON format
-      output = toTOON(rows, rootName);
-      contentType = "text/plain";
+    for (const line of paginatedLines) {
+      if (!line.trim()) continue;
+      
+      const values = parseCSVLine(line);
+      
+      const legislationNumber = values[colIndex.legislationNumber]?.trim() || "";
+      const congressFull = values[colIndex.congress]?.trim() || "";
+      
+      const parsed = parseLegislationNumber(legislationNumber);
+      const congressNum = parseCongressNumber(congressFull);
+      
+      if (parsed && congressNum) {
+        const bill: BillForCategorization = {
+          congress: congressNum,
+          billType: parsed.billType,
+          billNumber: parsed.billNumber,
+          title: values[colIndex.title]?.trim() || "",
+          committees: values[colIndex.committees]?.trim() || "",
+          latestAction: values[colIndex.latestAction]?.trim() || "",
+        };
+        
+        // Add summary if available (helps model with categorization)
+        const summary = values[colIndex.latestSummary]?.trim();
+        if (summary) {
+          bill.summary = summary;
+        }
+        
+        bills.push(bill);
+      }
     }
 
-    return new Response(output, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": contentType,
-      },
-    });
+    return new Response(
+      JSON.stringify({
+        bills,
+        pagination: {
+          offset,
+          limit,
+          returned: bills.length,
+          total: totalRows,
+          hasMore: offset + limit < totalRows,
+          nextOffset: offset + limit < totalRows ? offset + limit : null,
+        },
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
