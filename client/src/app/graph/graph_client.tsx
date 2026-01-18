@@ -29,14 +29,16 @@ interface PolarScatterChartProps {
 function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarScatterChartProps) {
     const [showClusters, setShowClusters] = useState(true);
     const [hoveredCluster, setHoveredCluster] = useState<number | null>(null);
+    const [selectedBill, setSelectedBill] = useState<BillWithScores | null>(null);
+    const [panelHeight, setPanelHeight] = useState(300);
 
     if (subcategoryNames.length === 0 || bills.length === 0) {
         return <div className="text-gray-500">No data to display</div>;
     }
 
-    const size = 500;
+    const size = 600;
     const center = size / 2;
-    const radius = size * 0.4;
+    const radius = size * 0.40;
 
     // Convert bills to score vectors for clustering
     const scoreVectors = bills.map(bill =>
@@ -366,34 +368,80 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
         return { finalClusters: updatedClusters, extremeOutliers: outliers };
     }, [clusters, billPositions]);
 
-    // Draw axes for each subcategory
-    const axes = subcategoryNames.map((subcat, i) => {
+    // Format subcategory name from snake_case to Title Case
+    const formatSubcatName = (name: string): string => {
+        return name
+            .split('_')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    };
+
+    // Draw axis lines (rendered under everything)
+    const axisLines = subcategoryNames.map((subcat, i) => {
         const n = subcategoryNames.length;
         const angle = (2 * Math.PI * i) / n - Math.PI / 2;
         const endX = center + radius * Math.cos(angle);
         const endY = center + radius * Math.sin(angle);
-        const labelX = center + (radius + 30) * Math.cos(angle);
-        const labelY = center + (radius + 30) * Math.sin(angle);
 
         return (
-            <g key={subcat}>
-                <line
-                    x1={center}
-                    y1={center}
-                    x2={endX}
-                    y2={endY}
-                    stroke="#e2e8f0"
-                    strokeWidth={1}
-                />
+            <line
+                key={`line-${subcat}`}
+                x1={center}
+                y1={center}
+                x2={endX}
+                y2={endY}
+                stroke="#e2e8f0"
+                strokeWidth={1}
+            />
+        );
+    });
+
+    // Draw axis labels separately (rendered on top of everything else)
+    const axisLabels = subcategoryNames.map((subcat, i) => {
+        const n = subcategoryNames.length;
+        const angle = (2 * Math.PI * i) / n - Math.PI / 2;
+
+        // Position labels outside the chart
+        const labelDistance = radius + 40;
+        const labelX = center + labelDistance * Math.cos(angle);
+        const labelY = center + labelDistance * Math.sin(angle);
+
+        // Smart text anchoring based on position around the circle
+        const normalizedAngle = ((angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        let textAnchor: 'start' | 'middle' | 'end' = 'middle';
+        if (normalizedAngle > Math.PI * 0.15 && normalizedAngle < Math.PI * 0.85) {
+            textAnchor = 'start';
+        } else if (normalizedAngle > Math.PI * 1.15 && normalizedAngle < Math.PI * 1.85) {
+            textAnchor = 'end';
+        }
+
+        const formattedName = formatSubcatName(subcat);
+
+        return (
+            <g key={`label-${subcat}`}>
+                {/* White outline for readability */}
                 <text
                     x={labelX}
                     y={labelY}
-                    textAnchor="middle"
+                    textAnchor={textAnchor}
                     dominantBaseline="middle"
-                    className="text-xs fill-gray-600"
-                    style={{ fontSize: '10px' }}
+                    stroke="white"
+                    strokeWidth={3}
+                    fill="white"
+                    style={{ fontSize: '11px', fontWeight: 700 }}
                 >
-                    {subcat.length > 20 ? subcat.slice(0, 20) + '...' : subcat}
+                    {formattedName}
+                </text>
+                {/* Actual text on top */}
+                <text
+                    x={labelX}
+                    y={labelY}
+                    textAnchor={textAnchor}
+                    dominantBaseline="middle"
+                    fill="#1f2937"
+                    style={{ fontSize: '11px', fontWeight: 700 }}
+                >
+                    {formattedName}
                 </text>
             </g>
         );
@@ -426,7 +474,7 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
     ];
 
     return (
-        <div className="relative">
+        <div className="relative" style={{ overflow: 'visible', padding: '0 80px' }}>
             {/* Toggle button */}
             <div className="flex justify-center mb-4">
                 <button
@@ -437,12 +485,12 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                 </button>
             </div>
 
-            <svg width={size} height={size} className="mx-auto">
+            <svg width={size} height={size} className="mx-auto" style={{ overflow: 'visible' }}>
                 {/* Background circles */}
                 {circles}
 
-                {/* Axes */}
-                {axes}
+                {/* Axis lines (underneath everything) */}
+                {axisLines}
 
                 {showClusters && finalClusters.length > 0 ? (
                     <>
@@ -513,10 +561,11 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                             cx={pos.x}
                             cy={pos.y}
                             r={4}
-                            fill="rgba(59, 130, 246, 0.6)"
-                            stroke="rgba(59, 130, 246, 1)"
-                            strokeWidth={1}
+                            fill={selectedBill?.legislation_number === pos.bill.legislation_number ? 'rgba(37, 99, 235, 1)' : 'rgba(59, 130, 246, 0.6)'}
+                            stroke={selectedBill?.legislation_number === pos.bill.legislation_number ? '#1e40af' : 'rgba(59, 130, 246, 1)'}
+                            strokeWidth={selectedBill?.legislation_number === pos.bill.legislation_number ? 2 : 1}
                             className="cursor-pointer hover:fill-blue-500"
+                            onClick={() => setSelectedBill(selectedBill?.legislation_number === pos.bill.legislation_number ? null : pos.bill)}
                         >
                             <title>{pos.bill.legislation_number}</title>
                         </circle>
@@ -525,6 +574,9 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
 
                 {/* Center dot */}
                 <circle cx={center} cy={center} r={3} fill="#94a3b8" />
+
+                {/* Axis labels (rendered LAST so they appear on top) */}
+                {axisLabels}
             </svg>
             <div className="text-center text-sm text-gray-500 mt-2">
                 {showClusters
@@ -536,43 +588,103 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
             {/* Side panel for hovered cluster bills */}
             {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
                 <div
-                    className="absolute top-0 right-0 w-96 max-h-96 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
-                    style={{
-                        transform: 'translateX(100%)',
-                        animation: 'slideIn 0.2s ease forwards'
-                    }}
+                    className="fixed top-0 right-0 w-80 bg-white border-l border-b border-gray-200 shadow-xl overflow-hidden z-50"
+                    style={{ height: panelHeight, minHeight: 150, maxHeight: 600 }}
                 >
-                    <style>{`
-                        @keyframes slideIn {
-                            from { transform: translateX(100%); opacity: 0; }
-                            to { transform: translateX(0); opacity: 1; }
-                        }
-                    `}</style>
                     <div
-                        className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center cursor-pointer hover:bg-gray-100"
-                        onClick={() => setHoveredCluster(null)}
+                        className="bg-gray-50 px-4 py-2.5 border-b flex justify-between items-center"
                     >
-                        <span className="text-sm text-gray-600 font-medium">Bills</span>
-                        <span className="text-xs text-gray-400">✕ Close</span>
+                        <span className="text-sm text-gray-700 font-semibold">
+                            Cluster Bills ({finalClusters[hoveredCluster].bills.length})
+                        </span>
+                        <button
+                            onClick={() => setHoveredCluster(null)}
+                            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                        >
+                            ×
+                        </button>
                     </div>
-                    <div className="overflow-y-auto overflow-x-auto max-h-72 p-2">
+                    <div
+                        className="overflow-y-auto p-2"
+                        style={{ height: panelHeight - 80 }}
+                    >
                         {finalClusters[hoveredCluster].bills.map((bill, i) => (
                             <a
                                 key={i}
                                 href={bill.url || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors whitespace-nowrap"
+                                className="block px-3 py-2 text-sm hover:bg-blue-50 rounded-lg transition-colors"
                                 onClick={(e) => !bill.url && e.preventDefault()}
                             >
-                                <div className="font-medium">
+                                <div className="font-medium text-gray-900 truncate">
                                     {bill.title || bill.legislation_number}
                                 </div>
-                                <div className="text-xs text-gray-400">
+                                <div className="text-xs text-gray-500">
                                     {bill.legislation_number}
                                 </div>
                             </a>
                         ))}
+                    </div>
+                    {/* Resize handle */}
+                    <div
+                        className="h-6 bg-gray-50 border-t border-gray-200 cursor-ns-resize flex items-center justify-center hover:bg-gray-100"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            const startY = e.clientY;
+                            const startHeight = panelHeight;
+                            const onMouseMove = (moveEvent: MouseEvent) => {
+                                const newHeight = startHeight + (moveEvent.clientY - startY);
+                                setPanelHeight(Math.max(150, Math.min(600, newHeight)));
+                            };
+                            const onMouseUp = () => {
+                                document.removeEventListener('mousemove', onMouseMove);
+                                document.removeEventListener('mouseup', onMouseUp);
+                            };
+                            document.addEventListener('mousemove', onMouseMove);
+                            document.addEventListener('mouseup', onMouseUp);
+                        }}
+                    >
+                        <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+                    </div>
+                </div>
+            )}
+
+            {/* Side panel for selected individual bill */}
+            {!showClusters && selectedBill && (
+                <div
+                    className="fixed top-0 right-0 w-80 bg-white border-l border-b border-gray-200 shadow-xl overflow-hidden z-50"
+                >
+                    <div
+                        className="bg-gray-50 px-4 py-2.5 border-b flex justify-between items-center"
+                    >
+                        <span className="text-sm text-gray-700 font-semibold">Bill Details</span>
+                        <button
+                            onClick={() => setSelectedBill(null)}
+                            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                        >
+                            ×
+                        </button>
+                    </div>
+                    <div className="p-4">
+                        <div className="mb-3">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Legislation Number</div>
+                            <div className="font-semibold text-gray-900">{selectedBill.legislation_number}</div>
+                        </div>
+                        <div className="mb-4">
+                            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Title</div>
+                            <div className="text-sm text-gray-800">{selectedBill.title || 'No title available'}</div>
+                        </div>
+                        {selectedBill.url && (
+                            <a
+                                href={selectedBill.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
+                            >
+                                View Full Bill →
+                            </a>
+                        )}
                     </div>
                 </div>
             )}
@@ -604,6 +716,15 @@ interface BillWithScores {
 }
 
 
+
+// Format category name from snake_case to Title Case
+// e.g., "disaster_and_emergency" -> "Disaster and Emergency"
+function formatCategoryName(name: string): string {
+    return name
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
 
 export default function GraphClient() {
     const [bills, setBills] = useState<BillWithScores[]>([]);
@@ -777,70 +898,133 @@ export default function GraphClient() {
     }
 
     return (
-        <div className="p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h1 className="text-2xl font-bold">Environmental Bills Radar</h1>
+        <div className="p-6 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900">Policy Radar</h1>
+                    <p className="text-gray-500 mt-1">Visualize environmental legislation by policy area</p>
+                </div>
                 {isBackgroundLoading && (
-                    <div className="text-sm text-blue-600 animate-pulse">
+                    <div className="text-sm text-blue-600 animate-pulse bg-blue-50 px-3 py-1.5 rounded-full">
                         Loading more bills... ({bills.length} loaded)
                     </div>
                 )}
             </div>
 
-            {/* Category selector */}
-            <div className="mb-4">
-                <label className="mr-2 font-medium">Select Category:</label>
-                <select
-                    value={selectedCategory || ''}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="border rounded px-3 py-2"
-                >
-                    {categories.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                </select>
-            </div>
-
-            {/* Stats */}
-            <div className="mb-4 text-gray-600">
-                <p>Total bills in category: {filteredBills.length}</p>
-                <p>Subcategories: {categorySubcats.map(s => s.subcategory).join(', ')}</p>
-            </div>
-
-            {/* Polar Scatter Chart */}
-            <div className="mb-8 relative">
-                {showInstructions && (
-                    <div className="absolute top-0 left-0 z-20 w-64 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-blue-100 ml-4 mt-12 animate-in fade-in slide-in-from-left-4 duration-500">
-                        <div className="flex justify-between items-start mb-2">
-                            <h3 className="font-semibold text-blue-900">How to use</h3>
-                            <button
-                                onClick={dismissInstructions}
-                                className="text-gray-400 hover:text-gray-600"
+            <div className="flex gap-6">
+                {/* Left Sidebar - Single Panel */}
+                <div className="w-72 flex-shrink-0">
+                    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-5">
+                        {/* Category Selector */}
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                            <select
+                                value={selectedCategory || ''}
+                                onChange={(e) => setSelectedCategory(e.target.value)}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
-                                ✕
-                            </button>
+                                {categories.map(cat => (
+                                    <option key={cat} value={cat}>{formatCategoryName(cat)}</option>
+                                ))}
+                            </select>
                         </div>
-                        <ul className="text-sm text-gray-600 space-y-2">
-                            <li className="flex items-start">
-                                <span className="mr-2 text-xs pt-1">◆</span>
-                                <span>Click clusters to view list of bills</span>
-                            </li>
-                            <li className="flex items-start">
-                                <span className="mr-2 text-xs pt-1">◆</span>
-                                <span>Outliers shown as individual bills</span>
-                            </li>
-                            <li className="flex items-start">
-                                <span className="mr-2 text-xs pt-1">◆</span>
-                                <span>Click titles in side panel to visit bill URL</span>
-                            </li>
-                        </ul>
+
+                        <hr className="border-gray-100" />
+
+                        {/* Statistics */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Statistics</h3>
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-500">Bills in Category</span>
+                                    <span className="text-lg font-bold text-gray-900">{filteredBills.length}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm text-gray-500">Subcategories</span>
+                                    <span className="text-lg font-bold text-gray-900">{categorySubcats.length}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr className="border-gray-100" />
+
+                        {/* Policy Areas */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Policy Areas</h3>
+                            <div className="flex flex-wrap gap-1.5">
+                                {categorySubcats.map(s => (
+                                    <span
+                                        key={s.subcategory}
+                                        className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-medium"
+                                    >
+                                        {formatCategoryName(s.subcategory)}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        <hr className="border-gray-100" />
+
+                        {/* How It Works */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-700 mb-3">How It Works</h3>
+                            <div className="space-y-3 text-xs text-gray-600">
+                                <div>
+                                    <h4 className="font-semibold text-gray-800 mb-0.5">Policy Areas (Axes)</h4>
+                                    <p>Each axis represents a subcategory. Bills are positioned based on their relevance to each policy area.</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold text-gray-800 mb-0.5">Similarity Scores</h4>
+                                    <p>Bills are compared using <strong>cosine similarity</strong> between text embeddings. Higher scores mean stronger relevance.</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold text-gray-800 mb-0.5">Clustering</h4>
+                                    <p>Similar bills are grouped using <strong>K-means clustering</strong>, analyzing similarity patterns to create related groups.</p>
+                                </div>
+                                <div>
+                                    <h4 className="font-semibold text-gray-800 mb-0.5">Position</h4>
+                                    <p>Bills closer to an axis have higher relevance to that topic. Bills near the center have balanced scores across areas.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                )}
-                <h2 className="text-xl font-semibold mb-4">Bills Distribution</h2>
-                <PolarScatterChart
-                    bills={filteredBills}
-                    subcategoryNames={categorySubcats.map(s => s.subcategory)}
-                />
+                </div>
+
+                {/* Main Chart Area */}
+                <div className="flex-1 relative">
+                    {showInstructions && (
+                        <div className="absolute top-0 left-0 z-20 w-64 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-blue-100">
+                            <div className="flex justify-between items-start mb-2">
+                                <h3 className="font-semibold text-blue-900">Quick Tips</h3>
+                                <button
+                                    onClick={dismissInstructions}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                            <ul className="text-sm text-gray-600 space-y-2">
+                                <li className="flex items-start">
+                                    <span className="mr-2 text-blue-500">•</span>
+                                    <span>Click clusters to view grouped bills</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="mr-2 text-blue-500">•</span>
+                                    <span>Toggle to see individual bill distribution</span>
+                                </li>
+                                <li className="flex items-start">
+                                    <span className="mr-2 text-blue-500">•</span>
+                                    <span>Click bills in the side panel to view details</span>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
+                    <PolarScatterChart
+                        bills={filteredBills}
+                        subcategoryNames={categorySubcats.map(s => s.subcategory)}
+                    />
+                </div>
             </div>
         </div>
     );
