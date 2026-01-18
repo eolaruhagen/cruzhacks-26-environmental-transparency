@@ -332,34 +332,34 @@ export default function ClimateImpactPage() {
         </section>
 
         {/* Why These Metrics Matter */}
-        <section className="mb-12 bg-accent/10 border border-accent/20 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Why Track These Metrics?</h2>
+        <section className="mb-12 bg-card border border-border rounded-2xl p-8">
+          <h2 className="text-2xl font-bold text-main mb-4">Why Track These Metrics?</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Accountability</h3>
-              <p className="text-gray-700 text-sm">
-                Metrics create measurable goals. Without numbers, it's impossible to know if policies are working 
+              <h3 className="font-semibold text-main mb-2">Accountability</h3>
+              <p className="text-main/80 text-sm">
+                Metrics create measurable goals. Without numbers, it's impossible to know if policies are working
                 or if leaders are keeping their promises.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Early Warning</h3>
-              <p className="text-gray-700 text-sm">
-                Trends in these metrics can warn us of problems before they become crises—allowing time for 
+              <h3 className="font-semibold text-main mb-2">Early Warning</h3>
+              <p className="text-main/80 text-sm">
+                Trends in these metrics can warn us of problems before they become crises—allowing time for
                 policy interventions.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Informed Voting</h3>
-              <p className="text-gray-700 text-sm">
-                Understanding the data helps you evaluate candidates' environmental claims and hold elected 
+              <h3 className="font-semibold text-main mb-2">Informed Voting</h3>
+              <p className="text-main/80 text-sm">
+                Understanding the data helps you evaluate candidates' environmental claims and hold elected
                 officials accountable.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Global Context</h3>
-              <p className="text-gray-700 text-sm">
-                Climate change is global. These metrics let you compare your country's progress against 
+              <h3 className="font-semibold text-main mb-2">Global Context</h3>
+              <p className="text-main/80 text-sm">
+                Climate change is global. These metrics let you compare your country's progress against
                 international goals and other nations.
               </p>
             </div>

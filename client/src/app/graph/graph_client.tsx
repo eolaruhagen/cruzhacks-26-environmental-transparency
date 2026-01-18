@@ -1,14 +1,6 @@
 "use client"
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import {
-    RadarChart,
-    PolarGrid,
-    PolarAngleAxis,
-    Radar,
-    ResponsiveContainer,
-    Tooltip
-} from 'recharts';
 import { kmeans } from 'ml-kmeans';
 
 // Cluster interface
@@ -23,31 +15,32 @@ interface Cluster {
 interface PolarScatterChartProps {
     bills: BillWithScores[];
     subcategoryNames: string[];
-    numClusters?: number;
 }
 
-function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarScatterChartProps) {
+function PolarScatterChart({ bills, subcategoryNames }: PolarScatterChartProps) {
     const [showClusters, setShowClusters] = useState(true);
     const [hoveredCluster, setHoveredCluster] = useState<number | null>(null);
     const [selectedBill, setSelectedBill] = useState<BillWithScores | null>(null);
     const [panelHeight, setPanelHeight] = useState(300);
 
-    if (subcategoryNames.length === 0 || bills.length === 0) {
-        return <div className="text-gray-500">No data to display</div>;
-    }
-
+    // Constants must be defined before hooks that use them
     const size = 600;
     const center = size / 2;
     const radius = size * 0.40;
 
-    // Convert bills to score vectors for clustering
-    const scoreVectors = bills.map(bill =>
-        subcategoryNames.map(subcat => bill.subcategoryScores[subcat] || 0)
+    // Convert bills to score vectors for clustering (memoized)
+    const scoreVectors = useMemo(() =>
+        bills.map(bill =>
+            subcategoryNames.map(subcat => bill.subcategoryScores[subcat] || 0)
+        ),
+        [bills, subcategoryNames]
     );
 
-    // Calculate position for a score vector
-    const getPosition = (scores: number[]) => {
+    // Calculate position for a score vector (memoized callback)
+    const getPosition = useCallback((scores: number[]) => {
         const n = subcategoryNames.length;
+        if (n === 0) return { x: center, y: center };
+
         let dirX = 0, dirY = 0;
 
         scores.forEach((score, i) => {
@@ -72,7 +65,7 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
             x: center + dirX * billRadius,
             y: center + dirY * billRadius
         };
-    };
+    }, [subcategoryNames.length, radius, center]);
 
     // Perform k-means clustering with cluster count based on data SPREAD (not amount)
     const clusters: Cluster[] = useMemo(() => {
@@ -232,27 +225,6 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                 return minRadius + (billCount / Math.max(maxBillCount, 1)) * (maxRadius - minRadius);
             };
 
-            const maxBillCount = Math.max(...finalClusters.map(c => c.bills.length), 1);
-
-            // Calculate overlap percentage between two circles
-            const circleOverlap = (c1: Cluster, c2: Cluster): number => {
-                const r1 = getClusterRadius(c1.bills.length, maxBillCount);
-                const r2 = getClusterRadius(c2.bills.length, maxBillCount);
-                const dx = c1.x - c2.x;
-                const dy = c1.y - c2.y;
-                const d = Math.sqrt(dx * dx + dy * dy);
-
-                // No overlap
-                if (d >= r1 + r2) return 0;
-                // One inside the other
-                if (d <= Math.abs(r1 - r2)) return 1;
-
-                // Overlap area calculation (simplified)
-                const overlapDist = (r1 + r2) - d;
-                const smallerRadius = Math.min(r1, r2);
-                return Math.min(overlapDist / (smallerRadius * 2), 1);
-            };
-
             // Iteratively merge overlapping clusters until no overlaps remain
             const overlapThreshold = 0.05; // Merge if practically ANY overlap (>5%)
             let currentClusters = [...finalClusters];
@@ -316,14 +288,17 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
             console.error('Clustering failed:', e);
             return [];
         }
-    }, [bills, subcategoryNames]);
+    }, [bills, subcategoryNames, scoreVectors, getPosition, size]);
 
-    // Individual bill positions
-    const billPositions = bills.map(bill => {
-        const scores = subcategoryNames.map(subcat => bill.subcategoryScores[subcat] || 0);
-        const pos = getPosition(scores);
-        return { ...pos, bill };
-    });
+    // Individual bill positions (memoized)
+    const billPositions = useMemo(() =>
+        bills.map(bill => {
+            const scores = subcategoryNames.map(subcat => bill.subcategoryScores[subcat] || 0);
+            const pos = getPosition(scores);
+            return { ...pos, bill };
+        }),
+        [bills, subcategoryNames, getPosition]
+    );
 
     // Find extreme outliers - bills that are REALLY far from their cluster (>220px)
     // AND not close to any other cluster
@@ -367,6 +342,11 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
 
         return { finalClusters: updatedClusters, extremeOutliers: outliers };
     }, [clusters, billPositions]);
+
+    // Early return for empty data (placed after all hooks)
+    if (subcategoryNames.length === 0 || bills.length === 0) {
+        return <div className="text-gray-500">No data to display</div>;
+    }
 
     // Format subcategory name from snake_case to Title Case
     const formatSubcatName = (name: string): string => {
@@ -418,32 +398,17 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
         const formattedName = formatSubcatName(subcat);
 
         return (
-            <g key={`label-${subcat}`}>
-                {/* White outline for readability */}
-                <text
-                    x={labelX}
-                    y={labelY}
-                    textAnchor={textAnchor}
-                    dominantBaseline="middle"
-                    stroke="white"
-                    strokeWidth={3}
-                    fill="white"
-                    style={{ fontSize: '11px', fontWeight: 700 }}
-                >
-                    {formattedName}
-                </text>
-                {/* Actual text on top */}
-                <text
-                    x={labelX}
-                    y={labelY}
-                    textAnchor={textAnchor}
-                    dominantBaseline="middle"
-                    fill="#1f2937"
-                    style={{ fontSize: '11px', fontWeight: 700 }}
-                >
-                    {formattedName}
-                </text>
-            </g>
+            <text
+                key={`label-${subcat}`}
+                x={labelX}
+                y={labelY}
+                textAnchor={textAnchor}
+                dominantBaseline="middle"
+                fill="white"
+                style={{ fontSize: '14px' }}
+            >
+                {formattedName}
+            </text>
         );
     });
 
@@ -479,7 +444,7 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
             <div className="flex justify-center mb-4">
                 <button
                     onClick={() => setShowClusters(!showClusters)}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    className="px-4 py-2 bg-card text-main rounded-lg border border-border hover:bg-card-hover transition font-medium shadow-sm"
                 >
                     {showClusters ? 'Show Individual Bills' : 'Show Clusters'}
                 </button>
@@ -588,18 +553,18 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
             {/* Side panel for hovered cluster bills */}
             {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
                 <div
-                    className="fixed top-0 right-0 w-80 bg-white border-l border-b border-gray-200 shadow-xl overflow-hidden z-50"
+                    className="fixed top-20 right-0 w-80 bg-card border-l border-b border-border shadow-xl overflow-hidden z-50"
                     style={{ height: panelHeight, minHeight: 150, maxHeight: 600 }}
                 >
                     <div
-                        className="bg-gray-50 px-4 py-2.5 border-b flex justify-between items-center"
+                        className="bg-card px-4 py-2.5 border-b border-border flex justify-between items-center"
                     >
-                        <span className="text-sm text-gray-700 font-semibold">
+                        <span className="text-sm text-main font-semibold">
                             Cluster Bills ({finalClusters[hoveredCluster].bills.length})
                         </span>
                         <button
                             onClick={() => setHoveredCluster(null)}
-                            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                            className="text-main/50 hover:text-main text-lg leading-none"
                         >
                             ×
                         </button>
@@ -614,13 +579,13 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                                 href={bill.url || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block px-3 py-2 text-sm hover:bg-blue-50 rounded-lg transition-colors"
+                                className="block px-3 py-2 text-sm hover:bg-accent/20 rounded-lg transition-colors"
                                 onClick={(e) => !bill.url && e.preventDefault()}
                             >
-                                <div className="font-medium text-gray-900 truncate">
+                                <div className="font-medium text-main truncate">
                                     {bill.title || bill.legislation_number}
                                 </div>
-                                <div className="text-xs text-gray-500">
+                                <div className="text-xs text-main/60">
                                     {bill.legislation_number}
                                 </div>
                             </a>
@@ -628,7 +593,7 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                     </div>
                     {/* Resize handle */}
                     <div
-                        className="h-6 bg-gray-50 border-t border-gray-200 cursor-ns-resize flex items-center justify-center hover:bg-gray-100"
+                        className="h-6 bg-card border-t border-border cursor-ns-resize flex items-center justify-center hover:bg-card-hover"
                         onMouseDown={(e) => {
                             e.preventDefault();
                             const startY = e.clientY;
@@ -645,7 +610,7 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                             document.addEventListener('mouseup', onMouseUp);
                         }}
                     >
-                        <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+                        <div className="w-10 h-1 bg-border rounded-full"></div>
                     </div>
                 </div>
             )}
@@ -902,7 +867,7 @@ export default function GraphClient() {
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Policy Radar</h1>
+                    <h1 className="text-3xl font-bold text-white">Policy Radar</h1>
                     <p className="text-gray-500 mt-1">Visualize environmental legislation by policy area</p>
                 </div>
                 {isBackgroundLoading && (
@@ -915,14 +880,14 @@ export default function GraphClient() {
             <div className="flex gap-6">
                 {/* Left Sidebar - Single Panel */}
                 <div className="w-72 flex-shrink-0">
-                    <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-5">
+                    <div className="bg-card rounded-xl border border-border p-4 space-y-5">
                         {/* Category Selector */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Category</label>
+                            <label className="block text-sm font-semibold text-white mb-2">Category</label>
                             <select
                                 value={selectedCategory || ''}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full border bg-gray-300 border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{formatCategoryName(cat)}</option>
@@ -934,15 +899,15 @@ export default function GraphClient() {
 
                         {/* Statistics */}
                         <div>
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Statistics</h3>
+                            <h3 className="text-sm font-semibold text-white mb-3">Statistics</h3>
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-500">Bills in Category</span>
-                                    <span className="text-lg font-bold text-gray-900">{filteredBills.length}</span>
+                                    <span className="text-sm text-gray-400">Bills in Category</span>
+                                    <span className="text-lg font-bold text-gray-400">{filteredBills.length}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-500">Subcategories</span>
-                                    <span className="text-lg font-bold text-gray-900">{categorySubcats.length}</span>
+                                    <span className="text-sm text-gray-400">Subcategories</span>
+                                    <span className="text-lg font-bold text-gray-400">{categorySubcats.length}</span>
                                 </div>
                             </div>
                         </div>
@@ -951,12 +916,12 @@ export default function GraphClient() {
 
                         {/* Policy Areas */}
                         <div>
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">Policy Areas</h3>
+                            <h3 className="text-sm font-semibold text-white mb-3">Policy Areas</h3>
                             <div className="flex flex-wrap gap-1.5">
                                 {categorySubcats.map(s => (
                                     <span
                                         key={s.subcategory}
-                                        className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md font-medium"
+                                        className="px-2 py-1 text-gray-400 text-xs rounded-md font-medium"
                                     >
                                         {formatCategoryName(s.subcategory)}
                                     </span>
@@ -968,22 +933,22 @@ export default function GraphClient() {
 
                         {/* How It Works */}
                         <div>
-                            <h3 className="text-sm font-semibold text-gray-700 mb-3">How It Works</h3>
-                            <div className="space-y-3 text-xs text-gray-600">
+                            <h3 className="text-sm font-semibold text-white mb-3">How It Works</h3>
+                            <div className="space-y-3 text-xs text-gray-400">
                                 <div>
-                                    <h4 className="font-semibold text-gray-800 mb-0.5">Policy Areas (Axes)</h4>
+                                    <h4 className="font-semibold text-gray-400 mb-0.5">Policy Areas (Axes)</h4>
                                     <p>Each axis represents a subcategory. Bills are positioned based on their relevance to each policy area.</p>
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-800 mb-0.5">Similarity Scores</h4>
+                                    <h4 className="font-semibold text-gray-400 mb-0.5">Similarity Scores</h4>
                                     <p>Bills are compared using <strong>cosine similarity</strong> between text embeddings. Higher scores mean stronger relevance.</p>
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-800 mb-0.5">Clustering</h4>
+                                    <h4 className="font-semibold text-gray-400 mb-0.5">Clustering</h4>
                                     <p>Similar bills are grouped using <strong>K-means clustering</strong>, analyzing similarity patterns to create related groups.</p>
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-800 mb-0.5">Position</h4>
+                                    <h4 className="font-semibold text-gray-400 mb-0.5">Position</h4>
                                     <p>Bills closer to an axis have higher relevance to that topic. Bills near the center have balanced scores across areas.</p>
                                 </div>
                             </div>
@@ -994,28 +959,28 @@ export default function GraphClient() {
                 {/* Main Chart Area */}
                 <div className="flex-1 relative">
                     {showInstructions && (
-                        <div className="absolute top-0 left-0 z-20 w-64 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-blue-100">
+                        <div className="absolute top-0 left-0 z-20 w-64 bg-card backdrop-blur-sm p-4 rounded-lg shadow-xl border border-border">
                             <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-semibold text-blue-900">Quick Tips</h3>
+                                <h3 className="font-semibold text-white">Quick Tips</h3>
                                 <button
                                     onClick={dismissInstructions}
-                                    className="text-gray-400 hover:text-gray-600"
+                                    className="text-gray-800 hover:text-gray-600"
                                 >
                                     ✕
                                 </button>
                             </div>
                             <ul className="text-sm text-gray-600 space-y-2">
                                 <li className="flex items-start">
-                                    <span className="mr-2 text-blue-500">•</span>
-                                    <span>Click clusters to view grouped bills</span>
+                                    <span className="mr-2 text-white">•</span>
+                                    <span className="text-gray-400">Click clusters to view grouped bills</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <span className="mr-2 text-blue-500">•</span>
-                                    <span>Toggle to see individual bill distribution</span>
+                                    <span className="mr-2 text-white">•</span>
+                                    <span className="text-gray-400">Toggle to see individual bill distribution</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <span className="mr-2 text-blue-500">•</span>
-                                    <span>Click bills in the side panel to view details</span>
+                                    <span className="mr-2 text-white">•</span>
+                                    <span className="text-gray-400">Click bills in the side panel to view details</span>
                                 </li>
                             </ul>
                         </div>
