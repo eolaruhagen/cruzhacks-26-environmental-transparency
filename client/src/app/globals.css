@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  /* Color Palette - Nature-inspired, readable */
+  /* Color Palette - Light Mode (Nature-inspired, readable) */
   --color-bg: #FAFAF8;              /* Warm off-white background */
   --color-nav: #588157;             /* Forest green navbar */
   --color-card: #DAD7CD;            /* Warm sage/beige cards */
@@ -13,9 +13,26 @@
   --color-accent: #588157;          /* Forest green accent */
   --color-accent-dark: #3A5A40;     /* Darker green hover */
   --color-border: #A3B18A;          /* Sage border */
-  
+  --color-module: #ffffff;          /* White modules/panels */
+  --color-module-hover: #f5f5f5;    /* Hover state for modules */
+
   /* Font */
-  --font-quicksand: 'Quicksand', sans-serif;
+  --font-inter: 'Inter', sans-serif;
+}
+
+/* Dark Mode Color Palette */
+.dark {
+  --color-bg: #1a1f1a;              /* Very dark green-black background */
+  --color-nav: #2d3a2d;             /* Dark forest green navbar */
+  --color-card: #252d25;            /* Dark green-gray cards */
+  --color-card-hover: #313b31;      /* Slightly lighter on hover */
+  --color-text: #e8efe8;            /* Light green-white text */
+  --color-text-light: #b8c9b8;      /* Muted sage text */
+  --color-accent: #6b9b6b;          /* Muted forest green accent */
+  --color-accent-dark: #8ab88a;     /* Lighter green hover */
+  --color-border: #3d4a3d;          /* Dark sage border */
+  --color-module: #e8e8e0;          /* Softer off-white for dark mode modules */
+  --color-module-hover: #deded6;    /* Hover state for dark mode modules */
 }
 
 html {
@@ -37,12 +54,23 @@ body {
   .bg-card-hover:hover { background-color: var(--color-card-hover) !important; }
   .bg-accent { background-color: var(--color-accent) !important; }
   .hover\:bg-accent-dark:hover { background-color: var(--color-accent-dark) !important; }
+  .bg-module { background-color: var(--color-module) !important; }
+  .hover\:bg-module-hover:hover { background-color: var(--color-module-hover) !important; }
   .text-main { color: var(--color-text); }
   .text-light { color: var(--color-text-light); }
   .text-accent { color: var(--color-accent); }
   .text-accent-dark { color: var(--color-accent-dark); }
   .border-card { border-color: var(--color-border); }
   .border-border { border-color: var(--color-border); }
+}
+
+/* Override white backgrounds in dark mode to be softer */
+.dark .bg-white {
+  background-color: var(--color-module) !important;
+}
+
+.dark .hover\:bg-gray-100:hover {
+  background-color: var(--color-module-hover) !important;
 }
 
 /* Text card component */
@@ -84,4 +112,14 @@ body {
 ::selection {
   background: rgba(88, 129, 87, 0.3);
   color: var(--color-text);
+}
+
+.dark ::selection {
+  background: rgba(107, 155, 107, 0.4);
+  color: var(--color-text);
+}
+
+/* Smooth transition for theme changes */
+body {
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

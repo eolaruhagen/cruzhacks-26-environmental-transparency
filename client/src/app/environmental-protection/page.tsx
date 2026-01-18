@@ -19,21 +19,21 @@ export default function EnvironmentalProtectionPage() {
         </header>
 
         {/* Introduction */}
-        <section className="mb-12 bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Why Environmental Law Matters</h2>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Environmental law is the collection of regulations, statutes, and common law that governs how humans interact 
-            with the natural world. These laws address air and water quality, waste management, species protection, 
+        <section className="mb-12 bg-card rounded-2xl border border-border p-8">
+          <h2 className="text-2xl font-bold text-main mb-4">Why Environmental Law Matters</h2>
+          <p className="text-main/80 leading-relaxed mb-4">
+            Environmental law is the collection of regulations, statutes, and common law that governs how humans interact
+            with the natural world. These laws address air and water quality, waste management, species protection,
             natural resource management, and the overall sustainability of human activities.
           </p>
-          <p className="text-gray-700 leading-relaxed mb-4">
-            Without legal frameworks, there would be no enforceable standards to prevent pollution, protect endangered 
-            species, or preserve natural habitats. Environmental legislation creates accountability—it gives citizens 
+          <p className="text-main/80 leading-relaxed mb-4">
+            Without legal frameworks, there would be no enforceable standards to prevent pollution, protect endangered
+            species, or preserve natural habitats. Environmental legislation creates accountability—it gives citizens
             the power to hold corporations and governments responsible for environmental harm.
           </p>
-          <p className="text-gray-700 leading-relaxed">
-            The stakes couldn't be higher: climate change, biodiversity loss, and pollution threaten human health, 
-            economic stability, and the survival of countless species. Effective environmental law is our primary 
+          <p className="text-main/80 leading-relaxed">
+            The stakes couldn't be higher: climate change, biodiversity loss, and pollution threaten human health,
+            economic stability, and the survival of countless species. Effective environmental law is our primary
             tool for addressing these challenges at scale.
           </p>
         </section>
@@ -92,10 +92,10 @@ export default function EnvironmentalProtectionPage() {
           </h2>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-2">Clean Air Act (1970)</h3>
-              <p className="text-gray-600 text-sm mb-3">Regulates air emissions from stationary and mobile sources</p>
-              <ul className="text-gray-700 text-sm space-y-1">
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="font-bold text-main text-lg mb-2">Clean Air Act (1970)</h3>
+              <p className="text-main/60 text-sm mb-3">Regulates air emissions from stationary and mobile sources</p>
+              <ul className="text-main/80 text-sm space-y-1">
                 <li>• Sets National Ambient Air Quality Standards</li>
                 <li>• Regulates hazardous air pollutants</li>
                 <li>• Controls vehicle emissions</li>
@@ -103,10 +103,10 @@ export default function EnvironmentalProtectionPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-2">Clean Water Act (1972)</h3>
-              <p className="text-gray-600 text-sm mb-3">Establishes structure for regulating pollutant discharges</p>
-              <ul className="text-gray-700 text-sm space-y-1">
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="font-bold text-main text-lg mb-2">Clean Water Act (1972)</h3>
+              <p className="text-main/60 text-sm mb-3">Establishes structure for regulating pollutant discharges</p>
+              <ul className="text-main/80 text-sm space-y-1">
                 <li>• Sets water quality standards for surface waters</li>
                 <li>• Requires permits for point source pollution</li>
                 <li>• Protects wetlands</li>
@@ -114,10 +114,10 @@ export default function EnvironmentalProtectionPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-2">Endangered Species Act (1973)</h3>
-              <p className="text-gray-600 text-sm mb-3">Protects critically imperiled species and their habitats</p>
-              <ul className="text-gray-700 text-sm space-y-1">
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="font-bold text-main text-lg mb-2">Endangered Species Act (1973)</h3>
+              <p className="text-main/60 text-sm mb-3">Protects critically imperiled species and their habitats</p>
+              <ul className="text-main/80 text-sm space-y-1">
                 <li>• Lists species as threatened or endangered</li>
                 <li>• Designates critical habitat</li>
                 <li>• Prohibits "take" of listed species</li>
@@ -125,10 +125,10 @@ export default function EnvironmentalProtectionPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-bold text-gray-900 text-lg mb-2">NEPA (1970)</h3>
-              <p className="text-gray-600 text-sm mb-3">National Environmental Policy Act</p>
-              <ul className="text-gray-700 text-sm space-y-1">
+            <div className="bg-card rounded-xl border border-border p-6">
+              <h3 className="font-bold text-main text-lg mb-2">NEPA (1970)</h3>
+              <p className="text-main/60 text-sm mb-3">National Environmental Policy Act</p>
+              <ul className="text-main/80 text-sm space-y-1">
                 <li>• Requires Environmental Impact Statements</li>
                 <li>• Mandates consideration of alternatives</li>
                 <li>• Ensures public participation</li>
@@ -139,16 +139,16 @@ export default function EnvironmentalProtectionPage() {
         </section>
 
         {/* How Laws Protect */}
-        <section className="mb-12 bg-accent/10 border border-accent/20 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">How Environmental Laws Actually Protect Us</h2>
-          
+        <section className="mb-12 bg-card border border-border rounded-2xl p-8">
+          <h2 className="text-2xl font-bold text-main mb-6">How Environmental Laws Actually Protect Us</h2>
+
           <div className="space-y-6">
             <div className="flex gap-4">
               <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">1</div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Setting Standards</h3>
-                <p className="text-gray-700">
-                  Laws establish measurable limits on pollution—how much lead in drinking water, particulate matter in air, 
+                <h3 className="font-semibold text-main mb-1">Setting Standards</h3>
+                <p className="text-main/80">
+                  Laws establish measurable limits on pollution—how much lead in drinking water, particulate matter in air,
                   or chemicals in rivers. Without standards, there's no way to define "too much."
                 </p>
               </div>
@@ -157,9 +157,9 @@ export default function EnvironmentalProtectionPage() {
             <div className="flex gap-4">
               <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">2</div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Requiring Permits</h3>
-                <p className="text-gray-700">
-                  Companies must obtain permits before discharging pollutants. This creates a paper trail, 
+                <h3 className="font-semibold text-main mb-1">Requiring Permits</h3>
+                <p className="text-main/80">
+                  Companies must obtain permits before discharging pollutants. This creates a paper trail,
                   allows public comment, and gives regulators oversight over industrial activities.
                 </p>
               </div>
@@ -168,9 +168,9 @@ export default function EnvironmentalProtectionPage() {
             <div className="flex gap-4">
               <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">3</div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Enforcement & Penalties</h3>
-                <p className="text-gray-700">
-                  Laws have teeth—violators face fines, cleanup costs, and even criminal prosecution. 
+                <h3 className="font-semibold text-main mb-1">Enforcement & Penalties</h3>
+                <p className="text-main/80">
+                  Laws have teeth—violators face fines, cleanup costs, and even criminal prosecution.
                   The threat of enforcement incentivizes compliance.
                 </p>
               </div>
@@ -179,9 +179,9 @@ export default function EnvironmentalProtectionPage() {
             <div className="flex gap-4">
               <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">4</div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Citizen Suits</h3>
-                <p className="text-gray-700">
-                  Many environmental laws allow citizens to sue polluters or government agencies that fail to enforce the law. 
+                <h3 className="font-semibold text-main mb-1">Citizen Suits</h3>
+                <p className="text-main/80">
+                  Many environmental laws allow citizens to sue polluters or government agencies that fail to enforce the law.
                   This democratizes environmental protection and holds everyone accountable.
                 </p>
               </div>
@@ -190,14 +190,14 @@ export default function EnvironmentalProtectionPage() {
         </section>
 
         {/* Your Role Section */}
-        <section className="mb-12 bg-white rounded-2xl border border-gray-200 p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <section className="mb-12 bg-card rounded-2xl border border-border p-8">
+          <h2 className="text-2xl font-bold text-main mb-4">
             Your Role in Environmental Protection
           </h2>
-          <p className="text-gray-700 leading-relaxed mb-6">
-            Environmental laws only work if they're enforced—and enforcement depends on political will. 
-            Your representatives in Congress vote on environmental legislation, confirm EPA administrators, 
-            and control the agency's budget. <strong>Knowing how your representatives vote on environmental 
+          <p className="text-main/80 leading-relaxed mb-6">
+            Environmental laws only work if they're enforced—and enforcement depends on political will.
+            Your representatives in Congress vote on environmental legislation, confirm EPA administrators,
+            and control the agency's budget. <strong>Knowing how your representatives vote on environmental
             issues is the first step to holding them accountable.</strong>
           </p>
           

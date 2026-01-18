@@ -379,12 +379,12 @@ export default function MyRepClient() {
     return (
       <div>
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 bg-white rounded-xl border border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 bg-card rounded-xl border border-border">
           <div>
-            <p className="text-gray-900 font-medium">
+            <p className="text-white font-medium">
               Congress members for <span className="font-bold text-accent">{stateName}</span>
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-400">
               {senators.length} Senator{senators.length !== 1 ? 's' : ''} • {reps.length} Representative{reps.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -404,7 +404,7 @@ export default function MyRepClient() {
         {/* Senators Section */}
         {senators.length > 0 && (
           <div className="mb-10">
-            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">🏛️</span>
               U.S. Senators
             </h3>
@@ -413,11 +413,11 @@ export default function MyRepClient() {
                 <button
                   key={index}
                   onClick={() => handleRepClick(rep)}
-                  className={`bg-white rounded-xl border border-gray-200 border-l-4 ${getPartyBorder(rep.party)} p-5 text-left hover:shadow-lg hover:border-gray-300 transition-all duration-200 group`}
+                  className={`bg-card rounded-xl border border-border border-l-4 ${getPartyBorder(rep.party)} p-5 text-left hover:shadow-lg hover:border-gray-300 transition-all duration-200 group`}
                 >
                   <div className="flex gap-4">
                     {/* Photo */}
-                    <div className="shrink-0 w-20 h-24 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <div className="shrink-0 w-20 h-24 rounded-lg bg-card flex items-center justify-center overflow-hidden">
                       {rep.photoUrl ? (
                         <img src={rep.photoUrl} alt={rep.name} className="w-full h-full object-cover" />
                       ) : (
@@ -431,10 +431,10 @@ export default function MyRepClient() {
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mb-2 ${getPartyBadge(rep.party)}`}>
                         {rep.party}
                       </span>
-                      <h4 className="text-lg font-bold text-gray-900 group-hover:text-accent transition-colors">
+                      <h4 className="text-lg font-bold text-white group-hover:text-accent transition-colors">
                         {rep.name}
                       </h4>
-                      <p className="text-sm text-gray-600">{rep.title}</p>
+                      <p className="text-sm text-gray-400">{rep.title}</p>
                       <div className="flex items-center gap-1 mt-3 text-accent text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                         View Details
                         <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -452,7 +452,7 @@ export default function MyRepClient() {
         {/* Representatives Section */}
         {reps.length > 0 && (
           <div>
-            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">🏠</span>
               U.S. Representatives
             </h3>
@@ -461,11 +461,11 @@ export default function MyRepClient() {
                 <button
                   key={index}
                   onClick={() => handleRepClick(rep)}
-                  className={`bg-white rounded-xl border border-gray-200 border-l-4 ${getPartyBorder(rep.party)} p-4 text-left hover:shadow-lg hover:border-gray-300 transition-all duration-200 group`}
+                  className={`bg-card rounded-xl border border-border border-l-4 ${getPartyBorder(rep.party)} p-4 text-left hover:shadow-lg hover:border-gray-300 transition-all duration-200 group`}
                 >
                   <div className="flex gap-3">
                     {/* Photo */}
-                    <div className="shrink-0 w-14 h-16 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                    <div className="shrink-0 w-14 h-16 rounded-lg bg-card flex items-center justify-center overflow-hidden">
                       {rep.photoUrl ? (
                         <img src={rep.photoUrl} alt={rep.name} className="w-full h-full object-cover" />
                       ) : (
@@ -479,10 +479,10 @@ export default function MyRepClient() {
                       <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mb-1 ${getPartyBadge(rep.party)}`}>
                         {rep.party}
                       </span>
-                      <h4 className="text-sm font-bold text-gray-900 group-hover:text-accent transition-colors truncate">
+                      <h4 className="text-sm font-bold text-white group-hover:text-accent transition-colors truncate">
                         {rep.name}
                       </h4>
-                      <p className="text-xs text-gray-600">
+                      <p className="text-xs text-gray-400">
                         {rep.district ? `District ${rep.district}` : rep.title}
                       </p>
                     </div>
@@ -518,17 +518,17 @@ export default function MyRepClient() {
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="w-full px-5 py-4 text-lg bg-white border-2 border-border rounded-xl text-main focus:outline-none focus:border-accent transition-all duration-200 appearance-none cursor-pointer"
+              className="w-full px-5 py-4 text-lg bg-gray-800 text-gray-100 border-2 border-border rounded-xl focus:outline-none focus:border-accent transition-all duration-200 appearance-none cursor-pointer"
             >
-              <option value="">Select your state...</option>
+              <option value="" className="bg-gray-800 text-gray-100">Select your state...</option>
               {states.map((state) => (
-                <option key={state.code} value={state.code}>
+                <option key={state.code} value={state.code} className="bg-gray-800 text-gray-100">
                   {state.name}
                 </option>
               ))}
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-5 h-5 text-main/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
