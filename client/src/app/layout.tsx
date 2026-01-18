@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
-import { Quicksand } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import Navbar from '@/components/Navbar'
 import './globals.css'
 
-const quicksand = Quicksand({ 
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-quicksand',
+  variable: '--font-inter',
 })
 
 export const metadata: Metadata = {
@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={`${quicksand.variable} font-sans antialiased bg-main`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans antialiased bg-main`}>
         <Navbar />
         {children}
       </body>

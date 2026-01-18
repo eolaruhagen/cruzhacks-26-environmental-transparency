@@ -89,21 +89,21 @@ export default function ExecutiveBranchPage() {
         </section>
 
         {/* Executive Orders Section */}
-        <section className="mb-12 bg-accent/10 border border-accent/20 rounded-2xl p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
+        <section className="mb-12 bg-card border border-border rounded-2xl p-8">
+          <h2 className="text-2xl font-bold text-main mb-6">
             Executive Orders & Actions
           </h2>
-          
-          <p className="text-gray-700 leading-relaxed mb-6">
-            Presidents can act unilaterally through executive orders—directives that manage operations of the 
-            federal government. While they can't create new laws, executive orders can significantly shape 
+
+          <p className="text-main/80 leading-relaxed mb-6">
+            Presidents can act unilaterally through executive orders—directives that manage operations of the
+            federal government. While they can't create new laws, executive orders can significantly shape
             how existing laws are implemented.
           </p>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl p-5">
-              <h3 className="font-semibold text-gray-900 mb-2">What They Can Do</h3>
-              <ul className="text-gray-700 text-sm space-y-2">
+            <div className="bg-main/10 rounded-xl p-5">
+              <h3 className="font-semibold text-main mb-2">What They Can Do</h3>
+              <ul className="text-main/80 text-sm space-y-2">
                 <li>• Direct agencies to prioritize certain enforcement</li>
                 <li>• Create new federal programs within existing authority</li>
                 <li>• Establish policies for federal contractors</li>
@@ -112,9 +112,9 @@ export default function ExecutiveBranchPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-xl p-5">
-              <h3 className="font-semibold text-gray-900 mb-2">What They Cannot Do</h3>
-              <ul className="text-gray-700 text-sm space-y-2">
+            <div className="bg-main/10 rounded-xl p-5">
+              <h3 className="font-semibold text-main mb-2">What They Cannot Do</h3>
+              <ul className="text-main/80 text-sm space-y-2">
                 <li>• Create laws that Congress hasn't authorized</li>
                 <li>• Spend money not appropriated by Congress</li>
                 <li>• Override constitutional rights</li>
@@ -124,10 +124,10 @@ export default function ExecutiveBranchPage() {
             </div>
           </div>
 
-          <div className="mt-6 p-4 bg-white rounded-lg">
-            <p className="text-gray-700 text-sm">
-              <strong>Environmental Example:</strong> Presidents have used executive orders to establish 
-              national monuments, set emissions targets for federal buildings, require environmental justice 
+          <div className="mt-6 p-4 bg-main/10 rounded-lg">
+            <p className="text-main/80 text-sm">
+              <strong>Environmental Example:</strong> Presidents have used executive orders to establish
+              national monuments, set emissions targets for federal buildings, require environmental justice
               reviews, and withdraw areas from oil drilling—all without new legislation.
             </p>
           </div>
