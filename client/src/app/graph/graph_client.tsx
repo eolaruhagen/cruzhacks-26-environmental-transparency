@@ -590,7 +590,7 @@ interface Subcategory {
 interface Bill {
     legislation_number: string;
     category: string;
-    embedding: number[];
+    subcategory_scores: Record<string, number> | null;
     title: string;
     url: string;
 }
@@ -603,27 +603,7 @@ interface BillWithScores {
     subcategoryScores: Record<string, number>;  // subcategory name -> similarity score (0-1)
 }
 
-// Cosine similarity between two vectors
-function cosineSimilarity(vec1: number[], vec2: number[]): number {
-    if (vec1.length !== vec2.length) return 0;
 
-    let dotProduct = 0;
-    let norm1 = 0;
-    let norm2 = 0;
-
-    for (let i = 0; i < vec1.length; i++) {
-        dotProduct += vec1[i] * vec2[i];
-        norm1 += vec1[i] * vec1[i];
-        norm2 += vec2[i] * vec2[i];
-    }
-
-    const magnitude = Math.sqrt(norm1) * Math.sqrt(norm2);
-    if (magnitude === 0) return 0;
-
-    const similarity = dotProduct / magnitude;
-    // Normalize from [-1, 1] to [0, 1]
-    return (similarity + 1) / 2;
-}
 
 export default function GraphClient() {
     const [bills, setBills] = useState<BillWithScores[]>([]);
@@ -691,34 +671,26 @@ export default function GraphClient() {
                 // 3. Fetch ONLY first category bills immediately
                 const { data: initialBillsData, error: initialError } = await supabase
                     .from('house_bills')
-                    .select('legislation_number, category, embedding, title, url')
+                    .select('legislation_number, category, subcategory_scores, title, url')
                     .eq('category', firstCategory)
+                    .not('subcategory_scores', 'is', null)
                     .limit(2000); // Generous limit for single category
 
                 if (initialError) throw initialError;
 
                 const initialBills = initialBillsData as Bill[];
 
-                // Process initial bills
+                // Process bills - now just use pre-computed scores
                 const processBills = (rawBills: Bill[]) => {
                     return rawBills
-                        .filter(bill => bill.category)
-                        .map((bill) => {
-                            const scores: Record<string, number> = {};
-                            const billEmbedding = parseEmbedding(bill.embedding);
-                            // Only score against subcats in bill's category
-                            const relevantSubcats = parsedSubcats.filter(s => s.bill_type === bill.category);
-                            for (const subcat of relevantSubcats) {
-                                scores[subcat.subcategory] = cosineSimilarity(billEmbedding, subcat.embedding);
-                            }
-                            return {
-                                legislation_number: bill.legislation_number,
-                                category: bill.category,
-                                title: bill.title || bill.legislation_number,
-                                url: bill.url || '',
-                                subcategoryScores: scores
-                            };
-                        });
+                        .filter(bill => bill.category && bill.subcategory_scores)
+                        .map((bill) => ({
+                            legislation_number: bill.legislation_number,
+                            category: bill.category,
+                            title: bill.title || bill.legislation_number,
+                            url: bill.url || '',
+                            subcategoryScores: bill.subcategory_scores as Record<string, number>
+                        }));
                 };
 
                 const initialProcessed = processBills(initialBills);
@@ -733,8 +705,9 @@ export default function GraphClient() {
 
                     const { data: chunkData, error: chunkError } = await supabase
                         .from('house_bills')
-                        .select('legislation_number, category, embedding, title, url')
+                        .select('legislation_number, category, subcategory_scores, title, url')
                         .neq('category', firstCategory) // Exclude what we already have
+                        .not('subcategory_scores', 'is', null)
                         .range(from, to);
 
                     if (chunkError) {
