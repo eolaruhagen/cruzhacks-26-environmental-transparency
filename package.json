@@ -3,6 +3,7 @@
     "shadcn": "^3.7.0"
   },
   "dependencies": {
-    "recharts": "^3.6.0"
+    "recharts": "^3.6.0",
+    "supabase": "^2.72.8"
   }
 }
