@@ -16,10 +16,9 @@ import {
   Cell,
 } from 'recharts'
 
-// ============================================================================
+
 // PARIS AGREEMENT DATA - Well-documented public data from NASA/NOAA/Scripps
 // Sources: NASA GISS, Mauna Loa Observatory (Scripps/NOAA)
-// ============================================================================
 
 // Global Temperature Anomaly (°C relative to 1951-1980 baseline)
 // Source: NASA GISS Surface Temperature Analysis
@@ -67,11 +66,9 @@ const co2Data = [
   { year: 2024, actual: 424.6, safeLevel: 350 },
 ]
 
-// ============================================================================
 // CLEAN AIR ACT - US National Averages (EPA Air Trends Data)
 // Source: EPA Air Quality - National Summary
 // https://www.epa.gov/air-trends/air-quality-national-summary
-// ============================================================================
 
 // PM2.5 Annual Average (µg/m³) - Nationally weighted average
 // Source: EPA Air Trends - PM2.5 trends
@@ -171,11 +168,9 @@ const so2Data = [
   { year: 2023, actual: 4, standard: 75 },
 ]
 
-// ============================================================================
 // CLEAN WATER ACT - US National Data (EPA ATTAINS Database)
 // Source: EPA National Water Quality Inventory Reports to Congress
 // https://www.epa.gov/waterdata/national-water-quality-inventory-report-congress
-// ============================================================================
 
 // Percentage of Assessed Waters Meeting Standards (Good/Attaining)
 // Source: EPA National Water Quality Inventory (Section 305(b) Reports)
@@ -212,10 +207,10 @@ export function TemperatureChart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="#6b7280" />
             <YAxis domain={[0, 2]} tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `${v}°C`} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value.toFixed(2)}°C`,
+              formatter={(value, name) => [
+                `${(value as number ?? 0).toFixed(2)}°C`,
                 name === 'actual' ? 'Actual' : 'Paris Goal'
               ]}
             />
@@ -241,10 +236,10 @@ export function CO2Chart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="#6b7280" />
             <YAxis domain={[330, 440]} tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `${v}`} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value.toFixed(1)} ppm`,
+              formatter={(value, name) => [
+                `${(value as number ?? 0).toFixed(1)} ppm`,
                 name === 'actual' ? 'Actual' : 'Safe Level (350 ppm)'
               ]}
             />
@@ -270,10 +265,10 @@ export function PM25Chart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" interval={3} />
             <YAxis domain={[0, 16]} tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value} µg/m³`,
+              formatter={(value, name) => [
+                `${value ?? 0} µg/m³`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
@@ -299,10 +294,10 @@ export function OzoneChart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" interval={3} />
             <YAxis domain={[60, 95]} tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value} ppb`,
+              formatter={(value, name) => [
+                `${value ?? 0} ppb`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
@@ -328,10 +323,10 @@ export function NO2Chart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" />
             <YAxis domain={[0, 60]} tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value} ppb`,
+              formatter={(value, name) => [
+                `${value ?? 0} ppb`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
@@ -357,10 +352,10 @@ export function SO2Chart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" />
             <YAxis domain={[0, 80]} tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value} ppb`,
+              formatter={(value, name) => [
+                `${value ?? 0} ppb`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
@@ -386,10 +381,10 @@ export function WaterQualityChart() {
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" />
             <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `${v}%`} />
-            <Tooltip 
+            <Tooltip
               contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-              formatter={(value: number, name: string) => [
-                `${value}%`,
+              formatter={(value, name) => [
+                `${value ?? 0}%`,
                 name === 'meetingStandards' ? 'Meeting Standards' : 'Goal'
               ]}
             />
@@ -421,7 +416,7 @@ export function DataSourceNotice() {
           sampling 15 major US cities.
         </p>
         <p>
-          <strong>Historical trend charts</strong> for Clean Air/Water Act show representative data. For granular historical records, 
+          <strong>Historical trend charts</strong> for Clean Air/Water Act show representative data. For granular historical records,
           the{' '}
           <a href="https://aqs.epa.gov/aqsweb/documents/data_api.html" target="_blank" rel="noopener noreferrer" className="underline font-medium">
             EPA AQS API
@@ -548,12 +543,11 @@ export function LiveAirQuality() {
             <button
               key={pollutant.pollutant}
               onClick={() => setSelectedPollutant(pollutant.pollutant)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedPollutant === pollutant.pollutant
-                  ? `${category.bg} ${category.text} ring-2 ring-offset-1`
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              style={selectedPollutant === pollutant.pollutant ? { ringColor: category.color } : {}}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedPollutant === pollutant.pollutant
+                ? `${category.bg} ${category.text} ring-2 ring-offset-1`
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              style={selectedPollutant === pollutant.pollutant ? { '--tw-ring-color': category.color } as React.CSSProperties : {}}
             >
               {pollutant.pollutant}: {pollutant.averageAQI} AQI
             </button>
@@ -599,16 +593,16 @@ export function LiveAirQuality() {
           {/* City breakdown chart */}
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={selectedData.cityBreakdown.slice(0, 8)} 
+              <BarChart
+                data={selectedData.cityBreakdown.slice(0, 8)}
                 layout="vertical"
                 margin={{ top: 0, right: 20, left: 60, bottom: 0 }}
               >
                 <XAxis type="number" domain={[0, 'auto']} tick={{ fontSize: 10 }} stroke="#9ca3af" />
                 <YAxis type="category" dataKey="city" tick={{ fontSize: 10 }} stroke="#9ca3af" width={55} />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
-                  formatter={(value: number) => [`${value} AQI`, selectedData.pollutant]}
+                  formatter={(value) => [`${value ?? 0} AQI`, selectedData.pollutant]}
                 />
                 <Bar dataKey="aqi" radius={[0, 4, 4, 0]}>
                   {selectedData.cityBreakdown.slice(0, 8).map((entry, index) => (

@@ -93,7 +93,7 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-main mb-1">Visualize Legislation</h3>
+                    <h3 className="font-semibold text-main mb-1">Policy Radar</h3>
                     <p className="text-sm text-light leading-relaxed">
                       Interactive charts and visualizations showing environmental legislation trends and relations between
                       areas of climate policy.

@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 
 type Representative = {
   name: string
@@ -11,6 +12,16 @@ type Representative = {
   district?: string
   url?: string
   terms?: number
+}
+
+type Bill = {
+  id: string
+  legislation_number: string
+  title: string
+  url: string
+  latest_action: string
+  category: string
+  date_of_introduction: string
 }
 
 const states = [
@@ -42,16 +53,87 @@ export default function MyRepClient() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
+  // Bills state
+  const [sponsoredBills, setSponsoredBills] = useState<Bill[]>([])
+  const [cosponsoredBills, setCosponsoredBills] = useState<Bill[]>([])
+  const [activeBillsTab, setActiveBillsTab] = useState<'sponsored' | 'cosponsored'>('sponsored')
+  const [billsLoading, setBillsLoading] = useState(false)
+
+  // Extract last name from representative name for searching
+  const extractLastName = (fullName: string): string => {
+    // Handle formats like "John Smith" or "Smith, John"
+    const parts = fullName.split(',')
+    if (parts.length > 1) {
+      return parts[0].trim() // "Smith, John" -> "Smith"
+    }
+    const nameParts = fullName.split(' ')
+    return nameParts[nameParts.length - 1] // "John Smith" -> "Smith"
+  }
+
+  // Fetch bills when a representative is selected
+  useEffect(() => {
+    async function fetchBills() {
+      if (!selectedRep) {
+        setSponsoredBills([])
+        setCosponsoredBills([])
+        return
+      }
+
+      setBillsLoading(true)
+      const lastName = extractLastName(selectedRep.name)
+
+      try {
+        // Fetch sponsored bills - search sponsor field for last name
+        const { data: sponsored } = await supabase
+          .from('house_bills')
+          .select('id, legislation_number, title, url, latest_action, category, date_of_introduction')
+          .ilike('sponsor', `%${lastName}%`)
+          .order('date_of_introduction', { ascending: false })
+          .limit(25)
+
+        setSponsoredBills(sponsored || [])
+
+        // Fetch cosponsored bills - search in cosponsors array
+        // Using text search since cosponsors is a text array
+        const { data: cosponsored } = await supabase
+          .from('house_bills')
+          .select('id, legislation_number, title, url, latest_action, category, date_of_introduction')
+          .filter('cosponsors', 'cs', `{${lastName}}`)
+          .order('date_of_introduction', { ascending: false })
+          .limit(25)
+
+        // If array contains doesn't work, try text search approach
+        if (!cosponsored || cosponsored.length === 0) {
+          const { data: cosponsoredAlt } = await supabase
+            .from('house_bills')
+            .select('id, legislation_number, title, url, latest_action, category, date_of_introduction')
+            .or(`cosponsors.cs.{${lastName}}`)
+            .order('date_of_introduction', { ascending: false })
+            .limit(25)
+          setCosponsoredBills(cosponsoredAlt || [])
+        } else {
+          setCosponsoredBills(cosponsored || [])
+        }
+      } catch (err) {
+        console.error('Error fetching bills:', err)
+      } finally {
+        setBillsLoading(false)
+      }
+    }
+
+    fetchBills()
+  }, [selectedRep])
+
   const handleStateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (selectedState) {
       setIsLoading(true)
       setError('')
-      
+
       try {
         const response = await fetch(`/api/representatives?state=${selectedState}`)
         const data = await response.json()
-        
+
         if (data.error) {
           setError(data.error)
           setRepresentatives([])
@@ -169,10 +251,10 @@ export default function MyRepClient() {
                     </div>
                     <div>
                       <p className="text-sm font-medium text-gray-500">Official Website</p>
-                      <a 
-                        href={selectedRep.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
+                      <a
+                        href={selectedRep.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="text-accent hover:text-accent-dark font-semibold"
                       >
                         Visit Website →
@@ -185,17 +267,105 @@ export default function MyRepClient() {
           </div>
         </div>
 
-        {/* Info Box */}
-        <div className="bg-accent/10 border border-accent/20 rounded-xl p-5">
-          <h3 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-            <span>📊</span> About This Position
+        {/* Environmental Bills Section */}
+        <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            Environmental Legislation
           </h3>
-          <p className="text-gray-700 leading-relaxed">
-            {selectedRep.title === 'U.S. Senator' 
-              ? `U.S. Senators serve 6-year terms and represent their entire state in the Senate. Each state has exactly 2 Senators, giving every state equal representation regardless of population.`
-              : `U.S. Representatives serve 2-year terms and represent a specific congressional district. The number of Representatives per state is based on population, with each district having roughly 760,000 people.`
-            }
-          </p>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setActiveBillsTab('sponsored')}
+              className={`flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${activeBillsTab === 'sponsored'
+                ? 'bg-accent text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+            >
+              Sponsored
+              {sponsoredBills.length > 0 && (
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeBillsTab === 'sponsored' ? 'bg-white/20' : 'bg-accent/20 text-accent'
+                  }`}>
+                  {sponsoredBills.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveBillsTab('cosponsored')}
+              className={`flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${activeBillsTab === 'cosponsored'
+                ? 'bg-accent text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+            >
+              Cosponsored
+              {cosponsoredBills.length > 0 && (
+                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeBillsTab === 'cosponsored' ? 'bg-white/20' : 'bg-accent/20 text-accent'
+                  }`}>
+                  {cosponsoredBills.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Bills List */}
+          {billsLoading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-accent border-r-transparent"></div>
+              <p className="mt-3 text-gray-600">Loading bills...</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {(activeBillsTab === 'sponsored' ? sponsoredBills : cosponsoredBills).length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <p>No {activeBillsTab} environmental bills found</p>
+                </div>
+              ) : (
+                (activeBillsTab === 'sponsored' ? sponsoredBills : cosponsoredBills).map((bill) => (
+                  <a
+                    key={bill.id}
+                    href={bill.url || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200 group"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-sm font-mono font-semibold text-accent">
+                            {bill.legislation_number}
+                          </span>
+                          {bill.category && (
+                            <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                              {bill.category.replace(/_/g, ' ')}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-medium text-gray-900 line-clamp-2 group-hover:text-accent transition-colors">
+                          {bill.title || 'Untitled Bill'}
+                        </h4>
+                        {bill.latest_action && (
+                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">
+                            <span className="font-medium">Latest:</span> {bill.latest_action}
+                          </p>
+                        )}
+                      </div>
+                      <svg
+                        className="w-5 h-5 text-gray-400 group-hover:text-accent group-hover:translate-x-1 transition-all shrink-0 mt-1"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </a>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     )
@@ -337,7 +507,7 @@ export default function MyRepClient() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </div>
-        
+
         <h2 className="text-2xl font-bold text-main mb-2">Select Your State</h2>
         <p className="text-main/80 mb-6">
           Choose your state to see your U.S. Senators and House Representatives.
