@@ -1,10 +1,5 @@
-import React from 'react'
+import GraphClient from './graph_client';
 
 export default function GraphPage() {
-  return (
-    <div>
-      <h1>Graph Page</h1>
-    </div>
-  )
-   
+  return <GraphClient />;
 }
