@@ -158,8 +158,21 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
       .join(' ')
   }
 
-  // Chart dimensions - 20% larger
-  const size = 480
+  // Chart dimensions - responsive based on viewport
+  const getChartSize = () => {
+    if (typeof window !== 'undefined' && window.innerWidth < 640) return 300
+    return 480
+  }
+  const [chartSize, setChartSize] = useState(480)
+
+  useEffect(() => {
+    const handleResize = () => setChartSize(getChartSize())
+    handleResize() // Set initial size
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const size = chartSize
   const center = size / 2
   const radius = size * 0.35
 
@@ -588,18 +601,18 @@ export default function MyRepClient() {
         </button>
 
         {/* Representative Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 mb-6">
-          <div className="flex flex-col md:flex-row gap-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 md:gap-8">
             {/* Photo */}
-            <div className="shrink-0">
+            <div className="shrink-0 mx-auto sm:mx-0">
               {selectedRep.photoUrl ? (
                 <img
                   src={selectedRep.photoUrl}
                   alt={selectedRep.name}
-                  className="w-48 h-60 rounded-xl object-cover shadow-md"
+                  className="w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-60 rounded-xl object-cover shadow-md"
                 />
               ) : (
-                <div className="w-48 h-60 rounded-xl bg-gray-100 flex items-center justify-center">
+                <div className="w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-60 rounded-xl bg-gray-100 flex items-center justify-center">
                   <svg className="w-20 h-20 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
@@ -609,11 +622,11 @@ export default function MyRepClient() {
 
             {/* Info */}
             <div className="flex-1">
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-4 ${getPartyBadge(selectedRep.party)}`}>
+              <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-3 sm:mb-4 ${getPartyBadge(selectedRep.party)}`}>
                 {selectedRep.party}
               </span>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">{selectedRep.name}</h2>
-              <p className="text-xl text-gray-700 mb-2">{selectedRep.title}</p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{selectedRep.name}</h2>
+              <p className="text-lg md:text-xl text-gray-700 mb-2">{selectedRep.title}</p>
               {selectedRep.district && (
                 <p className="text-gray-600 mb-4">District {selectedRep.district}, {selectedRep.state}</p>
               )}

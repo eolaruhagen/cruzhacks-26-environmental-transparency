@@ -81,9 +81,28 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
     }, [playbackState, selectedYearRange, minYear, maxYear, onYearRangeChange]);
 
     // Constants must be defined before hooks that use them
-    const size = 600;
-    const center = size / 2;
-    const radius = size * 0.40;
+    // Responsive chart size - fit within container on mobile
+    const getChartSize = () => {
+        if (typeof window !== 'undefined') {
+            const vw = window.innerWidth
+            if (vw < 400) return Math.min(260, vw - 32) // Very small phones
+            if (vw < 640) return Math.min(300, vw - 32) // Mobile
+            if (vw < 768) return 380 // Small tablet
+        }
+        return 600 // Desktop
+    }
+    const [dynamicSize, setDynamicSize] = useState(600)
+
+    useEffect(() => {
+        const handleResize = () => setDynamicSize(getChartSize())
+        handleResize()
+        window.addEventListener('resize', handleResize)
+        return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    const size = dynamicSize
+    const center = size / 2
+    const radius = size * 0.38
 
     // Convert bills to score vectors for clustering (memoized)
     const scoreVectors = useMemo(() =>
@@ -438,8 +457,8 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
         const n = subcategoryNames.length;
         const angle = (2 * Math.PI * i) / n - Math.PI / 2;
 
-        // Position labels outside the chart
-        const labelDistance = radius + 40;
+        // Position labels outside the chart - closer on mobile
+        const labelDistance = size < 350 ? radius + 20 : radius + 40;
         const labelX = center + labelDistance * Math.cos(angle);
         const labelY = center + labelDistance * Math.sin(angle);
 
@@ -453,6 +472,8 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
         }
 
         const formattedName = formatSubcatName(subcat);
+        // Smaller font on mobile
+        const fontSize = size < 350 ? '9px' : size < 500 ? '11px' : '14px';
 
         return (
             <text
@@ -462,7 +483,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 textAnchor={textAnchor}
                 dominantBaseline="middle"
                 fill="white"
-                style={{ fontSize: '14px' }}
+                style={{ fontSize }}
             >
                 {formattedName}
             </text>
@@ -496,363 +517,364 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
     ];
 
     return (
-        <div className="relative" style={{ overflow: 'visible', padding: '0 80px' }}>
-            {/* Year Range Slider */}
-            <div className="flex justify-center mb-3">
-                <div className="flex items-center gap-3 bg-main px-4 py-2 rounded-lg">
-                    <span className="text-sm font-medium text-main w-10">{selectedYearRange[0]}</span>
-                    <div className="relative w-48 h-6">
-                        {/* Track background */}
-                        <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200 rounded-full" />
-                        {/* Selected range highlight */}
+        <div className="relative" style={{ overflow: 'visible' }}>
+            <div className="px-2 md:px-20">
+                {/* Year Range Slider */}
+                <div className="flex justify-center mb-3 px-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-main px-3 sm:px-4 py-2 rounded-lg w-full sm:w-auto">
+                        <span className="text-sm font-medium text-main w-10">{selectedYearRange[0]}</span>
+                        <div className="relative w-48 h-6">
+                            {/* Track background */}
+                            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200 rounded-full" />
+                            {/* Selected range highlight */}
+                            <div
+                                className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-blue-500 rounded-full"
+                                style={{
+                                    left: `${((selectedYearRange[0] - minYear) / (maxYear - minYear)) * 100}%`,
+                                    right: `${100 - ((selectedYearRange[1] - minYear) / (maxYear - minYear)) * 100}%`
+                                }}
+                            />
+                            {/* Center drag handle - small dark bar to drag both thumbs together, positioned 5px above */}
+                            <div
+                                className="absolute cursor-grab active:cursor-grabbing hover:bg-gray-600 transition-colors"
+                                style={{
+                                    left: `${((selectedYearRange[0] + selectedYearRange[1]) / 2 - minYear) / (maxYear - minYear) * 100}%`,
+                                    top: '-11px',
+                                    transform: 'translate(-50%, -100%)',
+                                    width: '20px',
+                                    height: '6px',
+                                    backgroundColor: '#6b7280',
+                                    borderRadius: '3px',
+                                    zIndex: 5
+                                }}
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    const startX = e.clientX;
+                                    const startMin = selectedYearRange[0];
+                                    const startMax = selectedYearRange[1];
+                                    const rangeWidth = startMax - startMin;
+                                    const trackWidth = 192; // w-48 = 12rem = 192px
+                                    const yearsPerPixel = (maxYear - minYear) / trackWidth;
+
+                                    const onMouseMove = (moveEvent: MouseEvent) => {
+                                        const deltaX = moveEvent.clientX - startX;
+                                        const deltaYears = Math.round(deltaX * yearsPerPixel);
+
+                                        let newMin = startMin + deltaYears;
+                                        let newMax = startMax + deltaYears;
+
+                                        // Clamp to boundaries
+                                        if (newMin < minYear) {
+                                            newMin = minYear;
+                                            newMax = minYear + rangeWidth;
+                                        }
+                                        if (newMax > maxYear) {
+                                            newMax = maxYear;
+                                            newMin = maxYear - rangeWidth;
+                                        }
+
+                                        onYearRangeChange([newMin, newMax]);
+                                    };
+
+                                    const onMouseUp = () => {
+                                        document.removeEventListener('mousemove', onMouseMove);
+                                        document.removeEventListener('mouseup', onMouseUp);
+                                    };
+
+                                    document.addEventListener('mousemove', onMouseMove);
+                                    document.addEventListener('mouseup', onMouseUp);
+                                }}
+                            />
+                            {/* Min thumb - positioned behind, pointer-events on */}
+                            <input
+                                type="range"
+                                min={minYear}
+                                max={maxYear}
+                                value={selectedYearRange[0]}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (val < selectedYearRange[1]) {
+                                        onYearRangeChange([val, selectedYearRange[1]]);
+                                    }
+                                }}
+                                className="absolute w-full h-6 bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                                style={{ zIndex: 3, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
+                            />
+                            {/* Max thumb - positioned on top but with pointer-events:none, thumb has pointer-events:auto */}
+                            <input
+                                type="range"
+                                min={minYear}
+                                max={maxYear}
+                                value={selectedYearRange[1]}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (val > selectedYearRange[0]) {
+                                        onYearRangeChange([selectedYearRange[0], val]);
+                                    }
+                                }}
+                                className="absolute w-full h-6 bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                                style={{ zIndex: 4, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
+                            />
+                        </div>
+                        <span className="text-sm font-medium text-main w-10">{selectedYearRange[1]}</span>
+                    </div>
+                </div>
+
+                {/* Playback controls - static size */}
+                <div className="flex justify-center mb-3 gap-2 flex-wrap">
+                    <button
+                        onClick={() => setPlaybackState(playbackState === 'reverse' ? 'paused' : 'reverse')}
+                        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'reverse'
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                            }`}
+                        title="Reverse"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 12L7 5v14l12-7z" transform="scale(-1,1) translate(-24,0)" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => setPlaybackState('paused')}
+                        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'paused'
+                            ? 'bg-gray-500 border-gray-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                            }`}
+                        title="Pause"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="5" width="4" height="14" />
+                            <rect x="14" y="5" width="4" height="14" />
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')}
+                        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'playing'
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                            }`}
+                        title="Play"
+                    >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M8 5v14l11-7z" />
+                        </svg>
+                    </button>
+                </div>
+
+                {/* Toggle button */}
+                <div className="flex justify-center mb-4">
+                    <button
+                        onClick={() => setShowClusters(!showClusters)}
+                        className="px-4 py-2 bg-card text-main rounded-lg border border-border hover:bg-card-hover transition font-medium shadow-sm"
+                    >
+                        {showClusters ? 'Show Individual Bills' : 'Show Clusters'}
+                    </button>
+                </div>
+
+                <svg width={size} height={size} className="mx-auto" style={{ overflow: 'visible', marginTop: '45px' }}>
+                    {/* Background circles */}
+                    {circles}
+
+                    {/* Axis lines (underneath everything) */}
+                    {axisLines}
+
+                    {showClusters && finalClusters.length > 0 ? (
+                        <>
+                            {/* Cluster bubbles */}
+                            {finalClusters.map((cluster, i) => {
+                                const minRadius = 15;
+                                const maxRadius = 50;
+                                const maxBills = Math.max(...finalClusters.map(c => c.bills.length), 1);
+                                const bubbleRadius = minRadius + (cluster.bills.length / maxBills) * (maxRadius - minRadius);
+                                const isSelected = hoveredCluster === i;
+                                const isDimmed = hoveredCluster !== null && hoveredCluster !== i;
+
+                                return (
+                                    <g
+                                        key={i}
+                                        onClick={() => setHoveredCluster(hoveredCluster === i ? null : i)}
+                                        style={{
+                                            opacity: isDimmed ? 0.3 : 1,
+                                            transition: 'opacity 0.2s ease'
+                                        }}
+                                    >
+                                        <circle
+                                            cx={cluster.x}
+                                            cy={cluster.y}
+                                            r={bubbleRadius}
+                                            fill={clusterColors[i % clusterColors.length]}
+                                            stroke={isSelected ? '#1e40af' : clusterColors[i % clusterColors.length].replace('0.7', '1')}
+                                            strokeWidth={isSelected ? 3 : 2}
+                                            className="cursor-pointer transition-all"
+                                        >
+                                            <title>{`Cluster ${i + 1}: ${cluster.bills.length} bills - Click to view`}</title>
+                                        </circle>
+                                        <text
+                                            x={cluster.x}
+                                            y={cluster.y}
+                                            textAnchor="middle"
+                                            dominantBaseline="middle"
+                                            fill="white"
+                                            fontWeight="bold"
+                                            fontSize="12"
+                                        >
+                                            {cluster.bills.length}
+                                        </text>
+                                    </g>
+                                );
+                            })}
+                            {/* Extreme outliers as individual dots */}
+                            {extremeOutliers.map((pos, i) => (
+                                <circle
+                                    key={`outlier-${i}`}
+                                    cx={pos.x}
+                                    cy={pos.y}
+                                    r={5}
+                                    fill="rgba(107, 114, 128, 0.7)"
+                                    stroke="rgba(107, 114, 128, 1)"
+                                    strokeWidth={1}
+                                    className="cursor-pointer hover:fill-gray-500"
+                                >
+                                    <title>{pos.bill.legislation_number} (outlier)</title>
+                                </circle>
+                            ))}
+                        </>
+                    ) : (
+                        /* Individual bill dots */
+                        billPositions.map((pos, i) => (
+                            <circle
+                                key={i}
+                                cx={pos.x}
+                                cy={pos.y}
+                                r={4}
+                                fill={selectedBill?.legislation_number === pos.bill.legislation_number ? 'rgba(37, 99, 235, 1)' : 'rgba(59, 130, 246, 0.6)'}
+                                stroke={selectedBill?.legislation_number === pos.bill.legislation_number ? '#1e40af' : 'rgba(59, 130, 246, 1)'}
+                                strokeWidth={selectedBill?.legislation_number === pos.bill.legislation_number ? 2 : 1}
+                                className="cursor-pointer hover:fill-blue-500"
+                                onClick={() => setSelectedBill(selectedBill?.legislation_number === pos.bill.legislation_number ? null : pos.bill)}
+                            >
+                                <title>{pos.bill.legislation_number}</title>
+                            </circle>
+                        ))
+                    )}
+
+                    {/* Center dot */}
+                    <circle cx={center} cy={center} r={3} fill="#94a3b8" />
+
+                    {/* Axis labels (rendered LAST so they appear on top) */}
+                    {axisLabels}
+                </svg>
+                <div className="text-center text-sm text-gray-500 mt-2">
+                    {showClusters
+                        ? `${clusters.length} clusters from ${bills.length} bills`
+                        : `${bills.length} bills plotted`
+                    }
+                </div>
+
+                {/* Side panel for hovered cluster bills - becomes bottom sheet on mobile */}
+                {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
+                    <div
+                        className="fixed md:right-[10px] md:top-[84px] left-0 right-0 bottom-0 md:left-auto md:bottom-auto md:w-80 w-full bg-card border border-border shadow-xl overflow-hidden z-50 rounded-t-xl md:rounded-lg max-h-[50vh] md:max-h-[600px]"
+                    >
                         <div
-                            className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-blue-500 rounded-full"
-                            style={{
-                                left: `${((selectedYearRange[0] - minYear) / (maxYear - minYear)) * 100}%`,
-                                right: `${100 - ((selectedYearRange[1] - minYear) / (maxYear - minYear)) * 100}%`
-                            }}
-                        />
-                        {/* Center drag handle - small dark bar to drag both thumbs together, positioned 5px above */}
+                            className="bg-nav px-4 py-2.5 flex justify-between items-center"
+                        >
+                            <span className="text-sm text-white font-semibold">
+                                Cluster Bills ({finalClusters[hoveredCluster].bills.length})
+                            </span>
+                            <button
+                                onClick={() => setHoveredCluster(null)}
+                                className="text-white/70 hover:text-white text-lg leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
                         <div
-                            className="absolute cursor-grab active:cursor-grabbing hover:bg-gray-600 transition-colors"
-                            style={{
-                                left: `${((selectedYearRange[0] + selectedYearRange[1]) / 2 - minYear) / (maxYear - minYear) * 100}%`,
-                                top: '-11px',
-                                transform: 'translate(-50%, -100%)',
-                                width: '20px',
-                                height: '6px',
-                                backgroundColor: '#6b7280',
-                                borderRadius: '3px',
-                                zIndex: 5
-                            }}
+                            className="overflow-y-auto p-2"
+                            style={{ height: panelHeight - 80 }}
+                        >
+                            {finalClusters[hoveredCluster].bills.map((bill, i) => (
+                                <a
+                                    key={i}
+                                    href={bill.url || '#'}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block px-3 py-2 text-sm hover:bg-accent/20 rounded-lg transition-colors"
+                                    onClick={(e) => !bill.url && e.preventDefault()}
+                                >
+                                    <div className="font-medium text-main truncate">
+                                        {bill.title || bill.legislation_number}
+                                    </div>
+                                    <div className="text-xs text-main/60">
+                                        {bill.legislation_number}
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
+                        {/* Resize handle */}
+                        <div
+                            className="h-6 bg-card border-t border-border cursor-ns-resize flex items-center justify-center hover:bg-card-hover"
                             onMouseDown={(e) => {
                                 e.preventDefault();
-                                const startX = e.clientX;
-                                const startMin = selectedYearRange[0];
-                                const startMax = selectedYearRange[1];
-                                const rangeWidth = startMax - startMin;
-                                const trackWidth = 192; // w-48 = 12rem = 192px
-                                const yearsPerPixel = (maxYear - minYear) / trackWidth;
-
+                                const startY = e.clientY;
+                                const startHeight = panelHeight;
                                 const onMouseMove = (moveEvent: MouseEvent) => {
-                                    const deltaX = moveEvent.clientX - startX;
-                                    const deltaYears = Math.round(deltaX * yearsPerPixel);
-
-                                    let newMin = startMin + deltaYears;
-                                    let newMax = startMax + deltaYears;
-
-                                    // Clamp to boundaries
-                                    if (newMin < minYear) {
-                                        newMin = minYear;
-                                        newMax = minYear + rangeWidth;
-                                    }
-                                    if (newMax > maxYear) {
-                                        newMax = maxYear;
-                                        newMin = maxYear - rangeWidth;
-                                    }
-
-                                    onYearRangeChange([newMin, newMax]);
+                                    const newHeight = startHeight + (moveEvent.clientY - startY);
+                                    setPanelHeight(Math.max(150, Math.min(600, newHeight)));
                                 };
-
                                 const onMouseUp = () => {
                                     document.removeEventListener('mousemove', onMouseMove);
                                     document.removeEventListener('mouseup', onMouseUp);
                                 };
-
                                 document.addEventListener('mousemove', onMouseMove);
                                 document.addEventListener('mouseup', onMouseUp);
                             }}
-                        />
-                        {/* Min thumb - positioned behind, pointer-events on */}
-                        <input
-                            type="range"
-                            min={minYear}
-                            max={maxYear}
-                            value={selectedYearRange[0]}
-                            onChange={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (val < selectedYearRange[1]) {
-                                    onYearRangeChange([val, selectedYearRange[1]]);
-                                }
-                            }}
-                            className="absolute w-full h-6 bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
-                            style={{ zIndex: 3, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
-                        />
-                        {/* Max thumb - positioned on top but with pointer-events:none, thumb has pointer-events:auto */}
-                        <input
-                            type="range"
-                            min={minYear}
-                            max={maxYear}
-                            value={selectedYearRange[1]}
-                            onChange={(e) => {
-                                const val = parseInt(e.target.value);
-                                if (val > selectedYearRange[0]) {
-                                    onYearRangeChange([selectedYearRange[0], val]);
-                                }
-                            }}
-                            className="absolute w-full h-6 bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
-                            style={{ zIndex: 4, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
-                        />
-                    </div>
-                    <span className="text-sm font-medium text-main w-10">{selectedYearRange[1]}</span>
-                </div>
-            </div>
-
-            {/* Playback controls - static size */}
-            <div className="flex justify-center mb-3 gap-2">
-                <button
-                    onClick={() => setPlaybackState(playbackState === 'reverse' ? 'paused' : 'reverse')}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'reverse'
-                        ? 'bg-blue-500 border-blue-500 text-white'
-                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
-                        }`}
-                    title="Reverse"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 12L7 5v14l12-7z" transform="scale(-1,1) translate(-24,0)" />
-                    </svg>
-                </button>
-                <button
-                    onClick={() => setPlaybackState('paused')}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'paused'
-                        ? 'bg-gray-500 border-gray-500 text-white'
-                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
-                        }`}
-                    title="Pause"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <rect x="6" y="5" width="4" height="14" />
-                        <rect x="14" y="5" width="4" height="14" />
-                    </svg>
-                </button>
-                <button
-                    onClick={() => setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')}
-                    className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'playing'
-                        ? 'bg-blue-500 border-blue-500 text-white'
-                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
-                        }`}
-                    title="Play"
-                >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
-                    </svg>
-                </button>
-            </div>
-
-            {/* Toggle button */}
-            <div className="flex justify-center mb-4">
-                <button
-                    onClick={() => setShowClusters(!showClusters)}
-                    className="px-4 py-2 bg-card text-main rounded-lg border border-border hover:bg-card-hover transition font-medium shadow-sm"
-                >
-                    {showClusters ? 'Show Individual Bills' : 'Show Clusters'}
-                </button>
-            </div>
-
-            <svg width={size} height={size} className="mx-auto" style={{ overflow: 'visible', marginTop: '45px' }}>
-                {/* Background circles */}
-                {circles}
-
-                {/* Axis lines (underneath everything) */}
-                {axisLines}
-
-                {showClusters && finalClusters.length > 0 ? (
-                    <>
-                        {/* Cluster bubbles */}
-                        {finalClusters.map((cluster, i) => {
-                            const minRadius = 15;
-                            const maxRadius = 50;
-                            const maxBills = Math.max(...finalClusters.map(c => c.bills.length), 1);
-                            const bubbleRadius = minRadius + (cluster.bills.length / maxBills) * (maxRadius - minRadius);
-                            const isSelected = hoveredCluster === i;
-                            const isDimmed = hoveredCluster !== null && hoveredCluster !== i;
-
-                            return (
-                                <g
-                                    key={i}
-                                    onClick={() => setHoveredCluster(hoveredCluster === i ? null : i)}
-                                    style={{
-                                        opacity: isDimmed ? 0.3 : 1,
-                                        transition: 'opacity 0.2s ease'
-                                    }}
-                                >
-                                    <circle
-                                        cx={cluster.x}
-                                        cy={cluster.y}
-                                        r={bubbleRadius}
-                                        fill={clusterColors[i % clusterColors.length]}
-                                        stroke={isSelected ? '#1e40af' : clusterColors[i % clusterColors.length].replace('0.7', '1')}
-                                        strokeWidth={isSelected ? 3 : 2}
-                                        className="cursor-pointer transition-all"
-                                    >
-                                        <title>{`Cluster ${i + 1}: ${cluster.bills.length} bills - Click to view`}</title>
-                                    </circle>
-                                    <text
-                                        x={cluster.x}
-                                        y={cluster.y}
-                                        textAnchor="middle"
-                                        dominantBaseline="middle"
-                                        fill="white"
-                                        fontWeight="bold"
-                                        fontSize="12"
-                                    >
-                                        {cluster.bills.length}
-                                    </text>
-                                </g>
-                            );
-                        })}
-                        {/* Extreme outliers as individual dots */}
-                        {extremeOutliers.map((pos, i) => (
-                            <circle
-                                key={`outlier-${i}`}
-                                cx={pos.x}
-                                cy={pos.y}
-                                r={5}
-                                fill="rgba(107, 114, 128, 0.7)"
-                                stroke="rgba(107, 114, 128, 1)"
-                                strokeWidth={1}
-                                className="cursor-pointer hover:fill-gray-500"
-                            >
-                                <title>{pos.bill.legislation_number} (outlier)</title>
-                            </circle>
-                        ))}
-                    </>
-                ) : (
-                    /* Individual bill dots */
-                    billPositions.map((pos, i) => (
-                        <circle
-                            key={i}
-                            cx={pos.x}
-                            cy={pos.y}
-                            r={4}
-                            fill={selectedBill?.legislation_number === pos.bill.legislation_number ? 'rgba(37, 99, 235, 1)' : 'rgba(59, 130, 246, 0.6)'}
-                            stroke={selectedBill?.legislation_number === pos.bill.legislation_number ? '#1e40af' : 'rgba(59, 130, 246, 1)'}
-                            strokeWidth={selectedBill?.legislation_number === pos.bill.legislation_number ? 2 : 1}
-                            className="cursor-pointer hover:fill-blue-500"
-                            onClick={() => setSelectedBill(selectedBill?.legislation_number === pos.bill.legislation_number ? null : pos.bill)}
                         >
-                            <title>{pos.bill.legislation_number}</title>
-                        </circle>
-                    ))
+                            <div className="w-10 h-1 bg-border rounded-full"></div>
+                        </div>
+                    </div>
                 )}
 
-                {/* Center dot */}
-                <circle cx={center} cy={center} r={3} fill="#94a3b8" />
-
-                {/* Axis labels (rendered LAST so they appear on top) */}
-                {axisLabels}
-            </svg>
-            <div className="text-center text-sm text-gray-500 mt-2">
-                {showClusters
-                    ? `${clusters.length} clusters from ${bills.length} bills`
-                    : `${bills.length} bills plotted`
-                }
+                {/* Side panel for selected individual bill */}
+                {!showClusters && selectedBill && (
+                    <div
+                        className="fixed w-80 bg-card border border-border shadow-xl overflow-hidden z-50 rounded-lg"
+                        style={{ top: '84px', right: '10px' }}
+                    >
+                        <div
+                            className="bg-nav px-4 py-2.5 flex justify-between items-center"
+                        >
+                            <span className="text-sm text-white font-semibold">Bill Details</span>
+                            <button
+                                onClick={() => setSelectedBill(null)}
+                                className="text-white/70 hover:text-white text-lg leading-none"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="p-4">
+                            <div className="mb-3">
+                                <div className="text-xs text-light uppercase tracking-wide mb-1">Legislation Number</div>
+                                <div className="font-semibold text-main">{selectedBill.legislation_number}</div>
+                            </div>
+                            <div className="mb-4">
+                                <div className="text-xs text-light uppercase tracking-wide mb-1">Title</div>
+                                <div className="text-sm text-main">{selectedBill.title || 'No title available'}</div>
+                            </div>
+                            {selectedBill.url && (
+                                <a
+                                    href={selectedBill.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-dark transition-colors"
+                                >
+                                    View Full Bill →
+                                </a>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
-
-            {/* Side panel for hovered cluster bills */}
-            {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
-                <div
-                    className="fixed w-80 bg-card border border-border shadow-xl overflow-hidden z-50 rounded-lg"
-                    style={{ top: '84px', right: '10px', height: panelHeight, minHeight: 150, maxHeight: 600 }}
-                >
-                    <div
-                        className="bg-nav px-4 py-2.5 flex justify-between items-center"
-                    >
-                        <span className="text-sm text-white font-semibold">
-                            Cluster Bills ({finalClusters[hoveredCluster].bills.length})
-                        </span>
-                        <button
-                            onClick={() => setHoveredCluster(null)}
-                            className="text-white/70 hover:text-white text-lg leading-none"
-                        >
-                            ×
-                        </button>
-                    </div>
-                    <div
-                        className="overflow-y-auto p-2"
-                        style={{ height: panelHeight - 80 }}
-                    >
-                        {finalClusters[hoveredCluster].bills.map((bill, i) => (
-                            <a
-                                key={i}
-                                href={bill.url || '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block px-3 py-2 text-sm hover:bg-accent/20 rounded-lg transition-colors"
-                                onClick={(e) => !bill.url && e.preventDefault()}
-                            >
-                                <div className="font-medium text-main truncate">
-                                    {bill.title || bill.legislation_number}
-                                </div>
-                                <div className="text-xs text-main/60">
-                                    {bill.legislation_number}
-                                </div>
-                            </a>
-                        ))}
-                    </div>
-                    {/* Resize handle */}
-                    <div
-                        className="h-6 bg-card border-t border-border cursor-ns-resize flex items-center justify-center hover:bg-card-hover"
-                        onMouseDown={(e) => {
-                            e.preventDefault();
-                            const startY = e.clientY;
-                            const startHeight = panelHeight;
-                            const onMouseMove = (moveEvent: MouseEvent) => {
-                                const newHeight = startHeight + (moveEvent.clientY - startY);
-                                setPanelHeight(Math.max(150, Math.min(600, newHeight)));
-                            };
-                            const onMouseUp = () => {
-                                document.removeEventListener('mousemove', onMouseMove);
-                                document.removeEventListener('mouseup', onMouseUp);
-                            };
-                            document.addEventListener('mousemove', onMouseMove);
-                            document.addEventListener('mouseup', onMouseUp);
-                        }}
-                    >
-                        <div className="w-10 h-1 bg-border rounded-full"></div>
-                    </div>
-                </div>
-            )}
-
-            {/* Side panel for selected individual bill */}
-            {!showClusters && selectedBill && (
-                <div
-                    className="fixed w-80 bg-card border border-border shadow-xl overflow-hidden z-50 rounded-lg"
-                    style={{ top: '84px', right: '10px' }}
-                >
-                    <div
-                        className="bg-nav px-4 py-2.5 flex justify-between items-center"
-                    >
-                        <span className="text-sm text-white font-semibold">Bill Details</span>
-                        <button
-                            onClick={() => setSelectedBill(null)}
-                            className="text-white/70 hover:text-white text-lg leading-none"
-                        >
-                            ×
-                        </button>
-                    </div>
-                    <div className="p-4">
-                        <div className="mb-3">
-                            <div className="text-xs text-light uppercase tracking-wide mb-1">Legislation Number</div>
-                            <div className="font-semibold text-main">{selectedBill.legislation_number}</div>
-                        </div>
-                        <div className="mb-4">
-                            <div className="text-xs text-light uppercase tracking-wide mb-1">Title</div>
-                            <div className="text-sm text-main">{selectedBill.title || 'No title available'}</div>
-                        </div>
-                        {selectedBill.url && (
-                            <a
-                                href={selectedBill.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-dark transition-colors"
-                            >
-                                View Full Bill →
-                            </a>
-                        )}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
@@ -1099,12 +1121,12 @@ export default function GraphClient() {
     }
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-3 md:p-6 max-w-7xl mx-auto overflow-x-hidden">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 md:mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Policy Radar</h1>
-                    <p className="text-gray-500 mt-1">Visualize environmental legislation by policy area</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-white">Policy Radar</h1>
+                    <p className="text-gray-500 text-sm md:text-base mt-1">Visualize environmental legislation by policy area</p>
                 </div>
                 {isBackgroundLoading && (
                     <div className="text-sm text-blue-600 animate-pulse bg-blue-50 px-3 py-1.5 rounded-full">
@@ -1113,10 +1135,10 @@ export default function GraphClient() {
                 )}
             </div>
 
-            <div className="flex gap-6">
-                {/* Left Sidebar - Single Panel */}
-                <div className="w-72 flex-shrink-0">
-                    <div className="bg-card rounded-xl border border-border p-4 space-y-5">
+            <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+                {/* Sidebar - Full width on mobile, fixed width on desktop */}
+                <div className="w-full md:w-72 md:flex-shrink-0">
+                    <div className="bg-card rounded-xl border border-border p-4 space-y-4 md:space-y-5">
                         {/* Category Selector */}
                         <div>
                             <label className="block text-sm font-semibold text-white mb-2">Category</label>
@@ -1167,8 +1189,8 @@ export default function GraphClient() {
 
                         <hr className="border-gray-100" />
 
-                        {/* How It Works */}
-                        <div>
+                        {/* How It Works - Hidden on mobile, shown on desktop */}
+                        <div className="hidden md:block">
                             <h3 className="text-sm font-semibold text-white mb-3">How It Works</h3>
                             <div className="space-y-3 text-xs text-gray-400">
                                 <div>
@@ -1193,9 +1215,9 @@ export default function GraphClient() {
                 </div>
 
                 {/* Main Chart Area */}
-                <div className="flex-1 relative">
+                <div className="flex-1 relative min-w-0">
                     {showInstructions && (
-                        <div className="absolute top-0 left-0 z-20 w-64 bg-card backdrop-blur-sm p-4 rounded-lg shadow-xl border border-border">
+                        <div className="absolute top-0 left-0 z-20 w-56 md:w-64 bg-card backdrop-blur-sm p-3 md:p-4 rounded-lg shadow-xl border border-border">
                             <div className="flex justify-between items-start mb-2">
                                 <h3 className="font-semibold text-white">Quick Tips</h3>
                                 <button

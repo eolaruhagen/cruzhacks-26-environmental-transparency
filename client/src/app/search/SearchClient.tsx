@@ -302,7 +302,7 @@ export default function SearchClient() {
         switch (activeTab) {
             case 'category':
                 return (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
                         {BILL_TYPES.map((type) => (
                             <button
                                 key={type.id}
@@ -323,7 +323,7 @@ export default function SearchClient() {
                 );
             case 'status':
                 return (
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3">
                         {BILL_STATUSES.map((status) => (
                             <button
                                 key={status.id}
@@ -442,7 +442,7 @@ export default function SearchClient() {
                 >
                     <div className="border-t border-border/50 px-6 py-5">
                         {/* Filter Tab Buttons */}
-                        <div className="flex gap-2 mb-5">
+                        <div className="flex flex-col sm:flex-row gap-2 mb-5">
                             <button
                                 onClick={() => setActiveTab('category')}
                                 className={`
@@ -497,7 +497,7 @@ export default function SearchClient() {
                         </div>
 
                         {/* Select All / Clear All */}
-                        <div className="flex items-center justify-end gap-3 mb-4">
+                        <div className="flex items-center justify-end gap-3 mb-4 text-sm">
                             <button
                                 onClick={selectAllForTab}
                                 className="text-sm text-accent hover:text-accent-dark transition-colors font-medium"

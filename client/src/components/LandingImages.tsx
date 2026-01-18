@@ -6,7 +6,7 @@ import ImageCard from './ImageCard'
 
 export default function LandingImages() {
   return (
-    <section className="w-[60%] flex flex-col">
+    <section className="w-full md:w-[60%] flex flex-col">
       {/* Image 1 - US House */}
       <ImageCard
         className="relative border-b border-border"
