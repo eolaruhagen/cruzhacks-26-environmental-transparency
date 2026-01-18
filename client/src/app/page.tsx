@@ -8,8 +8,8 @@ export default function Home() {
         {/* Left Side - Content (40%) */}
         <section className="w-[40%] bg-main p-8 pt-20 overflow-y-auto">
           <div className="max-w-md mx-auto">
-            
-            
+
+
 
             {/* Hero */}
             <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4 text-main">
@@ -17,24 +17,24 @@ export default function Home() {
               <br />
               <span className="text-accent">Transparency</span>
             </h1>
-            
+
             <p className="text-lg leading-relaxed mb-6 text-light">
-              Our mission is the make environmental policy more transparent and accessible to the public. EcoTransparency
-              is a tool that allows you to view how your own congressional representatives are voting on environmental legislation,
+              Our mission is the make environmental policy more transparent and accessible to the public. <br /><br />
+              EcoTransparency is a tool that allows you to view how your own congressional representatives are voting on environmental legislation,
               as well as a look into how the whole legislative process works in the US Congress.
 
             </p>
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 mb-10">
-              <a 
-                href="/my_rep" 
+              <a
+                href="/my_rep"
                 className="px-6 py-3 bg-accent text-white rounded-xl font-semibold hover:bg-accent-dark transition-all duration-200 shadow-lg hover:shadow-xl text-center"
               >
                 Find My Representatives
               </a>
-              <a 
-                href="/legislative-process" 
+              <a
+                href="/legislative-process"
                 className="px-6 py-3 bg-card text-main rounded-xl font-semibold hover:bg-card-hover transition-all duration-200 text-center"
               >
                 How It Works
@@ -93,9 +93,9 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-main mb-1">Visualize Data</h3>
+                    <h3 className="font-semibold text-main mb-1">Visualize Legislation</h3>
                     <p className="text-sm text-light leading-relaxed">
-                      Interactive charts and visualizations showing environmental legislation trends and relations between 
+                      Interactive charts and visualizations showing environmental legislation trends and relations between
                       areas of climate policy.
                     </p>
                   </div>
@@ -111,9 +111,10 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-main mb-1">Stay Informed</h3>
+                    <h3 className="font-semibold text-main mb-1">Learn About the US Congress</h3>
                     <p className="text-sm text-light leading-relaxed">
-                      News and updates on environmental policy, correlated with specific legislation.
+                      Quick guides on the US legislative process and the power of the executive branch in
+                      creating policy.
                     </p>
                   </div>
                 </div>
@@ -139,7 +140,7 @@ export default function Home() {
 
             {/* Footer note */}
             <p className="mt-8 text-xs text-light/70 text-center">
-              Data from Congress.gov • Built at CruzHacks 2026
+              Data from Congress.gov
             </p>
 
           </div>
