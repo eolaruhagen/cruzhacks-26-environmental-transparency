@@ -86,7 +86,8 @@ async function sendDiscordNotification(
     modelResponse?: string;
   }
 ): Promise<void> {
-  const embeds = [];
+  // deno-lint-ignore no-explicit-any
+  const embeds: any[] = [];
   const totalRemoved = (data.skipped || 0) + (data.missing || 0);
   
   switch (type) {
@@ -354,7 +355,7 @@ Deno.serve(async (req: Request) => {
       .from("house_bills")
       .select("id, legislation_number, title, committees, latest_summary")
       .is("category", null)
-      .limit(BATCH_SIZE);
+      .limit(BATCH_SIZE) as { data: BillForCategorization[] | null; error: any };
 
     if (fetchError) {
       throw new Error(`Failed to fetch bills: ${fetchError.message}`);
