@@ -1,451 +1,610 @@
 /**
  * Categorize Bills Edge Function
  * 
- * Purpose: Batch process uncategorized bills (category IS NULL) using GPT-5-mini
- * to assign environmental policy categories, with PARALLEL batch processing for speed.
+ * Purpose: Finds bills with NULL category, sends them to Gemini for categorization,
+ * and updates the database. Uses a loop pattern to process in batches.
  * 
- * Uses OpenAI Responses API with:
- * - gpt-5-mini model for reliable output
- * - reasoning: { effort: "minimal" }
- * - Strict JSON schema for reliable output
+ * Flow:
+ * 1. Query house_bills WHERE category IS NULL (limit BATCH_SIZE).
+ * 2. Send to Gemini via OpenRouter for categorization.
+ * 3. Update the category column (or delete if "no_category").
+ * 4. If more NULL categories exist -> trigger self via pg_net.
+ * 5. If done -> trigger generate-bill-embeddings.
+ * 6. Send Discord notification on progress/completion/failure.
  * 
- * Process:
- * 1. Fetch all uncategorized bills from DB (up to maxBills)
- * 2. Split bills into batches of batchSize (default 50)
- * 3. Process all batches in PARALLEL using Promise.all
- * 4. Each batch call OpenAI Responses API and updates DB
- * 5. Aggregate results across all batches
+ * NOTE: verify_jwt is FALSE because this function is called internally
+ * by pg_net from other Edge Functions. It is NOT meant to be called
+ * directly by end users.
  * 
- * Can process up to 5K rows efficiently across batches.
- * 
- * Parameters:
- * - batchSize: Number of bills per LLM call (default: 50)
- * - maxBills: Maximum total bills to process (default: 5000)
- * - dryRun: If true, don't update DB, just return what would be categorized
- * 
- * Environment Variables:
- * - SUPABASE_URL (auto-provided)
- * - SUPABASE_SERVICE_ROLE_KEY (auto-provided)
- * - OPENAI_API_KEY (required)
+ * "no_category" handling:
+ * - If a bill doesn't have enough info (no title, no summary), the model
+ *   can return "no_category" instead of forcing a wrong categorization.
+ * - Bills with "no_category" are DELETED from house_bills so they can be
+ *   re-fetched and processed again when Congress updates them with more info.
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
+const CATEGORIZATION_MODEL = "google/gemini-2.5-flash-lite";
+const BATCH_SIZE = 10;
 
-// Valid categories
-const VALID_CATEGORIES = [
-  "air_and_atmosphere",
-  "water_resources",
-  "waste_and_toxics",
-  "energy_and_resources",
-  "land_and_conservation",
-  "disaster_and_emergency",
-  "climate_and_emissions",
-  "justice_and_environment",
-] as const;
+const CATEGORIES = [
+  "Air Quality & Emissions",
+  "Water Resources & Quality",
+  "Land & Wildlife Conservation",
+  "Climate Change & Energy",
+  "Waste & Pollution Control",
+  "Environmental Justice",
+  "Agriculture & Food Systems",
+  "Infrastructure & Development",
+  "Public Health & Environment",
+  "Other Environmental",
+];
 
-// Default settings
-const DEFAULT_BATCH_SIZE = 50;
-const DEFAULT_MAX_BILLS = 5000;
-const OPENAI_MODEL = "gpt-5-mini";
+// Special category for bills without enough info
+const NO_CATEGORY = "no_category";
 
-interface DbBill {
+interface BillForCategorization {
   id: string;
   legislation_number: string;
-  congress: string;
   title: string;
   committees: string | null;
-  latest_action: string;
   latest_summary: string | null;
 }
 
-interface BillForLLM {
-  congress: string;
-  billType: string;
-  billNumber: string;
-  title: string;
-  committees: string;
-  latestAction: string;
-  summary?: string;
+interface CategorizationResult {
+  // Model returns legislation_number as the identifier (e.g., "H.R. 123 (119)")
+  // This is more reliable than UUIDs which are prone to hallucination
+  categories: { legislation_number: string; category: string }[];
+  prompt: string;
+  rawResponse: string;
+  fullApiResponse: unknown;
 }
 
-interface Categorization {
-  congress: string;
-  billType: string;
-  billNumber: string;
-  category: string;
-}
+type SupabaseClient = ReturnType<typeof createClient>;
 
-interface BatchResult {
-  batchNumber: number;
-  processed: number;
-  successful: number;
-  failed: number;
-  missing: number;
-  hallucinations: number;
-  timeMs: number;
-  error?: string;
-}
+type NotificationType = "progress" | "complete" | "error";
 
-/**
- * Parse legislation_number from DB format back to components
- */
-function parseLegislationNumber(legNum: string): { billType: string; billNumber: string; congress: string } | null {
-  if (!legNum) return null;
-  const match = legNum.match(/^([A-Z][A-Za-z.]*\.(?:\s*[A-Za-z]+\.)*)\s*(\d+)\s*\((\d+)\)$/i);
-  if (match) {
-    return {
-      billType: match[1].trim(),
-      billNumber: match[2],
-      congress: match[3],
-    };
+async function sendDiscordNotification(
+  webhookUrl: string,
+  type: NotificationType,
+  data: {
+    processed?: number;
+    categorized?: number;
+    skipped?: number;
+    skippedPct?: string;
+    missing?: number;
+    missingPct?: string;
+    remaining?: number;
+    skippedBills?: string[];
+    missingBills?: string[];
+    error?: string;
+    stage?: string;
+    prompt?: string;
+    modelResponse?: string;
   }
-  return null;
+): Promise<void> {
+  const embeds = [];
+  const totalRemoved = (data.skipped || 0) + (data.missing || 0);
+  
+  switch (type) {
+    case "progress":
+      embeds.push({
+        title: "🏷️ Categorizer Progress",
+        color: 3447003, // Blue
+        fields: [
+          { name: "Processed", value: `${data.processed} bills`, inline: true },
+          { name: "Categorized", value: `${data.categorized} bills`, inline: true },
+          { name: "Skipped (no_category)", value: `${data.skipped} (${data.skippedPct})`, inline: true },
+          { name: "Missing (loop prevention)", value: `${data.missing || 0} (${data.missingPct || "0%"})`, inline: true },
+          { name: "Total Removed", value: `${totalRemoved} bills`, inline: true },
+          { name: "Remaining", value: `${data.remaining} uncategorized`, inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+      });
+      
+      // If there are skipped bills, show them
+      if (data.skippedBills && data.skippedBills.length > 0) {
+        embeds.push({
+          title: "⏭️ Skipped Bills (Insufficient Info)",
+          color: 16776960, // Yellow
+          description: data.skippedBills.slice(0, 20).join("\n").substring(0, 4000),
+          footer: data.skippedBills.length > 20 
+            ? { text: `... and ${data.skippedBills.length - 20} more` }
+            : undefined,
+        });
+      }
+      
+      // If there are missing bills (model didn't return them), show them
+      if (data.missingBills && data.missingBills.length > 0) {
+        embeds.push({
+          title: "⚠️ Missing Bills (Model Didn't Return - Deleted)",
+          color: 15158332, // Red
+          description: data.missingBills.slice(0, 20).join("\n").substring(0, 4000),
+          footer: data.missingBills.length > 20 
+            ? { text: `... and ${data.missingBills.length - 20} more` }
+            : undefined,
+        });
+      }
+      break;
+    case "complete":
+      embeds.push({
+        title: "✅ Categorizer Complete",
+        color: 5763719, // Green
+        fields: [
+          { name: "Status", value: "All bills categorized", inline: false },
+          { name: "Next Step", value: "Triggering Embedder", inline: false },
+        ],
+        timestamp: new Date().toISOString(),
+      });
+      break;
+    case "error":
+      // Main error embed
+      embeds.push({
+        title: "🚨 Categorizer Error",
+        color: 15158332, // Red
+        fields: [
+          { name: "Stage", value: data.stage || "unknown", inline: true },
+          { name: "Error", value: (data.error || "Unknown").substring(0, 1000), inline: false },
+        ],
+        timestamp: new Date().toISOString(),
+      });
+      
+      // If we have model response, add it as a second embed
+      if (data.modelResponse) {
+        embeds.push({
+          title: "📤 Model Response (Raw)",
+          color: 15158332,
+          description: data.modelResponse.substring(0, 4000),
+        });
+      }
+      
+      // If we have the prompt, add it as a third embed
+      if (data.prompt) {
+        embeds.push({
+          title: "📥 Prompt Sent to Model",
+          color: 15158332,
+          description: data.prompt.substring(0, 4000),
+        });
+      }
+      break;
+  }
+
+  await fetch(webhookUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ embeds }),
+  }).catch(console.error);
 }
 
-/**
- * Convert DB bill to LLM format
- */
-function dbBillToLLMFormat(bill: DbBill): BillForLLM | null {
-  const parsed = parseLegislationNumber(bill.legislation_number);
-  if (!parsed) return null;
+async function triggerNextStep(supabase: SupabaseClient, functionName: string): Promise<void> {
+  const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   
-  const result: BillForLLM = {
-    congress: parsed.congress,
-    billType: parsed.billType,
-    billNumber: parsed.billNumber,
-    title: bill.title || "",
-    committees: bill.committees || "",
-    latestAction: bill.latest_action || "",
+  await supabase.rpc("trigger_next_step_internal", {
+    p_project_url: projectUrl,
+    p_service_role_key: serviceRoleKey,
+    p_function_name: functionName,
+  });
+}
+
+function buildPrompt(bills: BillForCategorization[]): string {
+  const categoryList = CATEGORIES.map((c, i) => `${i + 1}. ${c}`).join("\n");
+  
+  const billsList = bills.map((b) => {
+    const title = b.title?.trim() || "N/A";
+    const committees = b.committees?.trim() || "N/A";
+    const summary = (b.latest_summary?.trim() || "N/A").substring(0, 500);
+    
+    // Use legislation_number as the ID - it's meaningful and less prone to hallucination than UUIDs
+    return `[BILL]
+Legislation Number: ${b.legislation_number}
+Title: ${title}
+Committees: ${committees}
+Summary: ${summary}`;
+  }).join("\n\n");
+
+  return `You are a legislative analyst. Categorize each bill into exactly ONE of these categories:
+
+${categoryList}
+
+IMPORTANT: If a bill does NOT have enough information to categorize (missing title, missing summary, or the data appears corrupted/incomplete), use "no_category" instead of guessing.
+
+Bills to categorize:
+${billsList}
+
+Respond with ONLY a JSON array of objects. Each object must have:
+- "legislation_number": the bill's legislation number (string, copy EXACTLY as provided, e.g., "H.R. 123 (119)")
+- "category": either an exact category name from the list OR "no_category" if insufficient info
+
+Example response:
+[{"legislation_number": "H.R. 123 (119)", "category": "Air Quality & Emissions"}, {"legislation_number": "S. 456 (119)", "category": "no_category"}]`;
+}
+
+async function categorizeBatch(
+  bills: BillForCategorization[],
+  apiKey: string
+): Promise<CategorizationResult> {
+  const prompt = buildPrompt(bills);
+  
+  // Log the prompt being sent
+  console.log("=== CATEGORIZATION PROMPT ===");
+  console.log(prompt);
+  console.log("=== END PROMPT ===");
+  
+  const requestBody = {
+    model: CATEGORIZATION_MODEL,
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+    max_tokens: 2000,
   };
   
-  if (bill.latest_summary) {
-    result.summary = bill.latest_summary;
-  }
-  
-  return result;
-}
+  console.log("=== API REQUEST BODY ===");
+  console.log(JSON.stringify(requestBody, null, 2));
+  console.log("=== END REQUEST BODY ===");
 
-/**
- * Build the system prompt for categorization
- */
-function buildSystemPrompt(): string {
-  return `You are an expert at categorizing US environmental legislation into policy categories.
-
-For each bill, analyze the title, committees, latest action, and summary (if provided) to determine the most appropriate category.
-
-VALID CATEGORIES (you MUST use exactly one of these):
-- air_and_atmosphere: Air quality, pollution control, ozone, acid rain, noise pollution
-- water_resources: Water quality, drinking water, ocean/coastal, water pollution
-- waste_and_toxics: Hazardous waste, solid waste, toxic substances, pesticides
-- energy_and_resources: Renewable energy, nuclear, fossil fuels, energy efficiency
-- land_and_conservation: Public lands, forests, wildlife, endangered species, parks
-- disaster_and_emergency: Chemical emergencies, oil spills, flood hazards
-- climate_and_emissions: Greenhouse gases, climate adaptation, sea level rise
-- justice_and_environment: Environmental justice, civil rights, interstate pollution
-
-RULES:
-1. Return ONLY valid JSON array
-2. Use EXACTLY the category names above (lowercase with underscores)
-3. Include ALL bills from the input
-4. Preserve the exact congress, billType, and billNumber from input
-
-OUTPUT FORMAT (JSON array):
-[
-  {"congress": "113", "billType": "H.R.", "billNumber": "5861", "category": "water_resources"},
-  ...
-]`;
-}
-
-/**
- * Build user prompt with bills to categorize
- */
-function buildUserPrompt(bills: BillForLLM[]): string {
-  const billsJson = JSON.stringify(bills);
-  return "Categorize these " + bills.length + " environmental bills:\n\n" + billsJson;
-}
-
-/**
- * Call OpenAI Responses API to categorize bills
- */
-async function callOpenAI(bills: BillForLLM[], apiKey: string): Promise<Categorization[]> {
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetch(OPENROUTER_API_URL, {
     method: "POST",
     headers: {
-      "Authorization": "Bearer " + apiKey,
+      "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      "HTTP-Referer": "https://cruzhacks-environmental-transparency.vercel.app",
+      "X-Title": "Environmental Transparency - Categorizer",
     },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      instructions: buildSystemPrompt(),
-      input: buildUserPrompt(bills),
-      reasoning: { effort: "minimal" },
-      text: {
-        format: {
-          type: "json_schema",
-          name: "categorizations",
-          schema: {
-            type: "object",
-            properties: {
-              categorizations: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    congress: { type: "string" },
-                    billType: { type: "string" },
-                    billNumber: { type: "string" },
-                    category: { type: "string" }
-                  },
-                  required: ["congress", "billType", "billNumber", "category"],
-                  additionalProperties: false
-                }
-              }
-            },
-            required: ["categorizations"],
-            additionalProperties: false
-          },
-          strict: true
-        }
-      }
-    }),
+    body: JSON.stringify(requestBody),
   });
 
+  const responseText = await response.text();
+  
+  // Log full response
+  console.log("=== FULL API RESPONSE ===");
+  console.log(`Status: ${response.status}`);
+  console.log(`Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`);
+  console.log(`Body: ${responseText}`);
+  console.log("=== END RESPONSE ===");
+
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error("OpenAI API error: " + response.status + " - " + error);
+    const error = new Error(`OpenRouter error: ${response.status} - ${responseText}`);
+    (error as any).prompt = prompt;
+    (error as any).modelResponse = responseText;
+    throw error;
   }
 
-  const data = await response.json();
-  const messageOutput = data.output?.find((item: any) => item.type === "message");
-  const content = messageOutput?.content?.[0]?.text;
-  
-  if (!content) {
-    throw new Error("No text content in OpenAI response");
-  }
-
-  const parsed = JSON.parse(content);
-  if (parsed.categorizations && Array.isArray(parsed.categorizations)) {
-    return parsed.categorizations;
-  }
-  
-  throw new Error("Could not find categorization array in OpenAI response");
-}
-
-/**
- * Update bills in database with categories
- */
-async function updateBillCategories(
-  supabase: ReturnType<typeof createClient>,
-  categorizations: Categorization[],
-  dryRun: boolean
-): Promise<{ successful: string[]; failed: { legNum: string; error: string }[] }> {
-  const successful: string[] = [];
-  const failed: { legNum: string; error: string }[] = [];
-
-  for (const cat of categorizations) {
-    const legislationNumber = cat.billType + " " + cat.billNumber + " (" + cat.congress + ")";
-    
-    if (!VALID_CATEGORIES.includes(cat.category as typeof VALID_CATEGORIES[number])) {
-      failed.push({ legNum: legislationNumber, error: "Invalid category: " + cat.category });
-      continue;
-    }
-
-    if (dryRun) {
-      successful.push(legislationNumber);
-      continue;
-    }
-
-    const { data, error } = await supabase
-      .from("house_bills")
-      .update({ category: cat.category })
-      .eq("legislation_number", legislationNumber)
-      .select("id");
-
-    if (error) {
-      failed.push({ legNum: legislationNumber, error: "DB error: " + error.message });
-    } else if (!data || data.length === 0) {
-      failed.push({ legNum: legislationNumber, error: "HALLUCINATION: Bill not found" });
-    } else {
-      successful.push(legislationNumber);
-    }
-  }
-
-  return { successful, failed };
-}
-
-/**
- * Process a single batch of bills
- */
-async function processBatch(
-  batchNum: number,
-  llmBills: BillForLLM[],
-  openaiKey: string,
-  supabase: ReturnType<typeof createClient>,
-  dryRun: boolean
-): Promise<BatchResult & { allSuccessful: string[], allFailed: { legNum: string; error: string }[] }> {
-  const startTime = Date.now();
-  const allSuccessful: string[] = [];
-  const allFailed: { legNum: string; error: string }[] = [];
-
+  let data: any;
   try {
-    const categorizations = await callOpenAI(llmBills, openaiKey);
-    const { successful, failed } = await updateBillCategories(supabase, categorizations, dryRun);
-    
-    allSuccessful.push(...successful);
-    allFailed.push(...failed);
-
-    const hallucinationCount = failed.filter(f => f.error.includes("HALLUCINATION")).length;
-    const missingCount = Math.max(0, llmBills.length - (successful.length + failed.length));
-
-    return {
-      batchNumber: batchNum + 1,
-      processed: llmBills.length,
-      successful: successful.length,
-      failed: failed.length,
-      missing: missingCount,
-      hallucinations: hallucinationCount,
-      timeMs: Date.now() - startTime,
-      allSuccessful,
-      allFailed
-    };
-  } catch (e) {
-    const errorMsg = e instanceof Error ? e.message : "Unknown error";
-    for (const bill of llmBills) {
-      const legNum = bill.billType + " " + bill.billNumber + " (" + bill.congress + ")";
-      allFailed.push({ legNum, error: "Batch error: " + errorMsg });
-    }
-    return {
-      batchNumber: batchNum + 1,
-      processed: llmBills.length,
-      successful: 0,
-      failed: llmBills.length,
-      missing: 0,
-      hallucinations: 0,
-      timeMs: Date.now() - startTime,
-      error: errorMsg,
-      allSuccessful,
-      allFailed
-    };
+    data = JSON.parse(responseText);
+  } catch (parseError) {
+    const error = new Error(`Failed to parse API response as JSON: ${parseError}`);
+    (error as any).prompt = prompt;
+    (error as any).modelResponse = responseText;
+    throw error;
   }
+  
+  console.log("=== PARSED API RESPONSE ===");
+  console.log(JSON.stringify(data, null, 2));
+  console.log("=== END PARSED RESPONSE ===");
+  
+  const content = data.choices?.[0]?.message?.content || "";
+  
+  console.log("=== MODEL CONTENT OUTPUT ===");
+  console.log(content);
+  console.log("=== END CONTENT ===");
+  
+  const jsonMatch = content.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) {
+    const error = new Error(`No JSON array found in model response. Content was: ${content.substring(0, 500)}`);
+    (error as any).prompt = prompt;
+    (error as any).modelResponse = content;
+    (error as any).fullApiResponse = data;
+    throw error;
+  }
+  
+  let categories: { legislation_number: string; category: string }[];
+  try {
+    categories = JSON.parse(jsonMatch[0]);
+  } catch (parseError) {
+    const error = new Error(`Failed to parse JSON array from model: ${parseError}. JSON was: ${jsonMatch[0].substring(0, 500)}`);
+    (error as any).prompt = prompt;
+    (error as any).modelResponse = content;
+    (error as any).fullApiResponse = data;
+    throw error;
+  }
+  
+  console.log("=== PARSED CATEGORIES ===");
+  console.log(JSON.stringify(categories, null, 2));
+  console.log("=== END CATEGORIES ===");
+  
+  return {
+    categories,
+    prompt,
+    rawResponse: content,
+    fullApiResponse: data,
+  };
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  const startTime = Date.now();
+  let currentStage = "init";
+  let discordUrl = "";
+  let lastPrompt = "";
+  let lastModelResponse = "";
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-    const openaiKey = Deno.env.get("OPENAI_API_KEY") || "";
+    // Stage: Initialize
+    currentStage = "init_env_vars";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const openRouterKey = Deno.env.get("OPENROUTER_API_KEY");
+    discordUrl = Deno.env.get("DISCORD_WEBHOOK_URL") ?? "";
 
-    if (!openaiKey) {
-      return new Response(JSON.stringify({ error: "OPENAI_API_KEY not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
+    }
+    if (!openRouterKey) {
+      throw new Error("Missing OPENROUTER_API_KEY env var");
     }
 
+    currentStage = "init_supabase_client";
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const body = await req.json().catch(() => ({}));
-    const batchSize = typeof body.batchSize === "number" ? body.batchSize : DEFAULT_BATCH_SIZE;
-    const maxBills = typeof body.maxBills === "number" ? body.maxBills : DEFAULT_MAX_BILLS;
-    const dryRun = body.dryRun === true;
 
-    // Fetch uncategorized bills
-    const { data: dbBills, error: fetchError } = await supabase
+    // Stage: Fetch bills with NULL category
+    currentStage = "fetch_uncategorized_bills";
+    const { data: bills, error: fetchError } = await supabase
       .from("house_bills")
-      .select("id, legislation_number, congress, title, committees, latest_action, latest_summary")
+      .select("id, legislation_number, title, committees, latest_summary")
       .is("category", null)
-      .limit(maxBills);
+      .limit(BATCH_SIZE);
 
-    if (fetchError) throw new Error("Fetch error: " + fetchError.message);
-    if (!dbBills || dbBills.length === 0) {
-      return new Response(JSON.stringify({ message: "No uncategorized bills found" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (fetchError) {
+      throw new Error(`Failed to fetch bills: ${fetchError.message}`);
     }
 
-    const allLlmBills: BillForLLM[] = dbBills
-      .map(bill => dbBillToLLMFormat(bill as DbBill))
-      .filter((b): b is BillForLLM => b !== null);
-
-    const batches: BillForLLM[][] = [];
-    for (let i = 0; i < allLlmBills.length; i += batchSize) {
-      batches.push(allLlmBills.slice(i, i + batchSize));
+    if (!bills || bills.length === 0) {
+      console.log("No bills to categorize. Triggering embedder.");
+      
+      if (discordUrl) {
+        await sendDiscordNotification(discordUrl, "complete", {});
+      }
+      
+      currentStage = "trigger_embedder_empty";
+      await triggerNextStep(supabase, "generate-bill-embeddings");
+      return new Response(JSON.stringify({
+        success: true,
+        message: "No bills to categorize, triggered embedder",
+      }), { headers: { "Content-Type": "application/json" } });
     }
 
-    console.log("Starting parallel categorization: " + allLlmBills.length + " bills in " + batches.length + " batches...");
+    console.log("=== CATEGORIZING " + bills.length + " BILLS ===");
+    console.log("Bills to categorize:");
+    for (const b of bills) {
+      console.log("  - " + b.legislation_number + " (ID: " + b.id + ")");
+      console.log("    Title: " + (b.title?.substring(0, 80) || "N/A"));
+      console.log("    Summary: " + (b.latest_summary ? "present" : "N/A"));
+    }
+    console.log("=== END BILL LIST ===");
 
-    // Run all batches in parallel
-    const results = await Promise.all(
-      batches.map((batch, idx) => processBatch(idx, batch, openaiKey, supabase, dryRun))
-    );
+    // Stage: Send to Gemini
+    currentStage = "call_openrouter_api";
+    const result = await categorizeBatch(bills, openRouterKey);
+    lastPrompt = result.prompt;
+    lastModelResponse = result.rawResponse;
+    
+    console.log(`Received ${result.categories.length} categorizations`);
 
-    // Get final count of uncategorized bills
-    const { count: remainingNulls } = await supabase
+    // Stage: Process results - categorize or delete
+    currentStage = "update_categories_in_db";
+    let categorized = 0;
+    let skipped = 0;
+    let unmatched = 0;
+    let missing = 0;
+    const skippedBills: string[] = [];
+    const unmatchedBills: string[] = [];
+    const missingBills: string[] = [];
+    
+    // Create a lookup map for bills by legislation_number (the identifier used in the prompt)
+    const billLookup = new Map(bills.map(b => [b.legislation_number, b]));
+    
+    // Track which bills from our batch were handled by the model
+    const handledBills = new Set<string>();
+    
+    for (const cat of result.categories) {
+      const legislationNumber = cat.legislation_number;
+      const bill = billLookup.get(legislationNumber);
+      
+      if (!bill) {
+        // Model returned a legislation_number we don't recognize
+        console.warn("⚠️ UNMATCHED: Model returned unknown legislation_number: " + legislationNumber);
+        unmatched++;
+        unmatchedBills.push(legislationNumber);
+        continue;
+      }
+      
+      // Mark this bill as handled
+      handledBills.add(legislationNumber);
+      
+      if (cat.category === NO_CATEGORY || cat.category === "no_category") {
+        // Delete bill - it will be re-fetched later when more info is available
+        console.log("⏭️ SKIP: " + legislationNumber + " - insufficient info, deleting from house_bills");
+        
+        const { error: deleteError } = await supabase
+          .from("house_bills")
+          .delete()
+          .eq("id", bill.id);
+        
+        if (deleteError) {
+          console.error("Failed to delete bill " + legislationNumber + ": " + deleteError.message);
+        } else {
+          skipped++;
+          skippedBills.push(legislationNumber);
+        }
+      } else {
+        // Valid category - update
+        const validCategory = CATEGORIES.includes(cat.category) ? cat.category : "Other Environmental";
+        
+        console.log("✅ CATEGORIZE: " + legislationNumber + " -> " + validCategory);
+        
+        const { error: updateError } = await supabase
+          .from("house_bills")
+          .update({ category: validCategory })
+          .eq("id", bill.id);
+
+        if (updateError) {
+          console.error("Failed to update bill " + legislationNumber + ": " + updateError.message);
+        } else {
+          categorized++;
+        }
+      }
+    }
+    
+    // CRITICAL: Handle bills the model did NOT return (to prevent infinite loops)
+    // Delete them like no_category - they'll be re-fetched later
+    for (const bill of bills) {
+      if (!handledBills.has(bill.legislation_number)) {
+        console.warn("⚠️ MISSING: Model did not return result for: " + bill.legislation_number + " - deleting to prevent loop");
+        
+        const { error: deleteError } = await supabase
+          .from("house_bills")
+          .delete()
+          .eq("id", bill.id);
+        
+        if (deleteError) {
+          console.error("Failed to delete missing bill " + bill.legislation_number + ": " + deleteError.message);
+        } else {
+          missing++;
+          missingBills.push(bill.legislation_number);
+        }
+      }
+    }
+    
+    if (unmatched > 0) {
+      console.warn("=== UNMATCHED BILLS ===");
+      console.warn("Model returned " + unmatched + " legislation numbers we couldn't match:");
+      for (const um of unmatchedBills) {
+        console.warn("  - " + um);
+      }
+      console.warn("=== END UNMATCHED ===");
+    }
+    
+    if (missing > 0) {
+      console.warn("=== MISSING BILLS (deleted to prevent loop) ===");
+      console.warn("Model did not return " + missing + " bills from our batch:");
+      for (const mb of missingBills) {
+        console.warn("  - " + mb);
+      }
+      console.warn("=== END MISSING ===");
+    }
+
+    const skippedPct = bills.length > 0 
+      ? ((skipped / bills.length) * 100).toFixed(1) + "%" 
+      : "0%";
+    const missingPct = bills.length > 0 
+      ? ((missing / bills.length) * 100).toFixed(1) + "%" 
+      : "0%";
+    const totalRemoved = skipped + missing;
+
+    console.log("=== BATCH RESULTS ===");
+    console.log("Categorized: " + categorized);
+    console.log("Skipped (no_category): " + skipped + " (" + skippedPct + ")");
+    console.log("Missing (deleted to prevent loop): " + missing + " (" + missingPct + ")");
+    console.log("Total removed from house_bills: " + totalRemoved);
+    console.log("Skipped bills: " + (skippedBills.join(", ") || "none"));
+    console.log("Missing bills: " + (missingBills.join(", ") || "none"));
+    console.log("=== END RESULTS ===");
+
+    // Stage: Check remaining work
+    currentStage = "count_remaining_uncategorized";
+    const { count, error: countError } = await supabase
       .from("house_bills")
       .select("*", { count: "exact", head: true })
       .is("category", null);
 
-    // Aggregate results
-    const allSuccessful: string[] = [];
-    const allFailed: { legNum: string; error: string }[] = [];
-    const batchSummaries: BatchResult[] = [];
-    let processedTotal = 0;
-    let totalMissing = 0;
+    if (countError) {
+      throw new Error(`Failed to count remaining bills: ${countError.message}`);
+    }
 
-    for (const res of results) {
-      allSuccessful.push(...res.allSuccessful);
-      allFailed.push(...res.allFailed);
-      processedTotal += res.processed;
-      totalMissing += res.missing;
-      batchSummaries.push({
-        batchNumber: res.batchNumber,
-        processed: res.processed,
-        successful: res.successful,
-        failed: res.failed,
-        missing: res.missing,
-        hallucinations: res.hallucinations,
-        timeMs: res.timeMs,
-        error: res.error
+    const remaining = count || 0;
+
+    // Stage: Send Discord notification
+    currentStage = "send_progress_notification";
+    if (discordUrl) {
+      if (remaining > 0) {
+        await sendDiscordNotification(discordUrl, "progress", {
+          processed: bills.length,
+          categorized,
+          skipped,
+          skippedPct,
+          missing,
+          missingPct,
+          remaining,
+          skippedBills,
+          missingBills,
+        });
+      } else {
+        await sendDiscordNotification(discordUrl, "complete", {});
+      }
+    }
+
+    // Stage: Trigger next step
+    currentStage = "trigger_next_step";
+    if (remaining > 0) {
+      console.log(`${remaining} bills still need categorization. Triggering self.`);
+      await triggerNextStep(supabase, "categorize-bills");
+    } else {
+      console.log("All bills categorized. Triggering embedder.");
+      await triggerNextStep(supabase, "generate-bill-embeddings");
+    }
+
+    return new Response(JSON.stringify({
+      success: true,
+      processed: bills.length,
+      categorized,
+      skipped,
+      skipped_pct: skippedPct,
+      skipped_bills: skippedBills,
+      remaining,
+      debug: {
+        promptLength: lastPrompt.length,
+        responseLength: lastModelResponse.length,
+      }
+    }), { headers: { "Content-Type": "application/json" } });
+
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const fullError = `[${currentStage}] ${errorMsg}`;
+    
+    // Extract prompt and model response from error if available
+    const errorPrompt = (error as any)?.prompt || lastPrompt;
+    const errorModelResponse = (error as any)?.modelResponse || lastModelResponse;
+    
+    console.error("=== CATEGORIZER ERROR ===");
+    console.error("Stage:", currentStage);
+    console.error("Error:", errorMsg);
+    console.error("Prompt:", errorPrompt);
+    console.error("Model Response:", errorModelResponse);
+    console.error("Full Error Object:", error);
+    console.error("=== END ERROR ===");
+    
+    if (discordUrl) {
+      await sendDiscordNotification(discordUrl, "error", { 
+        error: errorMsg,
+        stage: currentStage,
+        prompt: errorPrompt,
+        modelResponse: errorModelResponse,
       });
     }
 
-    const totalTime = Date.now() - startTime;
-    const hallucinationCount = allFailed.filter(f => f.error.includes("HALLUCINATION")).length;
-    const hallucinationRate = processedTotal > 0 ? ((hallucinationCount / processedTotal) * 100).toFixed(2) : "0";
-
-    console.log("=== PARALLEL CATEGORIZATION COMPLETE ===");
-    console.log("Total processed: " + processedTotal + " in " + totalTime + "ms");
-
-    return new Response(
-      JSON.stringify({
-        summary: {
-          totalProcessed: processedTotal,
-          totalBatches: batches.length,
-          successCount: allSuccessful.length,
-          failCount: allFailed.length,
-          missingCount: totalMissing,
-          hallucinationCount,
-          hallucinationRate: hallucinationRate + "%",
-          remainingNullCategories: remainingNulls,
-          totalTimeMs: totalTime,
-          dryRun,
-        },
-        batchResults: batchSummaries,
-        failed: allFailed.slice(0, 100),
-        failedCount: allFailed.length,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Fatal error:", errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ 
+      error: errorMsg,
+      stage: currentStage,
+      function: "categorize-bills",
+      debug: {
+        prompt: errorPrompt?.substring(0, 2000),
+        modelResponse: errorModelResponse?.substring(0, 2000),
+      }
+    }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 });
