@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const AIRNOW_API_KEY = '782E4B06-90F6-4CA9-B10C-E93E5BBC4220'
+const AIRNOW_API_KEY = process.env.AIRNOW_API_KEY
 const AIRNOW_BASE_URL = 'https://www.airnowapi.org/aq'
 
 // Major US cities for sampling national air quality
@@ -59,11 +59,11 @@ export async function GET(request: NextRequest) {
 
       const url = `${AIRNOW_BASE_URL}/observation/zipCode/current/?format=application/json&zipCode=${zipCode}&distance=25&API_KEY=${AIRNOW_API_KEY}`
       const response = await fetch(url)
-      
+
       if (!response.ok) {
         throw new Error(`AirNow API error: ${response.status}`)
       }
-      
+
       const data = await response.json()
       return NextResponse.json(data)
     }
@@ -75,11 +75,11 @@ export async function GET(request: NextRequest) {
           try {
             const url = `${AIRNOW_BASE_URL}/observation/zipCode/current/?format=application/json&zipCode=${city.zipCode}&distance=25&API_KEY=${AIRNOW_API_KEY}`
             const response = await fetch(url)
-            
+
             if (!response.ok) {
               return { city: city.name, zipCode: city.zipCode, observations: [], error: `HTTP ${response.status}` }
             }
-            
+
             const data: AirNowObservation[] = await response.json()
             return { city: city.name, zipCode: city.zipCode, observations: data }
           } catch (err) {
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
       // Calculate national averages by pollutant
       const pollutantData: Record<string, { values: number[], cityData: { city: string, aqi: number }[] }> = {}
-      
+
       results.forEach((cityResult) => {
         cityResult.observations.forEach((obs) => {
           if (!pollutantData[obs.ParameterName]) {
