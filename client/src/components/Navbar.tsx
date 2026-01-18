@@ -42,7 +42,8 @@ export default function Navbar() {
     <nav className="w-full bg-nav shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link href="/" className="text-white font-semibold text-xl">
+          <Link href="/" className="flex items-center gap-2 text-white font-semibold text-xl" style={{ marginLeft: '-150px' }}>
+            <img src="/EcoGlass.png" alt="EcoGlass" className="w-24 h-24" />
             EcoGlass
           </Link>
 
