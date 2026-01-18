@@ -201,7 +201,7 @@ export function TemperatureChart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">Global Temperature Anomaly</h3>
       <p className="text-gray-500 text-sm mb-4">°C above 1951-1980 baseline (NASA GISS)</p>
-      <div className="h-[300px]">
+      <div className="h-[220px] sm:h-[260px] md:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={temperatureData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -230,7 +230,7 @@ export function CO2Chart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">Atmospheric CO₂ Concentration</h3>
       <p className="text-gray-500 text-sm mb-4">Parts per million (Mauna Loa Observatory)</p>
-      <div className="h-[300px]">
+      <div className="h-[220px] sm:h-[260px] md:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={co2Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -259,7 +259,7 @@ export function PM25Chart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">PM₂.₅ National Average</h3>
       <p className="text-gray-500 text-sm mb-4">Annual mean (µg/m³) — EPA Air Trends</p>
-      <div className="h-[250px]">
+      <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={pm25Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -288,7 +288,7 @@ export function OzoneChart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">Ground-Level Ozone (O₃)</h3>
       <p className="text-gray-500 text-sm mb-4">4th highest daily max 8-hr average (ppb) — EPA Air Trends</p>
-      <div className="h-[250px]">
+      <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={ozoneData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -317,7 +317,7 @@ export function NO2Chart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">Nitrogen Dioxide (NO₂)</h3>
       <p className="text-gray-500 text-sm mb-4">Annual mean (ppb) — EPA Air Trends</p>
-      <div className="h-[250px]">
+      <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={no2Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -346,7 +346,7 @@ export function SO2Chart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">Sulfur Dioxide (SO₂)</h3>
       <p className="text-gray-500 text-sm mb-4">1-hour 99th percentile (ppb) — EPA Air Trends</p>
-      <div className="h-[250px]">
+      <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={so2Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -375,7 +375,7 @@ export function WaterQualityChart() {
     <div className="bg-white rounded-xl border border-gray-200 p-6">
       <h3 className="font-bold text-gray-900 mb-1">Waters Meeting Quality Standards</h3>
       <p className="text-gray-500 text-sm mb-4">% of assessed U.S. waters — EPA National Water Quality Inventory</p>
-      <div className="h-[250px]">
+      <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={waterQualityData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -556,7 +556,7 @@ export function LiveAirQuality() {
       </div>
 
       {selectedData && (
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           {/* Summary card */}
           <div className="space-y-4">
             <div className={`p-4 rounded-xl ${getAQICategory(selectedData.averageAQI).bg}`}>
@@ -591,7 +591,7 @@ export function LiveAirQuality() {
           </div>
 
           {/* City breakdown chart */}
-          <div className="h-[200px]">
+          <div className="h-[180px] sm:h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={selectedData.cityBreakdown.slice(0, 8)}

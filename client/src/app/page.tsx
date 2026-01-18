@@ -4,19 +4,19 @@ import LandingImages from '@/components/LandingImages'
 export default function Home() {
   return (
     <main className="min-h-screen">
-      <div className="flex min-h-screen">
+      <div className="flex flex-col md:flex-row min-h-screen">
         {/* Left Side - Content (40%) */}
-        <section className="w-[40%] bg-main p-8 pt-20 overflow-y-auto">
+        <section className="w-full md:w-[40%] bg-main p-4 md:p-8 pt-16 md:pt-20 overflow-y-auto">
           <div className="max-w-md mx-auto">
 
 
 
             {/* Hero */}
-            <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4 text-main">
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight mb-4 text-main">
               <span className="text-accent">EcoGlass</span>
             </h1>
 
-            <p className="text-lg leading-relaxed mb-6 text-light">
+            <p className="text-base md:text-lg leading-relaxed mb-6 text-light">
               Our mission is the make environmental policy more transparent and accessible to the public. <br /><br />
               EcoGlass is a tool that allows you to view how your own congressional representatives are voting on environmental legislation,
               as well as a look into how the whole legislative process works in the US Congress.

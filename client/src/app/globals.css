@@ -123,3 +123,18 @@ body {
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+/* Mobile-specific utilities */
+@layer utilities {
+  .touch-friendly {
+    @apply min-h-[44px] min-w-[44px];
+  }
+}
+
+/* Narrower scrollbar on mobile */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
