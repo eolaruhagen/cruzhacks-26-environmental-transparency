@@ -499,8 +499,8 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
         <div className="relative" style={{ overflow: 'visible', padding: '0 80px' }}>
             {/* Year Range Slider */}
             <div className="flex justify-center mb-3">
-                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg">
-                    <span className="text-sm font-medium text-gray-600 w-10">{selectedYearRange[0]}</span>
+                <div className="flex items-center gap-3 bg-main px-4 py-2 rounded-lg">
+                    <span className="text-sm font-medium text-main w-10">{selectedYearRange[0]}</span>
                     <div className="relative w-48 h-6">
                         {/* Track background */}
                         <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200 rounded-full" />
@@ -594,7 +594,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                             style={{ zIndex: 4, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
                         />
                     </div>
-                    <span className="text-sm font-medium text-gray-600 w-10">{selectedYearRange[1]}</span>
+                    <span className="text-sm font-medium text-main w-10">{selectedYearRange[1]}</span>
                 </div>
             </div>
 
@@ -649,7 +649,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 </button>
             </div>
 
-            <svg width={size} height={size} className="mx-auto" style={{ overflow: 'visible' }}>
+            <svg width={size} height={size} className="mx-auto" style={{ overflow: 'visible', marginTop: '45px' }}>
                 {/* Background circles */}
                 {circles}
 
@@ -752,18 +752,18 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
             {/* Side panel for hovered cluster bills */}
             {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
                 <div
-                    className="fixed top-20 right-0 w-80 bg-card border-l border-b border-border shadow-xl overflow-hidden z-50"
-                    style={{ height: panelHeight, minHeight: 150, maxHeight: 600 }}
+                    className="fixed w-80 bg-card border border-border shadow-xl overflow-hidden z-50 rounded-lg"
+                    style={{ top: '84px', right: '10px', height: panelHeight, minHeight: 150, maxHeight: 600 }}
                 >
                     <div
-                        className="bg-card px-4 py-2.5 border-b border-border flex justify-between items-center"
+                        className="bg-nav px-4 py-2.5 flex justify-between items-center"
                     >
-                        <span className="text-sm text-main font-semibold">
+                        <span className="text-sm text-white font-semibold">
                             Cluster Bills ({finalClusters[hoveredCluster].bills.length})
                         </span>
                         <button
                             onClick={() => setHoveredCluster(null)}
-                            className="text-main/50 hover:text-main text-lg leading-none"
+                            className="text-white/70 hover:text-white text-lg leading-none"
                         >
                             ×
                         </button>
@@ -817,34 +817,35 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
             {/* Side panel for selected individual bill */}
             {!showClusters && selectedBill && (
                 <div
-                    className="fixed top-0 right-0 w-80 bg-white border-l border-b border-gray-200 shadow-xl overflow-hidden z-50"
+                    className="fixed w-80 bg-card border border-border shadow-xl overflow-hidden z-50 rounded-lg"
+                    style={{ top: '84px', right: '10px' }}
                 >
                     <div
-                        className="bg-gray-50 px-4 py-2.5 border-b flex justify-between items-center"
+                        className="bg-nav px-4 py-2.5 flex justify-between items-center"
                     >
-                        <span className="text-sm text-gray-700 font-semibold">Bill Details</span>
+                        <span className="text-sm text-white font-semibold">Bill Details</span>
                         <button
                             onClick={() => setSelectedBill(null)}
-                            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+                            className="text-white/70 hover:text-white text-lg leading-none"
                         >
                             ×
                         </button>
                     </div>
                     <div className="p-4">
                         <div className="mb-3">
-                            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Legislation Number</div>
-                            <div className="font-semibold text-gray-900">{selectedBill.legislation_number}</div>
+                            <div className="text-xs text-light uppercase tracking-wide mb-1">Legislation Number</div>
+                            <div className="font-semibold text-main">{selectedBill.legislation_number}</div>
                         </div>
                         <div className="mb-4">
-                            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">Title</div>
-                            <div className="text-sm text-gray-800">{selectedBill.title || 'No title available'}</div>
+                            <div className="text-xs text-light uppercase tracking-wide mb-1">Title</div>
+                            <div className="text-sm text-main">{selectedBill.title || 'No title available'}</div>
                         </div>
                         {selectedBill.url && (
                             <a
                                 href={selectedBill.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center px-4 py-2 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
+                                className="inline-flex items-center px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-dark transition-colors"
                             >
                                 View Full Bill →
                             </a>
