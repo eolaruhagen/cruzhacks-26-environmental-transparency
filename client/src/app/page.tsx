@@ -13,14 +13,12 @@ export default function Home() {
 
             {/* Hero */}
             <h1 className="text-4xl lg:text-5xl font-bold leading-tight mb-4 text-main">
-              Environmental
-              <br />
-              <span className="text-accent">Transparency</span>
+              <span className="text-accent">EcoGlass</span>
             </h1>
 
             <p className="text-lg leading-relaxed mb-6 text-light">
               Our mission is the make environmental policy more transparent and accessible to the public. <br /><br />
-              EcoTransparency is a tool that allows you to view how your own congressional representatives are voting on environmental legislation,
+              EcoGlass is a tool that allows you to view how your own congressional representatives are voting on environmental legislation,
               as well as a look into how the whole legislative process works in the US Congress.
 
             </p>

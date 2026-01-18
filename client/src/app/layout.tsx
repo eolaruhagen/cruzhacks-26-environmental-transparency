@@ -9,8 +9,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Environmental Transparency',
-  description: 'CruzHacks 2026 - Environmental Transparency Project',
+  title: 'EcoGlass',
+  description: 'CruzHacks 2026 - EcoGlass Project',
 }
 
 export default function RootLayout({

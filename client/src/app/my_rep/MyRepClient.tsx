@@ -52,21 +52,28 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
   const [hoveredBill, setHoveredBill] = useState<RadarBill | null>(null)
   const [selectedBill, setSelectedBill] = useState<RadarBill | null>(null)
 
-  // Extract last name from representative name for searching
-  const extractLastName = (fullName: string): string => {
+  // Extract first and last name from representative name for searching
+  const extractNames = (fullName: string): { firstName: string; lastName: string } => {
+    // Handle formats like "John Smith" or "Smith, John"
     const parts = fullName.split(',')
     if (parts.length > 1) {
-      return parts[0].trim()
+      // "Smith, John" format
+      const lastName = parts[0].trim()
+      const firstName = parts[1].trim().split(' ')[0] // Get first word after comma
+      return { firstName, lastName }
     }
+    // "John Smith" format
     const nameParts = fullName.split(' ')
-    return nameParts[nameParts.length - 1]
+    const firstName = nameParts[0]
+    const lastName = nameParts[nameParts.length - 1]
+    return { firstName, lastName }
   }
 
   // Fetch bills and subcategories when rep name changes
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const lastName = extractLastName(repName)
+      const { firstName, lastName } = extractNames(repName)
 
       try {
         // Fetch subcategories first
@@ -83,14 +90,15 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
           }
         }
 
-        // Fetch sponsored bills
+        // Fetch sponsored bills - search for "LastName, FirstName" pattern (Congress.gov format)
         const { data: sponsored } = await supabase
           .from('house_bills')
           .select('legislation_number, category, subcategory_scores, title, url')
-          .ilike('sponsor', `%${lastName}%`)
+          .ilike('sponsor', `%${lastName}, ${firstName}%`)
           .not('subcategory_scores', 'is', null)
 
-        // Fetch cosponsored bills (use text contains for array)
+        // Fetch cosponsored bills - search for last name in array
+        // Cosponsors array uses similar "LastName, FirstName" format
         const { data: cosponsored } = await supabase
           .from('house_bills')
           .select('legislation_number, category, subcategory_scores, title, url')
@@ -150,8 +158,8 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
       .join(' ')
   }
 
-  // Chart dimensions
-  const size = 350
+  // Chart dimensions - 20% larger
+  const size = 480
   const center = size / 2
   const radius = size * 0.35
 
@@ -213,8 +221,9 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
       cy={center}
       r={radius * scale}
       fill="none"
-      stroke="#e2e8f0"
+      stroke="var(--color-accent)"
       strokeWidth={1}
+      strokeDasharray={scale === 1 ? "0" : "4,4"}
     />
   ))
 
@@ -232,41 +241,43 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
         y1={center}
         x2={endX}
         y2={endY}
-        stroke="#e2e8f0"
+        stroke="var(--color-accent)"
         strokeWidth={1}
       />
     )
   })
 
-  // Axis labels
+  // Axis labels - using SVG text like main radar
   const axisLabels = subcatNames.map((subcat, i) => {
     const n = subcatNames.length
     const angle = (2 * Math.PI * i) / n - Math.PI / 2
-    const labelRadius = radius + 25
-    const x = center + labelRadius * Math.cos(angle)
-    const y = center + labelRadius * Math.sin(angle)
+    const labelDistance = radius + 40
+    const labelX = center + labelDistance * Math.cos(angle)
+    const labelY = center + labelDistance * Math.sin(angle)
 
-    const formatName = (name: string) => {
-      return name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    // Smart text anchoring based on position
+    const normalizedAngle = ((angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
+    let textAnchor: 'start' | 'middle' | 'end' = 'middle'
+    if (normalizedAngle > Math.PI * 0.15 && normalizedAngle < Math.PI * 0.85) {
+      textAnchor = 'start'
+    } else if (normalizedAngle > Math.PI * 1.15 && normalizedAngle < Math.PI * 1.85) {
+      textAnchor = 'end'
     }
 
-    // Determine text anchor based on position
-    let textAnchor: 'start' | 'middle' | 'end' = 'middle'
-    if (Math.cos(angle) > 0.3) textAnchor = 'start'
-    else if (Math.cos(angle) < -0.3) textAnchor = 'end'
+    const formatName = (name: string) =>
+      name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 
     return (
       <text
         key={`label-${subcat}`}
-        x={x}
-        y={y}
+        x={labelX}
+        y={labelY}
         textAnchor={textAnchor}
         dominantBaseline="middle"
-        fontSize={9}
-        fill="#64748b"
-        className="select-none"
+        fill="var(--color-border)"
+        style={{ fontSize: '11px' }}
       >
-        {formatName(subcat).substring(0, 12)}
+        {formatName(subcat)}
       </text>
     )
   })
@@ -298,8 +309,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-        <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">📊</span>
+      <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--color-border)' }}>
         Policy Radar
       </h3>
 
@@ -356,40 +366,9 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
         >
           {circles}
           {axisLines}
+          {axisLabels}
           {billDots}
         </svg>
-        {/* Labels outside SVG for better rendering */}
-        <div className="absolute inset-0 pointer-events-none" style={{ width: size, margin: '0 auto' }}>
-          {subcatNames.map((subcat, i) => {
-            const n = subcatNames.length
-            const angle = (2 * Math.PI * i) / n - Math.PI / 2
-            const labelRadius = radius + 40
-            const x = center + labelRadius * Math.cos(angle)
-            const y = center + labelRadius * Math.sin(angle)
-
-            let textAlign: 'left' | 'right' | 'center' = 'center'
-            if (Math.cos(angle) > 0.3) textAlign = 'left'
-            else if (Math.cos(angle) < -0.3) textAlign = 'right'
-
-            const formatName = (name: string) =>
-              name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-
-            return (
-              <div
-                key={`label-div-${subcat}`}
-                className="absolute text-xs text-gray-500 whitespace-nowrap"
-                style={{
-                  left: x,
-                  top: y,
-                  transform: `translate(${textAlign === 'center' ? '-50%' : textAlign === 'right' ? '-100%' : '0'}, -50%)`,
-                  textAlign
-                }}
-              >
-                {formatName(subcat).substring(0, 15)}
-              </div>
-            )
-          })}
-        </div>
       </div>
 
       {/* Hovered Bill Tooltip */}

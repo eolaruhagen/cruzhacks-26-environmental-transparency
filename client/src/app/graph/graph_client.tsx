@@ -57,8 +57,6 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
     const [isDraggingMin, setIsDraggingMin] = useState(false);
     const [isDraggingMax, setIsDraggingMax] = useState(false);
 
-    // Playback state: 'playing' | 'paused' | 'reverse'
-
     // Animation effect - moves range 1 year per second
     useEffect(() => {
         if (playbackState === 'paused') return;
