@@ -95,14 +95,15 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
 
         // Low spread (compact data) = fewer clusters (2-4)
         // High spread (spread out data) = more clusters (6-12)
-        const dynamicClusters = Math.max(2, Math.min(12, Math.round(2 + spreadRatio * 15)));
+        const dynamicClusters = Math.max(2, Math.min(12, Math.round(2 + spreadRatio * 20)));
 
         console.log(`Spread ratio: ${spreadRatio.toFixed(3)}, Clusters: ${dynamicClusters}`);
 
         try {
             const result = kmeans(scoreVectors, dynamicClusters, {
                 initialization: 'kmeans++',
-                maxIterations: 100
+                maxIterations: 100,
+                seed: 42  // Fixed seed for deterministic results
             });
 
             // Group bills by cluster
@@ -250,34 +251,65 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                 return Math.min(overlapDist / (smallerRadius * 2), 1);
             };
 
-            // Merge overlapping clusters
-            const overlapThreshold = 0.4;
-            const mergedFinal: Cluster[] = [];
-            const usedFinal = new Set<number>();
+            // Iteratively merge overlapping clusters until no overlaps remain
+            const overlapThreshold = 0.05; // Merge if practically ANY overlap (>5%)
+            let currentClusters = [...finalClusters];
+            let changed = true;
 
-            for (let i = 0; i < finalClusters.length; i++) {
-                if (usedFinal.has(i)) continue;
+            while (changed && currentClusters.length > 1) {
+                changed = false;
 
-                let merged = { ...finalClusters[i], bills: [...finalClusters[i].bills] };
+                // Recalculate max bills for radius scaling based on CURRENT state
+                const currMaxBills = Math.max(...currentClusters.map(c => c.bills.length), 1);
 
-                for (let j = i + 1; j < finalClusters.length; j++) {
-                    if (usedFinal.has(j)) continue;
+                for (let i = 0; i < currentClusters.length; i++) {
+                    for (let j = i + 1; j < currentClusters.length; j++) {
+                        const c1 = currentClusters[i];
+                        const c2 = currentClusters[j];
 
-                    if (circleOverlap(merged, finalClusters[j]) > overlapThreshold) {
-                        // Merge
-                        const totalBills = merged.bills.length + finalClusters[j].bills.length;
-                        merged.x = (merged.x * merged.bills.length + finalClusters[j].x * finalClusters[j].bills.length) / totalBills;
-                        merged.y = (merged.y * merged.bills.length + finalClusters[j].y * finalClusters[j].bills.length) / totalBills;
-                        merged.bills = [...merged.bills, ...finalClusters[j].bills];
-                        usedFinal.add(j);
+                        // Calculate radii based on current max
+                        const r1 = getClusterRadius(c1.bills.length, currMaxBills);
+                        const r2 = getClusterRadius(c2.bills.length, currMaxBills);
+
+                        const dx = c1.x - c2.x;
+                        const dy = c1.y - c2.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+
+                        // Check actual distance vs sum of radii (visual overlap)
+                        // If dist < r1 + r2, they touch/overlap
+                        const isOverlapping = dist < (r1 + r2) * (1 - overlapThreshold);
+
+                        if (isOverlapping) {
+                            // Merge j into i
+                            const totalBills = c1.bills.length + c2.bills.length;
+
+                            // Weighted centroid
+                            const newX = (c1.x * c1.bills.length + c2.x * c2.bills.length) / totalBills;
+                            const newY = (c1.y * c1.bills.length + c2.y * c2.bills.length) / totalBills;
+
+                            const mergedCluster: Cluster = {
+                                ...c1,
+                                bills: [...c1.bills, ...c2.bills],
+                                x: newX,
+                                y: newY,
+                                centroid: c1.centroid // Approximate (not heavily used after this)
+                            };
+
+                            // Replace i with merged, remove j
+                            currentClusters[i] = mergedCluster;
+                            currentClusters.splice(j, 1);
+
+                            changed = true;
+                            break; // Restart inner loop since indices changed
+                        }
                     }
+                    if (changed) break; // Restart outer loop
                 }
-
-                mergedFinal.push(merged);
-                usedFinal.add(i);
             }
 
-            return mergedFinal;
+            return currentClusters;
+
+
         } catch (e) {
             console.error('Clustering failed:', e);
             return [];
@@ -504,7 +536,7 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
             {/* Side panel for hovered cluster bills */}
             {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
                 <div
-                    className="absolute top-0 right-0 w-72 max-h-96 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
+                    className="absolute top-0 right-0 w-96 max-h-96 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden"
                     style={{
                         transform: 'translateX(100%)',
                         animation: 'slideIn 0.2s ease forwards'
@@ -516,25 +548,24 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
                             to { transform: translateX(0); opacity: 1; }
                         }
                     `}</style>
-                    <div className="bg-gray-50 px-4 py-3 border-b">
-                        <h3 className="font-semibold text-gray-700">
-                            Cluster {hoveredCluster + 1}
-                        </h3>
-                        <p className="text-sm text-gray-500">
-                            {finalClusters[hoveredCluster].bills.length} bills
-                        </p>
+                    <div
+                        className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center cursor-pointer hover:bg-gray-100"
+                        onClick={() => setHoveredCluster(null)}
+                    >
+                        <span className="text-sm text-gray-600 font-medium">Bills</span>
+                        <span className="text-xs text-gray-400">✕ Close</span>
                     </div>
-                    <div className="overflow-y-auto max-h-72 p-2">
+                    <div className="overflow-y-auto overflow-x-auto max-h-72 p-2">
                         {finalClusters[hoveredCluster].bills.map((bill, i) => (
                             <a
                                 key={i}
                                 href={bill.url || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="block px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                className="block px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors whitespace-nowrap"
                                 onClick={(e) => !bill.url && e.preventDefault()}
                             >
-                                <div className="font-medium truncate">
+                                <div className="font-medium">
                                     {bill.title || bill.legislation_number}
                                 </div>
                                 <div className="text-xs text-gray-400">
@@ -601,116 +632,147 @@ export default function GraphClient() {
     const [error, setError] = useState<string | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
+    const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+    const [showInstructions, setShowInstructions] = useState(true);
+
+    const dismissInstructions = () => {
+        setShowInstructions(false);
+    };
+
     useEffect(() => {
         async function fetchData() {
             try {
                 setLoading(true);
 
-                // Fetch subcategories with embeddings
+                // 1. Fetch subcategories first
                 const { data: subcatData, error: subcatError } = await supabase
                     .from('categories_embeddings')
                     .select('subcategory, bill_type, embedding');
 
                 if (subcatError) throw subcatError;
 
-                // Fetch bills with embeddings (increase limit from default 1000)
-                const { data: billsData, error: billsError } = await supabase
-                    .from('house_bills')
-                    .select('legislation_number, category, embedding, title, url')
-                    .limit(10000);
-
-                if (billsError) throw billsError;
-
                 const subcats = subcatData as Subcategory[];
-                const rawBills = billsData as Bill[];
 
-                console.log('Fetched subcategories:', subcats.length, subcats.slice(0, 2));
-                //console.log('Subcategory bill_types:', [...new Set(subcats.map(s => s.bill_type))]);
-                console.log('Fetched bills:', rawBills.length, rawBills.slice(0, 2));
-                //console.log('Bill categories:', [...new Set(rawBills.map(b => b.category))]);
-
-                // Debug: Check embedding format
-                if (subcats.length > 0) {
-                    const sampleSubcat = subcats[0];
-                    console.log('Sample subcategory embedding:', {
-                        type: typeof sampleSubcat.embedding,
-                        isArray: Array.isArray(sampleSubcat.embedding),
-                        length: sampleSubcat.embedding?.length,
-                        sample: sampleSubcat.embedding?.slice(0, 5)
-                    });
-                }
-                if (rawBills.length > 0) {
-                    const sampleBill = rawBills[0];
-                    console.log('Sample bill embedding:', {
-                        type: typeof sampleBill.embedding,
-                        isArray: Array.isArray(sampleBill.embedding),
-                        length: sampleBill.embedding?.length,
-                        sample: sampleBill.embedding?.slice(0, 5)
-                    });
-                }
-
-
-                setSubcategories(subcats);
-
-                // Get unique bill_types from subcategories (these are the 8 main categories)
-                const mainCategories = Array.from(new Set(subcats.map(s => s.bill_type)));
-                console.log('Main categories found:', mainCategories);
-
-                // Helper to parse embedding (stored as JSON string in Supabase)
+                // Helper to parse embedding
                 const parseEmbedding = (embedding: string | number[]): number[] => {
                     if (Array.isArray(embedding)) return embedding;
                     if (typeof embedding === 'string') {
                         try {
                             return JSON.parse(embedding);
                         } catch {
-                            console.error('Failed to parse embedding:', embedding.slice(0, 50));
                             return [];
                         }
                     }
                     return [];
                 };
 
-                // Parse subcategory embeddings once
+                // Parse subcategory embeddings
                 const parsedSubcats = subcats.map(s => ({
                     ...s,
                     embedding: parseEmbedding(s.embedding)
                 }));
 
-                // Calculate similarity scores for each bill against subcategories in its category
-                const billsWithScores: BillWithScores[] = rawBills
-                    .filter(bill => bill.category) // Only process bills with categories
-                    .map((bill) => {
-                        const scores: Record<string, number> = {};
-                        const billEmbedding = parseEmbedding(bill.embedding);
+                setSubcategories(parsedSubcats);
 
-                        // Only calculate scores for subcategories in the bill's category
-                        const relevantSubcats = parsedSubcats.filter(s => s.bill_type === bill.category);
+                // 2. Identify first category
+                const uniqueCategories = Array.from(new Set(subcats.map(s => s.bill_type))).sort();
+                const firstCategory = uniqueCategories.length > 0 ? uniqueCategories[0] : null;
 
-                        for (const subcat of relevantSubcats) {
-                            scores[subcat.subcategory] = cosineSimilarity(billEmbedding, subcat.embedding);
-                        }
-
-                        return {
-                            legislation_number: bill.legislation_number,
-                            category: bill.category,
-                            title: bill.title || bill.legislation_number,
-                            url: bill.url || '',
-                            subcategoryScores: scores
-                        };
-                    });
-
-                setBills(billsWithScores);
-
-                // Set initial selected category
-                const categories = Array.from(new Set(rawBills.map(b => b.category)));
-                if (categories.length > 0) {
-                    setSelectedCategory(categories[0]);
+                if (!firstCategory) {
+                    setLoading(false);
+                    return;
                 }
 
-            } catch (err) {
+                // Set initial selection to first category
+                setSelectedCategory(firstCategory);
+
+                console.log(`Initial load: Fetching bills for category '${firstCategory}'...`);
+
+                // 3. Fetch ONLY first category bills immediately
+                const { data: initialBillsData, error: initialError } = await supabase
+                    .from('house_bills')
+                    .select('legislation_number, category, embedding, title, url')
+                    .eq('category', firstCategory)
+                    .limit(2000); // Generous limit for single category
+
+                if (initialError) throw initialError;
+
+                const initialBills = initialBillsData as Bill[];
+
+                // Process initial bills
+                const processBills = (rawBills: Bill[]) => {
+                    return rawBills
+                        .filter(bill => bill.category)
+                        .map((bill) => {
+                            const scores: Record<string, number> = {};
+                            const billEmbedding = parseEmbedding(bill.embedding);
+                            // Only score against subcats in bill's category
+                            const relevantSubcats = parsedSubcats.filter(s => s.bill_type === bill.category);
+                            for (const subcat of relevantSubcats) {
+                                scores[subcat.subcategory] = cosineSimilarity(billEmbedding, subcat.embedding);
+                            }
+                            return {
+                                legislation_number: bill.legislation_number,
+                                category: bill.category,
+                                title: bill.title || bill.legislation_number,
+                                url: bill.url || '',
+                                subcategoryScores: scores
+                            };
+                        });
+                };
+
+                const initialProcessed = processBills(initialBills);
+                setBills(initialProcessed);
+                setLoading(false); // Enable interaction immediately
+
+                // 4. Background fetch for the rest (everything NOT in first category)
+                setIsBackgroundLoading(true);
+
+                const fetchChunk = async (from: number, to: number) => {
+                    console.log(`Background fetch: rows ${from}-${to} (excluding ${firstCategory})`);
+
+                    const { data: chunkData, error: chunkError } = await supabase
+                        .from('house_bills')
+                        .select('legislation_number, category, embedding, title, url')
+                        .neq('category', firstCategory) // Exclude what we already have
+                        .range(from, to);
+
+                    if (chunkError) {
+                        console.error('Background fetch error:', chunkError);
+                        return false;
+                    }
+
+                    if (!chunkData || chunkData.length === 0) return false;
+
+                    const chunkBills = chunkData as Bill[];
+                    const processedChunk = processBills(chunkBills);
+
+                    setBills(prev => [...prev, ...processedChunk]);
+                    return true;
+                };
+
+                // Fetch in chunks of 1000
+                const CHUNK_SIZE = 1000;
+                let offset = 0;
+                let hasMore = true;
+
+                while (hasMore) {
+                    // Small delay to prevent UI freezing
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    hasMore = await fetchChunk(offset, offset + CHUNK_SIZE - 1);
+                    offset += CHUNK_SIZE;
+
+                    // Safety break
+                    if (offset > 50000) break;
+                }
+
+                setIsBackgroundLoading(false);
+                console.log('All data loaded!');
+
+            } catch (err: any) {
                 console.error('Fetch error:', err);
-                setError(err instanceof Error ? err.message : 'Failed to fetch data');
-            } finally {
+                console.error('Error details:', JSON.stringify(err, null, 2));
+                setError(err.message || JSON.stringify(err) || 'Failed to fetch data');
                 setLoading(false);
             }
         }
@@ -719,7 +781,8 @@ export default function GraphClient() {
     }, []);
 
     // Get unique categories for the dropdown
-    const categories = Array.from(new Set(bills.map(b => b.category)));
+    // Get unique categories for the dropdown (combine from loaded bills and known subcategories to ensure complete list)
+    const categories = Array.from(new Set(subcategories.map(s => s.bill_type))).sort();
 
     // Filter bills by selected category
     const filteredBills = selectedCategory
@@ -727,9 +790,10 @@ export default function GraphClient() {
         : bills;
 
     // Get subcategories for selected category
+    // Get subcategories for selected category OR all subcategories if All is selected
     const categorySubcats = selectedCategory
         ? subcategories.filter(s => s.bill_type === selectedCategory)
-        : [];
+        : subcategories; // Use ALL subcategories when showing all bills
 
     if (loading) {
         return <div className="p-4">Loading bills and subcategories...</div>;
@@ -741,7 +805,14 @@ export default function GraphClient() {
 
     return (
         <div className="p-4">
-            <h1 className="text-2xl font-bold mb-4">Environmental Bills Radar</h1>
+            <div className="flex justify-between items-center mb-4">
+                <h1 className="text-2xl font-bold">Environmental Bills Radar</h1>
+                {isBackgroundLoading && (
+                    <div className="text-sm text-blue-600 animate-pulse">
+                        Loading more bills... ({bills.length} loaded)
+                    </div>
+                )}
+            </div>
 
             {/* Category selector */}
             <div className="mb-4">
@@ -764,32 +835,39 @@ export default function GraphClient() {
             </div>
 
             {/* Polar Scatter Chart */}
-            <div className="mb-8">
+            <div className="mb-8 relative">
+                {showInstructions && (
+                    <div className="absolute top-0 left-0 z-20 w-64 bg-white/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-blue-100 ml-4 mt-12 animate-in fade-in slide-in-from-left-4 duration-500">
+                        <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold text-blue-900">How to use</h3>
+                            <button
+                                onClick={dismissInstructions}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <ul className="text-sm text-gray-600 space-y-2">
+                            <li className="flex items-start">
+                                <span className="mr-2 text-xs pt-1">◆</span>
+                                <span>Click clusters to view list of bills</span>
+                            </li>
+                            <li className="flex items-start">
+                                <span className="mr-2 text-xs pt-1">◆</span>
+                                <span>Outliers shown as individual bills</span>
+                            </li>
+                            <li className="flex items-start">
+                                <span className="mr-2 text-xs pt-1">◆</span>
+                                <span>Click titles in side panel to visit bill URL</span>
+                            </li>
+                        </ul>
+                    </div>
+                )}
                 <h2 className="text-xl font-semibold mb-4">Bills Distribution</h2>
                 <PolarScatterChart
                     bills={filteredBills}
                     subcategoryNames={categorySubcats.map(s => s.subcategory)}
                 />
-            </div>
-
-            {/* Sample of bills with scores */}
-            <div className="mt-4">
-                <h2 className="text-xl font-semibold mb-2">Sample Bills with Subcategory Scores</h2>
-                <div className="space-y-4">
-                    {filteredBills.slice(0, 5).map(bill => (
-                        <div key={bill.legislation_number} className="border rounded p-4">
-                            <h3 className="font-medium">{bill.legislation_number}</h3>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                                {Object.entries(bill.subcategoryScores).map(([subcat, score]) => (
-                                    <div key={subcat} className="flex justify-between">
-                                        <span>{subcat}:</span>
-                                        <span className="font-mono">{score.toFixed(3)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
             </div>
         </div>
     );
