@@ -9,7 +9,11 @@
  * 2. Generate embeddings via OpenRouter.
  * 3. Update the embedding column.
  * 4. If more NULL embeddings exist -> trigger self via pg_net.
- * 5. If done -> send pipeline complete Discord notification.
+ * 5. If done -> trigger calculate-subcategory-scores.
+ * 
+ * NOTE: verify_jwt is FALSE because this function is called internally
+ * by pg_net from other Edge Functions. It is NOT meant to be called
+ * directly by end users.
  */
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -30,7 +34,7 @@ interface BillForEmbedding {
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
-type NotificationType = "progress" | "pipeline_complete" | "error";
+type NotificationType = "progress" | "complete" | "error";
 
 async function sendDiscordNotification(
   webhookUrl: string,
@@ -58,17 +62,14 @@ async function sendDiscordNotification(
         timestamp: new Date().toISOString(),
       };
       break;
-    case "pipeline_complete":
+    case "complete":
       embed = {
-        title: "✅ Daily Bill Sync Complete",
+        title: "✅ Embedder Complete",
         color: 5763719, // Green
         fields: [
-          { name: "Status", value: "All bills processed, categorized, and embedded", inline: false },
-          { name: "Pipeline", value: "Collector → Data Fetcher → Categorizer → Embedder ✓", inline: false },
+          { name: "Status", value: "All bills embedded", inline: false },
+          { name: "Next Step", value: "Triggering Subcategory Scorer", inline: false },
         ],
-        footer: {
-          text: "Pipeline will run again at next scheduled time",
-        },
         timestamp: new Date().toISOString(),
       };
       break;
@@ -186,15 +187,18 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!bills || bills.length === 0) {
-      console.log("No bills to embed. Pipeline complete!");
+      console.log("No bills to embed. Triggering subcategory scorer.");
       
       if (discordUrl) {
-        await sendDiscordNotification(discordUrl, "pipeline_complete", {});
+        await sendDiscordNotification(discordUrl, "complete", {});
       }
+      
+      currentStage = "trigger_subcategory_scorer_empty";
+      await triggerNextStep(supabase, "calculate-subcategory-scores");
       
       return new Response(JSON.stringify({
         success: true,
-        message: "Pipeline complete - all bills embedded",
+        message: "No bills to embed, triggered subcategory scorer",
       }), { headers: { "Content-Type": "application/json" } });
     }
 
@@ -252,11 +256,13 @@ Deno.serve(async (req: Request) => {
       
       await triggerNextStep(supabase, "generate-bill-embeddings");
     } else {
-      console.log("All bills embedded. Pipeline complete!");
+      console.log("All bills embedded. Triggering subcategory scorer.");
       
       if (discordUrl) {
-        await sendDiscordNotification(discordUrl, "pipeline_complete", {});
+        await sendDiscordNotification(discordUrl, "complete", {});
       }
+      
+      await triggerNextStep(supabase, "calculate-subcategory-scores");
     }
 
     return new Response(JSON.stringify({
