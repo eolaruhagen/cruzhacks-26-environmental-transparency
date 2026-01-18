@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 
 type Representative = {
@@ -22,6 +22,422 @@ type Bill = {
   latest_action: string
   category: string
   date_of_introduction: string
+}
+
+// Types for mini radar
+type RadarBill = {
+  legislation_number: string
+  category: string
+  subcategory_scores: Record<string, number> | null
+  title: string
+  url: string
+}
+
+type Subcategory = {
+  subcategory: string
+  bill_type: string
+  embedding: number[]
+}
+
+// Mini Policy Radar Component
+interface MiniPolicyRadarProps {
+  repName: string
+}
+
+function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
+  const [bills, setBills] = useState<RadarBill[]>([])
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [hoveredBill, setHoveredBill] = useState<RadarBill | null>(null)
+  const [selectedBill, setSelectedBill] = useState<RadarBill | null>(null)
+
+  // Extract last name from representative name for searching
+  const extractLastName = (fullName: string): string => {
+    const parts = fullName.split(',')
+    if (parts.length > 1) {
+      return parts[0].trim()
+    }
+    const nameParts = fullName.split(' ')
+    return nameParts[nameParts.length - 1]
+  }
+
+  // Fetch bills and subcategories when rep name changes
+  useEffect(() => {
+    async function fetchData() {
+      setLoading(true)
+      const lastName = extractLastName(repName)
+
+      try {
+        // Fetch subcategories first
+        const { data: subcatData } = await supabase
+          .from('categories_embeddings')
+          .select('subcategory, bill_type, embedding')
+
+        if (subcatData) {
+          setSubcategories(subcatData)
+          // Set initial category
+          const categories = Array.from(new Set(subcatData.map(s => s.bill_type))).sort()
+          if (categories.length > 0) {
+            setSelectedCategory(categories[0])
+          }
+        }
+
+        // Fetch sponsored bills
+        const { data: sponsored } = await supabase
+          .from('house_bills')
+          .select('legislation_number, category, subcategory_scores, title, url')
+          .ilike('sponsor', `%${lastName}%`)
+          .not('subcategory_scores', 'is', null)
+
+        // Fetch cosponsored bills (use text contains for array)
+        const { data: cosponsored } = await supabase
+          .from('house_bills')
+          .select('legislation_number, category, subcategory_scores, title, url')
+          .filter('cosponsors', 'cs', `{${lastName}}`)
+          .not('subcategory_scores', 'is', null)
+
+        // Combine and deduplicate by legislation_number
+        const allBills = [...(sponsored || []), ...(cosponsored || [])]
+        const uniqueBills = Array.from(
+          new Map(allBills.map(b => [b.legislation_number, b])).values()
+        ) as RadarBill[]
+
+        setBills(uniqueBills)
+      } catch (err) {
+        console.error('Error fetching radar data:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [repName])
+
+  // Get unique categories
+  const categories = useMemo(() =>
+    Array.from(new Set(subcategories.map(s => s.bill_type))).sort()
+    , [subcategories])
+
+  // Get subcategories for selected category
+  const categorySubcats = useMemo(() =>
+    selectedCategory
+      ? subcategories.filter(s => s.bill_type === selectedCategory)
+      : []
+    , [subcategories, selectedCategory])
+
+  // Filter bills by selected category
+  const filteredBills = useMemo(() =>
+    selectedCategory
+      ? bills.filter(b => b.category === selectedCategory)
+      : bills
+    , [bills, selectedCategory])
+
+  // Count bills per category
+  const categoryBillCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    categories.forEach(cat => {
+      counts[cat] = bills.filter(b => b.category === cat).length
+    })
+    return counts
+  }, [bills, categories])
+
+  // Format category name
+  const formatCategoryName = (name: string): string => {
+    return name
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+  }
+
+  // Chart dimensions
+  const size = 350
+  const center = size / 2
+  const radius = size * 0.35
+
+  // Calculate position for a bill based on its subcategory scores
+  const getPosition = (scores: Record<string, number>, subcatNames: string[]) => {
+    const n = subcatNames.length
+    if (n === 0) return { x: center, y: center }
+
+    let dirX = 0, dirY = 0
+
+    subcatNames.forEach((subcat, i) => {
+      const score = scores[subcat] || 0
+      const angle = (2 * Math.PI * i) / n - Math.PI / 2
+      dirX += score * Math.cos(angle)
+      dirY += score * Math.sin(angle)
+    })
+
+    const dirMagnitude = Math.sqrt(dirX * dirX + dirY * dirY)
+    if (dirMagnitude > 0) {
+      dirX /= dirMagnitude
+      dirY /= dirMagnitude
+    }
+
+    // Calculate how spread out the scores are
+    const scoreValues = subcatNames.map(s => scores[s] || 0)
+    const maxScore = Math.max(...scoreValues)
+    const minScore = Math.min(...scoreValues)
+    const scoreRange = maxScore - minScore
+    const normalizedSpread = Math.min(scoreRange / 0.1, 1)
+    const billRadius = radius * (0.3 + normalizedSpread * 0.6)
+
+    return {
+      x: center + dirX * billRadius,
+      y: center + dirY * billRadius
+    }
+  }
+
+  // Empty state
+  const isEmpty = bills.length === 0
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div className="flex flex-col items-center justify-center h-64">
+          <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-accent border-r-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading policy radar...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const subcatNames = categorySubcats.map(s => s.subcategory)
+
+  // Background circles for the radar
+  const circles = [0.25, 0.5, 0.75, 1].map((scale, i) => (
+    <circle
+      key={i}
+      cx={center}
+      cy={center}
+      r={radius * scale}
+      fill="none"
+      stroke="#e2e8f0"
+      strokeWidth={1}
+    />
+  ))
+
+  // Axis lines
+  const axisLines = subcatNames.map((subcat, i) => {
+    const n = subcatNames.length
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2
+    const endX = center + radius * Math.cos(angle)
+    const endY = center + radius * Math.sin(angle)
+
+    return (
+      <line
+        key={`line-${subcat}`}
+        x1={center}
+        y1={center}
+        x2={endX}
+        y2={endY}
+        stroke="#e2e8f0"
+        strokeWidth={1}
+      />
+    )
+  })
+
+  // Axis labels
+  const axisLabels = subcatNames.map((subcat, i) => {
+    const n = subcatNames.length
+    const angle = (2 * Math.PI * i) / n - Math.PI / 2
+    const labelRadius = radius + 25
+    const x = center + labelRadius * Math.cos(angle)
+    const y = center + labelRadius * Math.sin(angle)
+
+    const formatName = (name: string) => {
+      return name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+    }
+
+    // Determine text anchor based on position
+    let textAnchor: 'start' | 'middle' | 'end' = 'middle'
+    if (Math.cos(angle) > 0.3) textAnchor = 'start'
+    else if (Math.cos(angle) < -0.3) textAnchor = 'end'
+
+    return (
+      <text
+        key={`label-${subcat}`}
+        x={x}
+        y={y}
+        textAnchor={textAnchor}
+        dominantBaseline="middle"
+        fontSize={9}
+        fill="#64748b"
+        className="select-none"
+      >
+        {formatName(subcat).substring(0, 12)}
+      </text>
+    )
+  })
+
+  // Bill dots
+  const billDots = filteredBills.map((bill, idx) => {
+    if (!bill.subcategory_scores) return null
+    const pos = getPosition(bill.subcategory_scores, subcatNames)
+    const isHovered = hoveredBill?.legislation_number === bill.legislation_number
+
+    return (
+      <g key={bill.legislation_number}>
+        <circle
+          cx={pos.x}
+          cy={pos.y}
+          r={isHovered ? 8 : 5}
+          fill="#3b82f6"
+          stroke={isHovered ? '#1e40af' : 'white'}
+          strokeWidth={isHovered ? 2 : 1}
+          opacity={isEmpty ? 0.3 : 0.8}
+          className="cursor-pointer transition-all duration-150"
+          onMouseEnter={() => setHoveredBill(bill)}
+          onMouseLeave={() => setHoveredBill(null)}
+          onClick={() => setSelectedBill(bill)}
+        />
+      </g>
+    )
+  })
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">📊</span>
+        Policy Radar
+      </h3>
+
+      {/* Category Boxes Grid */}
+      <div className="grid grid-cols-2 gap-2 mb-4">
+        {categories.map(cat => {
+          const count = categoryBillCounts[cat] || 0
+          const isSelected = selectedCategory === cat
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`p-3 rounded-lg border text-left transition-all duration-200 ${isSelected
+                ? 'bg-accent text-white border-accent shadow-md'
+                : count > 0
+                  ? 'bg-gray-50 border-gray-200 hover:border-accent hover:bg-accent/5'
+                  : 'bg-gray-50 border-gray-200 opacity-50'
+                }`}
+            >
+              <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-800'}`}>
+                {formatCategoryName(cat)}
+              </p>
+              <p className={`text-lg font-bold ${isSelected ? 'text-white' : count > 0 ? 'text-accent' : 'text-gray-400'}`}>
+                {count} {count === 1 ? 'bill' : 'bills'}
+              </p>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Total Stats */}
+      <div className="bg-gray-50 rounded-lg p-3 mb-4 text-center">
+        <p className="text-2xl font-bold text-accent">{bills.length}</p>
+        <p className="text-xs text-gray-600">Total Environmental Bills</p>
+      </div>
+
+      {/* Radar Chart */}
+      <div className="relative" style={{ minHeight: size + 60 }}>
+        {isEmpty && (
+          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+            <div className="bg-gray-900/70 text-white px-6 py-3 rounded-xl font-semibold text-center">
+              Representative is not active<br />with any environmental bills
+            </div>
+          </div>
+        )}
+        <svg
+          width={size}
+          height={size}
+          className="mx-auto"
+          style={{
+            overflow: 'visible',
+            filter: isEmpty ? 'grayscale(100%) opacity(0.5)' : 'none'
+          }}
+        >
+          {circles}
+          {axisLines}
+          {billDots}
+        </svg>
+        {/* Labels outside SVG for better rendering */}
+        <div className="absolute inset-0 pointer-events-none" style={{ width: size, margin: '0 auto' }}>
+          {subcatNames.map((subcat, i) => {
+            const n = subcatNames.length
+            const angle = (2 * Math.PI * i) / n - Math.PI / 2
+            const labelRadius = radius + 40
+            const x = center + labelRadius * Math.cos(angle)
+            const y = center + labelRadius * Math.sin(angle)
+
+            let textAlign: 'left' | 'right' | 'center' = 'center'
+            if (Math.cos(angle) > 0.3) textAlign = 'left'
+            else if (Math.cos(angle) < -0.3) textAlign = 'right'
+
+            const formatName = (name: string) =>
+              name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+
+            return (
+              <div
+                key={`label-div-${subcat}`}
+                className="absolute text-xs text-gray-500 whitespace-nowrap"
+                style={{
+                  left: x,
+                  top: y,
+                  transform: `translate(${textAlign === 'center' ? '-50%' : textAlign === 'right' ? '-100%' : '0'}, -50%)`,
+                  textAlign
+                }}
+              >
+                {formatName(subcat).substring(0, 15)}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Hovered Bill Tooltip */}
+      {hoveredBill && !selectedBill && (
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-sm font-mono font-semibold text-accent">{hoveredBill.legislation_number}</p>
+          <p className="text-sm text-gray-700 line-clamp-2">{hoveredBill.title}</p>
+          <p className="text-xs text-gray-500 mt-1">Click for details</p>
+        </div>
+      )}
+
+      {/* Selected Bill Detail Panel */}
+      {selectedBill && (
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <div>
+              <span className="text-sm font-mono font-bold text-accent">{selectedBill.legislation_number}</span>
+              {selectedBill.category && (
+                <span className="ml-2 text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                  {formatCategoryName(selectedBill.category)}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setSelectedBill(null)}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <h4 className="font-semibold text-gray-900 mb-3">{selectedBill.title}</h4>
+          <a
+            href={selectedBill.url || '#'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent/90 transition-colors"
+          >
+            View on Congress.gov
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      )}
+    </div>
+  )
 }
 
 const states = [
@@ -265,6 +681,11 @@ export default function MyRepClient() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Mini Policy Radar */}
+        <div className="mt-6">
+          <MiniPolicyRadar repName={selectedRep.name} />
         </div>
 
         {/* Environmental Bills Section */}

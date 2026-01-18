@@ -24,13 +24,47 @@ interface PolarScatterChartProps {
     bills: BillWithScores[];
     subcategoryNames: string[];
     numClusters?: number;
+    minYear: number;
+    maxYear: number;
+    selectedYearRange: [number, number];
+    onYearRangeChange: (range: [number, number]) => void;
 }
 
-function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarScatterChartProps) {
+function PolarScatterChart({ bills, subcategoryNames, numClusters = 8, minYear, maxYear, selectedYearRange, onYearRangeChange }: PolarScatterChartProps) {
     const [showClusters, setShowClusters] = useState(true);
     const [hoveredCluster, setHoveredCluster] = useState<number | null>(null);
     const [selectedBill, setSelectedBill] = useState<BillWithScores | null>(null);
     const [panelHeight, setPanelHeight] = useState(300);
+
+    // Dual slider state for min thumb and max thumb
+    const [isDraggingMin, setIsDraggingMin] = useState(false);
+    const [isDraggingMax, setIsDraggingMax] = useState(false);
+
+    // Playback state: 'playing' | 'paused' | 'reverse'
+    const [playbackState, setPlaybackState] = useState<'paused' | 'playing' | 'reverse'>('paused');
+
+    // Animation effect - moves range 1 year per second
+    useEffect(() => {
+        if (playbackState === 'paused') return;
+
+        const interval = setInterval(() => {
+            const rangeWidth = selectedYearRange[1] - selectedYearRange[0];
+            const direction = playbackState === 'playing' ? 1 : -1;
+
+            let newMin = selectedYearRange[0] + direction;
+            let newMax = selectedYearRange[1] + direction;
+
+            // Stop at boundaries
+            if (newMin < minYear || newMax > maxYear) {
+                setPlaybackState('paused');
+                return;
+            }
+
+            onYearRangeChange([newMin, newMax]);
+        }, 500);
+
+        return () => clearInterval(interval);
+    }, [playbackState, selectedYearRange, minYear, maxYear, onYearRangeChange]);
 
     if (subcategoryNames.length === 0 || bills.length === 0) {
         return <div className="text-gray-500">No data to display</div>;
@@ -475,6 +509,148 @@ function PolarScatterChart({ bills, subcategoryNames, numClusters = 8 }: PolarSc
 
     return (
         <div className="relative" style={{ overflow: 'visible', padding: '0 80px' }}>
+            {/* Year Range Slider */}
+            <div className="flex justify-center mb-3">
+                <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-lg">
+                    <span className="text-sm font-medium text-gray-600 w-10">{selectedYearRange[0]}</span>
+                    <div className="relative w-48 h-6">
+                        {/* Track background */}
+                        <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200 rounded-full" />
+                        {/* Selected range highlight */}
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-blue-500 rounded-full"
+                            style={{
+                                left: `${((selectedYearRange[0] - minYear) / (maxYear - minYear)) * 100}%`,
+                                right: `${100 - ((selectedYearRange[1] - minYear) / (maxYear - minYear)) * 100}%`
+                            }}
+                        />
+                        {/* Center drag handle - small dark bar to drag both thumbs together, positioned 5px above */}
+                        <div
+                            className="absolute cursor-grab active:cursor-grabbing hover:bg-gray-600 transition-colors"
+                            style={{
+                                left: `${((selectedYearRange[0] + selectedYearRange[1]) / 2 - minYear) / (maxYear - minYear) * 100}%`,
+                                top: '-11px',
+                                transform: 'translate(-50%, -100%)',
+                                width: '20px',
+                                height: '6px',
+                                backgroundColor: '#6b7280',
+                                borderRadius: '3px',
+                                zIndex: 5
+                            }}
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startMin = selectedYearRange[0];
+                                const startMax = selectedYearRange[1];
+                                const rangeWidth = startMax - startMin;
+                                const trackWidth = 192; // w-48 = 12rem = 192px
+                                const yearsPerPixel = (maxYear - minYear) / trackWidth;
+
+                                const onMouseMove = (moveEvent: MouseEvent) => {
+                                    const deltaX = moveEvent.clientX - startX;
+                                    const deltaYears = Math.round(deltaX * yearsPerPixel);
+
+                                    let newMin = startMin + deltaYears;
+                                    let newMax = startMax + deltaYears;
+
+                                    // Clamp to boundaries
+                                    if (newMin < minYear) {
+                                        newMin = minYear;
+                                        newMax = minYear + rangeWidth;
+                                    }
+                                    if (newMax > maxYear) {
+                                        newMax = maxYear;
+                                        newMin = maxYear - rangeWidth;
+                                    }
+
+                                    onYearRangeChange([newMin, newMax]);
+                                };
+
+                                const onMouseUp = () => {
+                                    document.removeEventListener('mousemove', onMouseMove);
+                                    document.removeEventListener('mouseup', onMouseUp);
+                                };
+
+                                document.addEventListener('mousemove', onMouseMove);
+                                document.addEventListener('mouseup', onMouseUp);
+                            }}
+                        />
+                        {/* Min thumb - positioned behind, pointer-events on */}
+                        <input
+                            type="range"
+                            min={minYear}
+                            max={maxYear}
+                            value={selectedYearRange[0]}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (val < selectedYearRange[1]) {
+                                    onYearRangeChange([val, selectedYearRange[1]]);
+                                }
+                            }}
+                            className="absolute w-full h-6 bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                            style={{ zIndex: 3, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
+                        />
+                        {/* Max thumb - positioned on top but with pointer-events:none, thumb has pointer-events:auto */}
+                        <input
+                            type="range"
+                            min={minYear}
+                            max={maxYear}
+                            value={selectedYearRange[1]}
+                            onChange={(e) => {
+                                const val = parseInt(e.target.value);
+                                if (val > selectedYearRange[0]) {
+                                    onYearRangeChange([selectedYearRange[0], val]);
+                                }
+                            }}
+                            className="absolute w-full h-6 bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                            style={{ zIndex: 4, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
+                        />
+                    </div>
+                    <span className="text-sm font-medium text-gray-600 w-10">{selectedYearRange[1]}</span>
+                </div>
+            </div>
+
+            {/* Playback controls - static size */}
+            <div className="flex justify-center mb-3 gap-2">
+                <button
+                    onClick={() => setPlaybackState(playbackState === 'reverse' ? 'paused' : 'reverse')}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'reverse'
+                        ? 'bg-blue-500 border-blue-500 text-white'
+                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                        }`}
+                    title="Reverse"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 12L7 5v14l12-7z" transform="scale(-1,1) translate(-24,0)" />
+                    </svg>
+                </button>
+                <button
+                    onClick={() => setPlaybackState('paused')}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'paused'
+                        ? 'bg-gray-500 border-gray-500 text-white'
+                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                        }`}
+                    title="Pause"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="5" width="4" height="14" />
+                        <rect x="14" y="5" width="4" height="14" />
+                    </svg>
+                </button>
+                <button
+                    onClick={() => setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')}
+                    className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'playing'
+                        ? 'bg-blue-500 border-blue-500 text-white'
+                        : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                        }`}
+                    title="Play"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                </button>
+            </div>
+
             {/* Toggle button */}
             <div className="flex justify-center mb-4">
                 <button
@@ -705,6 +881,7 @@ interface Bill {
     subcategory_scores: Record<string, number> | null;
     title: string;
     url: string;
+    date_of_introduction: string | null;  // ISO date string from Supabase
 }
 
 interface BillWithScores {
@@ -713,6 +890,7 @@ interface BillWithScores {
     title: string;
     url: string;
     subcategoryScores: Record<string, number>;  // subcategory name -> similarity score (0-1)
+    introductionYear: number | null;  // Year the bill was introduced
 }
 
 
@@ -735,6 +913,10 @@ export default function GraphClient() {
 
     const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
     const [showInstructions, setShowInstructions] = useState(true);
+
+    // Year range filter state
+    const [yearRange, setYearRange] = useState<[number, number]>([1990, 2026]);
+    const [selectedYearRange, setSelectedYearRange] = useState<[number, number]>([1990, 2026]);
 
     const dismissInstructions = () => {
         setShowInstructions(false);
@@ -792,7 +974,7 @@ export default function GraphClient() {
                 // 3. Fetch ONLY first category bills immediately
                 const { data: initialBillsData, error: initialError } = await supabase
                     .from('house_bills')
-                    .select('legislation_number, category, subcategory_scores, title, url')
+                    .select('legislation_number, category, subcategory_scores, title, url, date_of_introduction')
                     .eq('category', firstCategory)
                     .not('subcategory_scores', 'is', null)
                     .limit(2000); // Generous limit for single category
@@ -805,13 +987,22 @@ export default function GraphClient() {
                 const processBills = (rawBills: Bill[]) => {
                     return rawBills
                         .filter(bill => bill.category && bill.subcategory_scores)
-                        .map((bill) => ({
-                            legislation_number: bill.legislation_number,
-                            category: bill.category,
-                            title: bill.title || bill.legislation_number,
-                            url: bill.url || '',
-                            subcategoryScores: bill.subcategory_scores as Record<string, number>
-                        }));
+                        .map((bill) => {
+                            // Extract year from date_of_introduction
+                            let introYear: number | null = null;
+                            if (bill.date_of_introduction) {
+                                const year = new Date(bill.date_of_introduction).getFullYear();
+                                if (!isNaN(year)) introYear = year;
+                            }
+                            return {
+                                legislation_number: bill.legislation_number,
+                                category: bill.category,
+                                title: bill.title || bill.legislation_number,
+                                url: bill.url || '',
+                                subcategoryScores: bill.subcategory_scores as Record<string, number>,
+                                introductionYear: introYear
+                            };
+                        });
                 };
 
                 const initialProcessed = processBills(initialBills);
@@ -826,7 +1017,7 @@ export default function GraphClient() {
 
                     const { data: chunkData, error: chunkError } = await supabase
                         .from('house_bills')
-                        .select('legislation_number, category, subcategory_scores, title, url')
+                        .select('legislation_number, category, subcategory_scores, title, url, date_of_introduction')
                         .neq('category', firstCategory) // Exclude what we already have
                         .not('subcategory_scores', 'is', null)
                         .range(from, to);
@@ -879,9 +1070,30 @@ export default function GraphClient() {
     const categories = Array.from(new Set(subcategories.map(s => s.bill_type))).sort();
 
     // Filter bills by selected category
-    const filteredBills = selectedCategory
+    const categoryFilteredBills = selectedCategory
         ? bills.filter(b => b.category === selectedCategory)
         : bills;
+
+    // Calculate min/max years from all loaded bills (only once when bills change)
+    const yearBounds = useMemo(() => {
+        const years = bills
+            .map(b => b.introductionYear)
+            .filter((y): y is number => y !== null);
+        if (years.length === 0) return { min: 2000, max: 2026 };
+        return { min: Math.min(...years), max: Math.max(...years) };
+    }, [bills]);
+
+    // Update yearRange when bounds change
+    useEffect(() => {
+        setYearRange([yearBounds.min, yearBounds.max]);
+        setSelectedYearRange([yearBounds.min, yearBounds.max]);
+    }, [yearBounds]);
+
+    // Filter bills by selected year range
+    const filteredBills = categoryFilteredBills.filter(b => {
+        if (b.introductionYear === null) return true; // Include bills without date
+        return b.introductionYear >= selectedYearRange[0] && b.introductionYear <= selectedYearRange[1];
+    });
 
     // Get subcategories for selected category
     // Get subcategories for selected category OR all subcategories if All is selected
@@ -1023,6 +1235,10 @@ export default function GraphClient() {
                     <PolarScatterChart
                         bills={filteredBills}
                         subcategoryNames={categorySubcats.map(s => s.subcategory)}
+                        minYear={yearRange[0]}
+                        maxYear={yearRange[1]}
+                        selectedYearRange={selectedYearRange}
+                        onYearRangeChange={setSelectedYearRange}
                     />
                 </div>
             </div>
