@@ -5,7 +5,7 @@ export default function LegislativeProcessPage() {
     <main className="min-h-screen pt-24 p-8 bg-main">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <header className="mb-12">
+        <header className="mb-10">
           <div className="text-card-block inline-block mb-4">
             <h1 className="text-4xl lg:text-5xl font-bold">
               The U.S. Legislative Process
@@ -13,10 +13,94 @@ export default function LegislativeProcessPage() {
           </div>
           <div className="text-card-block">
             <p className="text-lg">
-              Understanding how laws are made in the United States Congress
+              The step by step guide to the US legislative process
             </p>
           </div>
         </header>
+
+        {/* Congress Chambers - Side by Side */}
+        <section className="mb-12">
+          <h2 className="text-xl font-bold text-main mb-6">
+            The Two Chambers of Congress
+          </h2>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* House of Representatives */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900">House of Representatives</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="font-semibold text-blue-600">435</span>
+                  <span>voting members</span>
+                </div>
+                
+                <p className="text-gray-700 leading-relaxed">
+                  The "lower chamber" represents the people directly. Each state's representation is based on population, 
+                  with districts redrawn every 10 years after the census. Representatives serve <strong>2-year terms</strong>.
+                </p>
+                
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="font-semibold text-gray-900 mb-2">Key Powers:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Initiates all revenue (tax) bills</li>
+                    <li>• Power to impeach federal officials</li>
+                    <li>• Elects President if no Electoral College majority</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Senate */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                  </svg>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900">Senate</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-gray-700">
+                  <span className="font-semibold text-red-600">100</span>
+                  <span>members (2 per state)</span>
+                </div>
+                
+                <p className="text-gray-700 leading-relaxed">
+                  The "upper chamber" provides equal representation for all states regardless of population. 
+                  Each state elects 2 senators who serve <strong>6-year terms</strong>, with elections staggered so 
+                  roughly 1/3 are elected every 2 years.
+                </p>
+                
+                <div className="pt-4 border-t border-gray-100">
+                  <h4 className="font-semibold text-gray-900 mb-2">Key Powers:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li>• Confirms presidential appointments</li>
+                    <li>• Ratifies treaties (2/3 vote required)</li>
+                    <li>• Conducts impeachment trials</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Key Difference Note */}
+          <div className="mt-6 p-4 bg-accent/10 border border-accent/20 rounded-xl">
+            <p className="text-gray-700 text-sm">
+              <strong className="text-gray-900">Key Difference:</strong> The House represents population (more populous states have more representatives), 
+              while the Senate ensures equal state representation. Both chambers must pass identical versions of a bill for it to become law.
+            </p>
+          </div>
+        </section>
 
         {/* Process Steps */}
         <div className="space-y-8">
@@ -121,7 +205,7 @@ export default function LegislativeProcessPage() {
         {/* Environmental Focus */}
         <section className="mt-12 text-card-block">
           <h2 className="text-2xl font-semibold mb-4">
-            🌿 Environmental Legislation
+            Environmental Legislation
           </h2>
           <p className="leading-relaxed mb-4">
             Environmental bills typically go through the House Natural Resources Committee or the Senate 

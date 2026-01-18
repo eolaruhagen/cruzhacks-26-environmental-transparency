@@ -9,7 +9,6 @@ export default function MyRepPage() {
         {/* Hero Header */}
         <header className="mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent/10 rounded-full text-accent text-sm font-medium mb-4">
-            <span>🏛️</span>
             Civic Engagement
           </div>
           
