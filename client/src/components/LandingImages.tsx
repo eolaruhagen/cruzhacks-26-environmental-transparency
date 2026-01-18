@@ -27,7 +27,7 @@ export default function LandingImages() {
       <ImageCard
         className="relative border-b border-border"
         buttonText="Environmental Protection"
-        buttonLink="/news"
+        buttonLink="/environmental-protection"
       >
         <Image
           src="/images/Yosemite.jpg"
@@ -42,7 +42,7 @@ export default function LandingImages() {
       <ImageCard
         className="relative border-b border-border"
         buttonText="Executive Actions"
-        buttonLink="/graph"
+        buttonLink="/executive-branch"
       >
         <Image
           src="/images/executivecab.jpg"
@@ -57,7 +57,7 @@ export default function LandingImages() {
       <ImageCard
         className="relative"
         buttonText="Climate Impact"
-        buttonLink="/search"
+        buttonLink="/climate-impact"
       >
         <Image
           src="/images/Florida-Keys.jpg"

@@ -19,9 +19,10 @@ export default function Home() {
             </h1>
             
             <p className="text-lg leading-relaxed mb-6 text-light">
-              Making government accessible. Track environmental legislation, 
-              find your representatives, and understand how policy decisions 
-              affect your community.
+              Our mission is the make environmental policy more transparent and accessible to the public. EcoTransparency
+              is a tool that allows you to view how your own congressional representatives are voting on environmental legislation,
+              as well as a look into how the whole legislative process works in the US Congress.
+
             </p>
 
             {/* CTA Buttons */}
@@ -66,6 +67,23 @@ export default function Home() {
                 </div>
               </a>
 
+              {/* Feature - Climate Data */}
+              <a href="/climate-impact" className="block p-4 rounded-xl bg-card hover:bg-card-hover transition-all duration-200 group">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center shrink-0 group-hover:bg-accent/30 transition-colors">
+                    <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-main mb-1">View Climate Data</h3>
+                    <p className="text-sm text-light leading-relaxed">
+                      Track US air quality, water quality, and climate metrics against EPA standards and Paris Agreement goals.
+                    </p>
+                  </div>
+                </div>
+              </a>
+
               {/* Feature 2 */}
               <a href="/graph" className="block p-4 rounded-xl bg-card hover:bg-card-hover transition-all duration-200 group">
                 <div className="flex items-start gap-4">
@@ -77,7 +95,8 @@ export default function Home() {
                   <div>
                     <h3 className="font-semibold text-main mb-1">Visualize Data</h3>
                     <p className="text-sm text-light leading-relaxed">
-                      Interactive charts showing environmental legislation trends and voting patterns.
+                      Interactive charts and visualizations showing environmental legislation trends and relations between 
+                      areas of climate policy.
                     </p>
                   </div>
                 </div>
