@@ -43,6 +43,20 @@ const CATEGORIES = [
   "Other Environmental",
 ];
 
+// Map human-readable categories to database enum values
+const CATEGORY_TO_ENUM: Record<string, string> = {
+  "Air Quality & Emissions": "air_and_atmosphere",
+  "Water Resources & Quality": "water_resources",
+  "Land & Wildlife Conservation": "land_and_conservation",
+  "Climate Change & Energy": "climate_and_emissions",
+  "Waste & Pollution Control": "waste_and_toxics",
+  "Environmental Justice": "justice_and_environment",
+  "Agriculture & Food Systems": "energy_and_resources", // Best fit for agriculture/food systems
+  "Infrastructure & Development": "energy_and_resources", // Best fit for infrastructure
+  "Public Health & Environment": "justice_and_environment", // Best fit for public health
+  "Other Environmental": "energy_and_resources", // Default catchall
+};
+
 // Special category for bills without enough info
 const NO_CATEGORY = "no_category";
 
@@ -441,17 +455,25 @@ Deno.serve(async (req: Request) => {
         }
       } else {
         // Valid category - update
-        const validCategory = CATEGORIES.includes(cat.category) ? cat.category : "Other Environmental";
+        const humanReadableCategory = CATEGORIES.includes(cat.category) ? cat.category : "Other Environmental";
+        const enumCategory = CATEGORY_TO_ENUM[humanReadableCategory];
         
-        console.log("✅ CATEGORIZE: " + legislationNumber + " -> " + validCategory);
+        if (!enumCategory) {
+          console.error("⚠️ ERROR: No enum mapping for category: " + humanReadableCategory + " (bill: " + legislationNumber + ")");
+          continue;
+        }
+        
+        console.log("✅ CATEGORIZE: " + legislationNumber + " -> " + humanReadableCategory + " (enum: " + enumCategory + ")");
         
         const { error: updateError } = await supabase
           .from("house_bills")
-          .update({ category: validCategory })
+          .update({ category: enumCategory })
           .eq("id", bill.id);
 
         if (updateError) {
-          console.error("Failed to update bill " + legislationNumber + ": " + updateError.message);
+          console.error("❌ DB UPDATE FAILED for bill " + legislationNumber + ": " + updateError.message);
+          console.error("   Attempted to set category to: " + enumCategory);
+          console.error("   Full error:", updateError);
         } else {
           categorized++;
         }
