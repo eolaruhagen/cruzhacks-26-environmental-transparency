@@ -66,6 +66,19 @@ interface BillForCategorization {
   title: string;
   committees: string | null;
   latest_summary: string | null;
+  // Additional fields needed for incomplete_bills snapshot
+  url: string;
+  congress: string;
+  sponsor: string;
+  party_of_sponsor: string;
+  date_of_introduction: string | null;
+  latest_action: string;
+  latest_action_date: string | null;
+  latest_tracker_stage: string;
+  cosponsors: string[];
+  num_cosponsors: number;
+  subject_terms: string[];
+  bill_policy_area: string | null;
 }
 
 interface CategorizationResult {
@@ -364,10 +377,11 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Stage: Fetch bills with NULL category
+    // Fetch all fields needed for incomplete_bills snapshot in case we need to move them
     currentStage = "fetch_uncategorized_bills";
     const { data: bills, error: fetchError } = await supabase
       .from("house_bills")
-      .select("id, legislation_number, title, committees, latest_summary")
+      .select("id, legislation_number, title, committees, latest_summary, url, congress, sponsor, party_of_sponsor, date_of_introduction, latest_action, latest_action_date, latest_tracker_stage, cosponsors, num_cosponsors, subject_terms, bill_policy_area")
       .is("category", null)
       .limit(BATCH_SIZE) as { data: BillForCategorization[] | null; error: any };
 
@@ -439,19 +453,46 @@ Deno.serve(async (req: Request) => {
       handledBills.add(legislationNumber);
       
       if (cat.category === NO_CATEGORY || cat.category === "no_category") {
-        // Delete bill - it will be re-fetched later when more info is available
-        console.log("⏭️ SKIP: " + legislationNumber + " - insufficient info, deleting from house_bills");
+        // Move bill to incomplete_bills - it will be retried when Congress.gov updates it
+        console.log("⏭️ SKIP: " + legislationNumber + " - insufficient info, moving to incomplete_bills");
         
-        const { error: deleteError } = await supabase
-          .from("house_bills")
-          .delete()
-          .eq("id", bill.id);
+        // Insert complete bill snapshot into incomplete_bills
+        const { error: insertError } = await supabase
+          .from("incomplete_bills")
+          .upsert({
+            legislation_number: bill.legislation_number,
+            congress: bill.congress,
+            url: bill.url,
+            title: bill.title,
+            sponsor: bill.sponsor,
+            party_of_sponsor: bill.party_of_sponsor,
+            date_of_introduction: bill.date_of_introduction,
+            committees: bill.committees,
+            latest_action: bill.latest_action,
+            latest_action_date: bill.latest_action_date,
+            latest_tracker_stage: bill.latest_tracker_stage,
+            cosponsors: bill.cosponsors,
+            num_cosponsors: bill.num_cosponsors,
+            subject_terms: bill.subject_terms,
+            bill_policy_area: bill.bill_policy_area,
+            latest_summary: bill.latest_summary,
+          }, { onConflict: "legislation_number" });
         
-        if (deleteError) {
-          console.error("Failed to delete bill " + legislationNumber + ": " + deleteError.message);
+        if (insertError) {
+          console.error("Failed to insert bill into incomplete_bills " + legislationNumber + ": " + insertError.message);
         } else {
-          skipped++;
-          skippedBills.push(legislationNumber);
+          // Only delete from house_bills if successfully inserted into incomplete_bills
+          const { error: deleteError } = await supabase
+            .from("house_bills")
+            .delete()
+            .eq("id", bill.id);
+          
+          if (deleteError) {
+            console.error("Failed to delete bill from house_bills " + legislationNumber + ": " + deleteError.message);
+          } else {
+            skipped++;
+            skippedBills.push(legislationNumber);
+          }
         }
       } else {
         // Valid category - update
@@ -481,21 +522,48 @@ Deno.serve(async (req: Request) => {
     }
     
     // CRITICAL: Handle bills the model did NOT return (to prevent infinite loops)
-    // Delete them like no_category - they'll be re-fetched later
+    // Move them to incomplete_bills like no_category - they'll be retried when data changes
     for (const bill of bills) {
       if (!handledBills.has(bill.legislation_number)) {
-        console.warn("⚠️ MISSING: Model did not return result for: " + bill.legislation_number + " - deleting to prevent loop");
+        console.warn("⚠️ MISSING: Model did not return result for: " + bill.legislation_number + " - moving to incomplete_bills");
         
-        const { error: deleteError } = await supabase
-          .from("house_bills")
-          .delete()
-          .eq("id", bill.id);
+        // Insert complete bill snapshot into incomplete_bills
+        const { error: insertError } = await supabase
+          .from("incomplete_bills")
+          .upsert({
+            legislation_number: bill.legislation_number,
+            congress: bill.congress,
+            url: bill.url,
+            title: bill.title,
+            sponsor: bill.sponsor,
+            party_of_sponsor: bill.party_of_sponsor,
+            date_of_introduction: bill.date_of_introduction,
+            committees: bill.committees,
+            latest_action: bill.latest_action,
+            latest_action_date: bill.latest_action_date,
+            latest_tracker_stage: bill.latest_tracker_stage,
+            cosponsors: bill.cosponsors,
+            num_cosponsors: bill.num_cosponsors,
+            subject_terms: bill.subject_terms,
+            bill_policy_area: bill.bill_policy_area,
+            latest_summary: bill.latest_summary,
+          }, { onConflict: "legislation_number" });
         
-        if (deleteError) {
-          console.error("Failed to delete missing bill " + bill.legislation_number + ": " + deleteError.message);
+        if (insertError) {
+          console.error("Failed to insert missing bill into incomplete_bills " + bill.legislation_number + ": " + insertError.message);
         } else {
-          missing++;
-          missingBills.push(bill.legislation_number);
+          // Only delete from house_bills if successfully inserted into incomplete_bills
+          const { error: deleteError } = await supabase
+            .from("house_bills")
+            .delete()
+            .eq("id", bill.id);
+          
+          if (deleteError) {
+            console.error("Failed to delete missing bill from house_bills " + bill.legislation_number + ": " + deleteError.message);
+          } else {
+            missing++;
+            missingBills.push(bill.legislation_number);
+          }
         }
       }
     }
