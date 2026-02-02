@@ -24,9 +24,6 @@ CREATE TABLE IF NOT EXISTS congress_sync_state (
   -- Error tracking
   last_error TEXT,
   
-  -- List of bills that couldn't be fully processed
-  incomplete_bills JSONB, -- Array of {legislation_number, missing_fields[]}
-  
   -- Rate limit tracking (added in later migration)
   daily_request_count INTEGER DEFAULT 0,
   last_request_reset TIMESTAMPTZ DEFAULT NOW(),

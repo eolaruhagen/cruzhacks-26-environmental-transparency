@@ -27,30 +27,6 @@ RETURNS void AS $$
   WHERE id = (SELECT id FROM congress_sync_state ORDER BY updated_at DESC LIMIT 1);
 $$ LANGUAGE SQL;
 
--- Record a bill that failed processing
-CREATE OR REPLACE FUNCTION record_incomplete_bill(
-  p_legislation_number TEXT,
-  p_congress TEXT,
-  p_bill_type TEXT,
-  p_bill_number TEXT,
-  p_missing_fields TEXT[],
-  p_error_context TEXT DEFAULT NULL
-)
-RETURNS void AS $$
-  INSERT INTO incomplete_bills (
-    legislation_number, congress, bill_type, bill_number,
-    missing_fields, error_context
-  ) VALUES (
-    p_legislation_number, p_congress, p_bill_type, p_bill_number,
-    p_missing_fields, p_error_context
-  )
-  ON CONFLICT (legislation_number) DO UPDATE SET
-    missing_fields = p_missing_fields,
-    error_context = p_error_context,
-    resolved = FALSE,
-    updated_at = NOW();
-$$ LANGUAGE SQL;
-
 -- Check and reset daily request count if it's a new day
 CREATE OR REPLACE FUNCTION check_and_reset_daily_limit()
 RETURNS void AS $$
