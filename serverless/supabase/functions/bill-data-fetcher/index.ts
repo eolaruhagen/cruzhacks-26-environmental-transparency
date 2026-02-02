@@ -48,6 +48,10 @@ interface BillData {
   subject_terms: string[];
   bill_policy_area: string | null;
   latest_summary: string | null;
+  // Optional fields for forcing updates
+  category?: string | null;
+  embedding?: string | null;
+  subcategory_scores?: any | null;
 }
 
 type SupabaseClient = ReturnType<typeof createClient>;
@@ -188,17 +192,8 @@ async function processOneBill(
   const legislationNumber = `${mapBillType(billType)} ${billNumber} (${congress})`;
 
   try {
-    // 1. Check if already exists
-    const { data: existing } = await supabase
-      .from("house_bills")
-      .select("id")
-      .eq("legislation_number", legislationNumber)
-      .single();
-    
-    if (existing) {
-      console.log(`Bill ${legislationNumber} already exists, skipping.`);
-      return { inserted: false, requests: 0 };
-    }
+    // 1. (Removed existence check to allow updates)
+
 
     // 2. Fetch subjects (1 request)
     const subjectsData = await congressApiRequest<{
@@ -274,14 +269,79 @@ async function processOneBill(
       return { inserted: false, requests: requestCount, error: `Corrupted title (sponsor pattern): ${billData.title}` };
     }
 
-    // 6. Insert (category and embedding will be NULL for now)
+    // 5c. Check against incomplete_bills FIRST
+    const { data: incomplete } = await supabase
+      .from("incomplete_bills")
+      .select("title, latest_summary, latest_action, latest_action_date, latest_tracker_stage, num_cosponsors, committees, url")
+      .eq("legislation_number", legislationNumber)
+      .single();
+
+    let shouldForceRecategorization = false;
+
+    if (incomplete) {
+      // Diff check - compare key fields that indicate bill has been updated on Congress.gov
+      // These are the fields most likely to change when Congress updates bill data
+      const isDifferent = 
+        incomplete.title !== billData.title ||
+        incomplete.latest_summary !== billData.latest_summary ||
+        incomplete.latest_action !== billData.latest_action ||
+        incomplete.latest_action_date !== billData.latest_action_date ||
+        incomplete.latest_tracker_stage !== billData.latest_tracker_stage ||
+        incomplete.num_cosponsors !== billData.num_cosponsors;
+
+      if (!isDifferent) {
+        console.log(`[SKIP] Bill ${legislationNumber} in incomplete_bills and unchanged.`);
+        return { inserted: false, requests: requestCount };
+      }
+
+      console.log(`[UPDATE] Bill ${legislationNumber} in incomplete_bills has CHANGED. Moving to house_bills for re-categorization.`);
+      
+      // Delete from incomplete_bills
+      await supabase.from("incomplete_bills").delete().eq("legislation_number", legislationNumber);
+      
+      // Mark that we need to force re-categorization (clear category/embedding)
+      shouldForceRecategorization = true;
+    }
+
+    // 5d. Check if bill already exists in house_bills to preserve category/embedding
+    const { data: existingBill } = await supabase
+      .from("house_bills")
+      .select("category, embedding, subcategory_scores")
+      .eq("legislation_number", legislationNumber)
+      .single();
+
+    // 6. Prepare upsert payload - only include category/embedding if we're forcing re-categorization
+    const upsertPayload: any = { ...billData };
+    
+    if (existingBill && !shouldForceRecategorization) {
+      // Bill exists and has category/embedding - preserve them by NOT including in upsert
+      delete upsertPayload.category;
+      delete upsertPayload.embedding;
+      delete upsertPayload.subcategory_scores;
+      console.log(`[UPDATE] Bill ${legislationNumber} exists in house_bills - preserving category/embedding.`);
+    } else if (shouldForceRecategorization) {
+      // Explicitly clear category/embedding for re-categorization
+      upsertPayload.category = null;
+      upsertPayload.embedding = null;
+      upsertPayload.subcategory_scores = null;
+      console.log(`[UPDATE] Bill ${legislationNumber} moved from incomplete_bills - clearing category/embedding for re-categorization.`);
+    }
+    // If bill doesn't exist, upsertPayload already has category/embedding as undefined (which is fine)
+
+    // 7. Upsert into house_bills
     const { error: insertError } = await supabase
       .from("house_bills")
-      .upsert(billData, { onConflict: "legislation_number" });
+      .upsert(upsertPayload, { onConflict: "legislation_number" });
 
     if (insertError) throw insertError;
 
-    console.log(`Inserted bill ${legislationNumber}`);
+    if (existingBill && !shouldForceRecategorization) {
+      console.log(`[UPDATE] Updated bill ${legislationNumber} (preserved category/embedding)`);
+    } else if (shouldForceRecategorization) {
+      console.log(`[INSERT] Inserted bill ${legislationNumber} from incomplete_bills (ready for categorization)`);
+    } else {
+      console.log(`[INSERT] Inserted new bill ${legislationNumber}`);
+    }
     return { inserted: true, requests: requestCount };
 
   } catch (error) {
@@ -430,15 +490,10 @@ Deno.serve(async (req: Request) => {
       if (result.error) {
         if (max_read_ct >= MAX_RETRIES) {
           currentStage = `archive_failed_bill:${currentBill}`;
-          await supabase.from("incomplete_bills").upsert({
-            legislation_number: formattedLegislation,
-            congress: String(congress),
-            bill_type: mapBillType(bill_type),
-            bill_number: String(bill_number),
-            missing_fields: ["fetch_failed"],
-            error_context: result.error,
-            resolved: false,
-          }, { onConflict: "legislation_number" });
+          // Note: Failed fetches are not stored in incomplete_bills anymore
+          // incomplete_bills is only for bills that were fetched but couldn't be categorized
+          // Failed fetches are just logged and archived
+          console.error(`[FAILED] Bill ${formattedLegislation} failed after ${max_read_ct} retries: ${result.error}`);
           
           // Archive ALL duplicate messages for this bill
           for (const msgId of msg_ids) {
