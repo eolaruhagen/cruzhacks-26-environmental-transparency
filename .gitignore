@@ -47,3 +47,5 @@ next-env.d.ts
 supabase/seed.sql
 supabase/.temp
 .mcp.json
+
+*.claude
