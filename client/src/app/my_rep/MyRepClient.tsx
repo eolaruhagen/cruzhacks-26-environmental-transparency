@@ -97,16 +97,18 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
           .ilike('sponsor', `%${lastName}, ${firstName}%`)
           .not('subcategory_scores', 'is', null)
 
-        // Fetch cosponsored bills - search for last name in array
-        // Cosponsors array uses similar "LastName, FirstName" format
+        // Fetch cosponsored bills via RPC - cosponsors are stored as full names
+        // like "Rep. Smith, John [R-TX-3]" so we need a text cast + ilike
         const { data: cosponsored } = await supabase
-          .from('house_bills')
-          .select('legislation_number, category, subcategory_scores, title, url')
-          .filter('cosponsors', 'cs', `{${lastName}}`)
-          .not('subcategory_scores', 'is', null)
+          .rpc('search_cosponsored_bills', { cosponsor_name: lastName })
+
+        // Filter to only bills with subcategory_scores and combine
+        const cosponsoredFiltered = (cosponsored || []).filter(
+          (b: any) => b.subcategory_scores != null
+        )
 
         // Combine and deduplicate by legislation_number
-        const allBills = [...(sponsored || []), ...(cosponsored || [])]
+        const allBills = [...(sponsored || []), ...cosponsoredFiltered]
         const uniqueBills = Array.from(
           new Map(allBills.map(b => [b.legislation_number, b])).values()
         ) as RadarBill[]
@@ -501,27 +503,12 @@ export default function MyRepClient() {
 
         setSponsoredBills(sponsored || [])
 
-        // Fetch cosponsored bills - search in cosponsors array
-        // Using text search since cosponsors is a text array
+        // Fetch cosponsored bills via RPC - cosponsors are stored as full names
+        // like "Rep. Smith, John [R-TX-3]" so we need a text cast + ilike
         const { data: cosponsored } = await supabase
-          .from('house_bills')
-          .select('id, legislation_number, title, url, latest_action, category, date_of_introduction')
-          .filter('cosponsors', 'cs', `{${lastName}}`)
-          .order('date_of_introduction', { ascending: false })
-          .limit(25)
+          .rpc('search_cosponsored_bills', { cosponsor_name: lastName, max_results: 25 })
 
-        // If array contains doesn't work, try text search approach
-        if (!cosponsored || cosponsored.length === 0) {
-          const { data: cosponsoredAlt } = await supabase
-            .from('house_bills')
-            .select('id, legislation_number, title, url, latest_action, category, date_of_introduction')
-            .or(`cosponsors.cs.{${lastName}}`)
-            .order('date_of_introduction', { ascending: false })
-            .limit(25)
-          setCosponsoredBills(cosponsoredAlt || [])
-        } else {
-          setCosponsoredBills(cosponsored || [])
-        }
+        setCosponsoredBills(cosponsored || [])
       } catch (err) {
         console.error('Error fetching bills:', err)
       } finally {
