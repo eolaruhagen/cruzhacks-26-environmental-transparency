@@ -43,12 +43,12 @@ next-env.d.ts
 .idea
 .vscode
 
-
+# Supabase local dev
+supabase/seed.sql
+*.claude
 supabase/seed.sql
 supabase/.temp
 .mcp.json
 
-# Supabase local dev
-supabase/seed.sql
-
-*.claude
+# local package-lock.json for supabase cli usage
+.package-lock.json
