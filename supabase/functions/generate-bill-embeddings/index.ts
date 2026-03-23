@@ -18,6 +18,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../database.types.ts";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/embeddings";
 const EMBEDDING_MODEL = "openai/text-embedding-3-small";
@@ -25,14 +26,14 @@ const EMBEDDING_DIMENSIONS = 1536;
 const BATCH_SIZE = 20;
 
 interface BillForEmbedding {
-  id: number;
+  id: string;
   legislation_number: string;
   title: string;
   committees: string | null;
   latest_summary: string | null;
 }
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
 type NotificationType = "progress" | "complete" | "error";
 
@@ -171,7 +172,7 @@ Deno.serve(async (req: Request) => {
     }
 
     currentStage = "init_supabase_client";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Stage: Fetch bills with NULL embedding (and non-NULL category)
     currentStage = "fetch_unembedded_bills";
