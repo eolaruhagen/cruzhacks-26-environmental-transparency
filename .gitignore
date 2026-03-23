@@ -45,3 +45,6 @@ next-env.d.ts
 
 *.claude
 .mcp.json
+
+# Supabase local dev
+supabase/seed.sql
