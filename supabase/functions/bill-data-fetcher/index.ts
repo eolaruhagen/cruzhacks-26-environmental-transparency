@@ -368,8 +368,10 @@ Deno.serve(async (req: Request) => {
     currentStage = "init_supabase_client";
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Stage: Check daily request count
+    // Stage: Check daily request count (reset first if it's a new day)
     currentStage = "fetch_daily_request_count";
+    await supabase.rpc("check_and_reset_daily_limit");
+
     const { data: syncState, error: syncStateError } = await supabase
       .from("congress_sync_state")
       .select("daily_request_count")
