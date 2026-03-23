@@ -25,6 +25,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../database.types.ts";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const CATEGORIZATION_MODEL = "google/gemini-2.5-flash-lite";
@@ -44,7 +45,9 @@ const CATEGORIES = [
 ];
 
 // Map human-readable categories to database enum values
-const CATEGORY_TO_ENUM: Record<string, string> = {
+type BillTypeEnum = Database["public"]["Enums"]["bill_type"];
+
+const CATEGORY_TO_ENUM: Record<string, BillTypeEnum> = {
   "Air Quality & Emissions": "air_and_atmosphere",
   "Water Resources & Quality": "water_resources",
   "Land & Wildlife Conservation": "land_and_conservation",
@@ -90,7 +93,7 @@ interface CategorizationResult {
   fullApiResponse: unknown;
 }
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
 type NotificationType = "progress" | "complete" | "error";
 
@@ -356,7 +359,7 @@ Deno.serve(async (req: Request) => {
     }
 
     currentStage = "init_supabase_client";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Stage: Fetch bills with NULL category
     // Fetch all fields needed for incomplete_bills snapshot in case we need to move them
@@ -487,6 +490,8 @@ Deno.serve(async (req: Request) => {
         }
 
         console.log("✅ CATEGORIZE: " + legislationNumber + " -> " + humanReadableCategory + " (enum: " + enumCategory + ")");
+
+        // run check to alias enumCategory as the required enum
 
         const { error: updateError } = await supabase
           .from("house_bills")

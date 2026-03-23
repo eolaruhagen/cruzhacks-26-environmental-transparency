@@ -21,6 +21,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../database.types.ts";
 
 const BATCH_SIZE = 50; // Process 50 bills per invocation
 
@@ -37,7 +38,7 @@ interface BillForScoring {
   embedding: number[];
 }
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
 type NotificationType = "progress" | "pipeline_complete" | "error";
 
@@ -117,7 +118,7 @@ async function triggerNextStep(supabase: SupabaseClient, functionName: string): 
 /**
  * Parse embedding from string or array format
  */
-function parseEmbedding(embedding: string | number[] | null): number[] {
+function parseEmbedding(embedding: unknown): number[] {
   if (!embedding) return [];
   if (Array.isArray(embedding)) return embedding;
   if (typeof embedding === "string") {
@@ -189,7 +190,7 @@ Deno.serve(async (_req: Request) => {
     }
 
     currentStage = "init_supabase_client";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Stage: Fetch all subcategories with embeddings
     currentStage = "fetch_subcategories";
@@ -279,6 +280,10 @@ Deno.serve(async (_req: Request) => {
         continue;
       }
 
+      if (!bill.category) {
+        continue;
+      }
+      
       const categorySubcats = subcatsByCategory[bill.category];
 
       if (!categorySubcats || categorySubcats.length === 0) {

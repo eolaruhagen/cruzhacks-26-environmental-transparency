@@ -14,6 +14,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../database.types.ts";
 
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
 
@@ -24,7 +25,12 @@ interface CongressBill {
   updateDate: string;
 }
 
-type SupabaseClient = ReturnType<typeof createClient>;
+interface CongressBillsResponse {
+  bills: CongressBill[];
+  pagination?: { next?: string };
+}
+
+type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
 // Helper to format bill identifier consistently: "H.R. 123 (119)"
 function formatBillId(congress: number, type: string, number: number): string {
@@ -123,7 +129,7 @@ Deno.serve(async (req: Request) => {
       throw new Error("Missing CONGRESS_API_KEY env var");
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Stage: Get last sync date
     currentStage = "fetch_sync_state";
@@ -167,7 +173,7 @@ Deno.serve(async (req: Request) => {
         throw new Error(`Congress API error: ${response.status} ${response.statusText}. Body: ${errorBody.substring(0, 200)}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as CongressBillsResponse;
       const bills: CongressBill[] = data.bills || [];
 
       console.log("  Page " + pageNum + ": " + bills.length + " bills");

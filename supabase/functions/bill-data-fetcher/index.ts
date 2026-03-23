@@ -15,21 +15,15 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "../database.types.ts";
 
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
 const BATCH_SIZE = 20;
 const DAILY_REQUEST_LIMIT = 4500;
 const MAX_RETRIES = 5;
 
-interface QueueMessage {
-  msg_id: number;
-  read_ct: number;
-  message: {
-    congress: number;
-    bill_type: string;
-    bill_number: number;
-  };
-}
+type QueueMessage = Database["public"]["Functions"]["pgmq_read_batch"]["Returns"][number];
+type RawBillPayload = { congress: number; bill_type: string; bill_number: number };
 
 interface BillData {
   legislation_number: string;
@@ -54,7 +48,7 @@ interface BillData {
   subcategory_scores?: any | null;
 }
 
-type SupabaseClient = ReturnType<typeof createClient>;
+type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
 // Discord notification types
 type NotificationType = "progress" | "paused" | "error" | "queue_empty";
@@ -366,7 +360,7 @@ Deno.serve(async (req: Request) => {
     }
 
     currentStage = "init_supabase_client";
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Stage: Check daily request count (reset first if it's a new day)
     currentStage = "fetch_daily_request_count";
@@ -444,7 +438,7 @@ Deno.serve(async (req: Request) => {
     }>();
 
     for (const msg of messages as QueueMessage[]) {
-      const { congress, bill_type, bill_number } = msg.message;
+      const { congress, bill_type, bill_number } = msg.message as RawBillPayload;
       const key = `${congress}-${bill_type}-${bill_number}`;
 
       if (billToMsgIds.has(key)) {
