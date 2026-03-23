@@ -42,3 +42,8 @@ next-env.d.ts
 # IDE
 .idea
 .vscode
+
+
+supabase/seed.sql
+supabase/.temp
+.mcp.json
