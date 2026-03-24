@@ -1,0 +1,73 @@
+name: Deploy Migrations
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Validate migrations (dry run)
+        if: github.event_name == 'pull_request'
+        run: supabase db push --dry-run --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Apply migrations
+        id: migrate
+        if: github.event_name == 'push'
+        run: supabase db push --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Notify Discord (success)
+        if: github.event_name == 'push' && success()
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "GitHub Actions",
+              "embeds": [{
+                "title": "Migrations Applied",
+                "color": 5763719,
+                "fields": [
+                  { "name": "Commit", "value": "[`${{ github.sha }}`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})", "inline": false },
+                  { "name": "Triggered by", "value": "${{ github.actor }}", "inline": true }
+                ],
+                "timestamp": "${{ github.event.head_commit.timestamp }}"
+              }]
+            }'
+
+      - name: Notify Discord (failure)
+        if: github.event_name == 'push' && failure()
+        run: |
+          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "username": "GitHub Actions",
+              "embeds": [{
+                "title": "Migration Failed",
+                "color": 15158332,
+                "fields": [
+                  { "name": "Event", "value": "${{ github.event_name }}", "inline": true },
+                  { "name": "Triggered by", "value": "${{ github.actor }}", "inline": true },
+                  { "name": "Logs", "value": "[View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})", "inline": false }
+                ],
+                "timestamp": "${{ github.event.head_commit.timestamp }}"
+              }]
+            }'
