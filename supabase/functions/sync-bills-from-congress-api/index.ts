@@ -101,7 +101,7 @@ async function sendDiscordNotification(
 
 async function triggerNextStep(supabase: SupabaseClient, functionName: string, args: Json = {}): Promise<void> {
   const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
 
   await supabase.rpc("trigger_next_step_internal", {
     p_project_url: projectUrl,
@@ -129,12 +129,12 @@ Deno.serve(async (req: Request) => {
     // Stage: Initialize clients
     currentStage = "init_supabase_client";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseKey = Deno.env.get("SERVICE_ROLE_KEY");
     const congressApiKey = Deno.env.get("CONGRESS_API_KEY");
     discordUrl = Deno.env.get("DISCORD_WEBHOOK_URL") ?? "";
 
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars");
+      throw new Error("Missing SUPABASE_URL or SERVICE_ROLE_KEY env vars");
     }
     if (!congressApiKey) {
       throw new Error("Missing CONGRESS_API_KEY env var");

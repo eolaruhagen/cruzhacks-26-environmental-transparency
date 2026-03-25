@@ -29,7 +29,7 @@
  *
  * Environment Variables:
  * - SUPABASE_URL (auto-provided)
- * - SUPABASE_SERVICE_ROLE_KEY (auto-provided)
+ * - SERVICE_ROLE_KEY (auto-provided)
  */
 
 import "@supabase/functions-js/edge-runtime.d.ts";
@@ -136,7 +136,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseKey = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Parse request body
