@@ -363,9 +363,10 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 
     // Stage: Check daily request count (reset first if it's a new day)
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const selfInvoked = body?.is_self_invoked === true;
 
-    if (!body.is_self_invoked) {
+    if (!selfInvoked) {
       currentStage = "fetch_daily_request_count";
       await supabase.rpc("check_and_reset_daily_limit");
     }
@@ -397,6 +398,9 @@ Deno.serve(async (req: Request) => {
           remaining,
         });
       }
+
+      // even if we hit rate limits, its important that categorize bills still attempts to pick up whats left as null in the DB (if there was an existing backlog)
+      await triggerNextStep(supabase, "categorize-bills");
 
       return new Response(JSON.stringify({
         success: true,
