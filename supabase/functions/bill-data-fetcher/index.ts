@@ -15,12 +15,13 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../database.types.ts";
+import type { Database, Json } from "../database.types.ts";
 
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
 const BATCH_SIZE = 20;
 const DAILY_REQUEST_LIMIT = 4500;
 const MAX_RETRIES = 5;
+const TIME_RESOURCE_LIMIT = 120;
 
 type QueueMessage = Database["public"]["Functions"]["pgmq_read_batch"]["Returns"][number];
 type RawBillPayload = { congress: number; bill_type: string; bill_number: number };
@@ -127,7 +128,7 @@ async function sendDiscordNotification(
   }).catch(console.error);
 }
 
-async function triggerNextStep(supabase: SupabaseClient, functionName: string): Promise<void> {
+async function triggerNextStep(supabase: SupabaseClient, functionName: string, args: Json = {}): Promise<void> {
   const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -135,6 +136,7 @@ async function triggerNextStep(supabase: SupabaseClient, functionName: string): 
     p_project_url: projectUrl,
     p_service_role_key: serviceRoleKey,
     p_function_name: functionName,
+    p_payload: args
   });
 }
 
@@ -173,6 +175,7 @@ async function congressApiRequest<T>(endpoint: string, apiKey: string): Promise<
   if (!response.ok) throw new Error(`Congress API error: ${response.status}`);
   return response.json();
 }
+
 
 async function processOneBill(
   supabase: SupabaseClient,
@@ -344,6 +347,16 @@ Deno.serve(async (req: Request) => {
   let discordUrl = "";
   let currentBill = "";
 
+  const START_TIME = Date.now();
+
+  function isRunningLow(): boolean {
+    // get time diff in seconds
+    const currTime = Date.now();
+    const timeDiffMs = currTime - START_TIME;
+    const timeDiffSec = Math.floor(timeDiffMs / 1000);
+    return timeDiffSec > TIME_RESOURCE_LIMIT;
+  }
+
   try {
     // Stage: Initialize
     currentStage = "init_env_vars";
@@ -510,6 +523,9 @@ Deno.serve(async (req: Request) => {
       if (dailyCount >= DAILY_REQUEST_LIMIT) {
         console.log("Approaching daily limit, stopping early.");
         break;
+      } else if (isRunningLow()) {
+        console.warn("Execution past 120s: stopping early and re-invoking");
+        break;
       }
     }
 
@@ -549,8 +565,8 @@ Deno.serve(async (req: Request) => {
     currentStage = "trigger_next_step";
     if (remainingMessages > 0 && dailyCount < DAILY_REQUEST_LIMIT) {
       console.log(`${remainingMessages} bills remaining. Triggering self.`);
-      await triggerNextStep(supabase, "bill-data-fetcher");
-    } else if (remainingMessages === 0) {
+      await triggerNextStep(supabase, "bill-data-fetcher", {is_self_invoked: true});
+    } else {
       console.log("All bills processed. Triggering categorizer.");
       await triggerNextStep(supabase, "categorize-bills");
     }
