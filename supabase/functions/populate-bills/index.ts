@@ -15,7 +15,7 @@
  *
  * Environment Variables:
  * - SUPABASE_URL (auto-provided)
- * - SUPABASE_SERVICE_ROLE_KEY (auto-provided)
+ * - SERVICE_ROLE_KEY (auto-provided)
  * - CSV_BUCKET_NAME (optional, defaults to "csv-data")
  * - KICKSTART_CSV_NAME (optional, defaults to "all_bills.csv")
  * - OPENAI_API_KEY (required for embeddings)
@@ -165,7 +165,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseKey = Deno.env.get("SERVICE_ROLE_KEY") ?? "";
     const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
 
     if (!openaiKey) {
