@@ -119,7 +119,7 @@ async function sendDiscordNotification(
         timestamp: new Date().toISOString(),
       };
       break;
-  }
+  } 
 
   await fetch(webhookUrl, {
     method: "POST",
@@ -131,7 +131,7 @@ async function sendDiscordNotification(
 async function triggerNextStep(supabase: SupabaseClient, functionName: string, args: Json = {}): Promise<void> {
   const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
+  console.warn("Trying to trigger next step with service key = ", serviceRoleKey)
   await supabase.rpc("trigger_next_step_internal", {
     p_project_url: projectUrl,
     p_service_role_key: serviceRoleKey,
