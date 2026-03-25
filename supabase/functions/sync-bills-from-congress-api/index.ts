@@ -14,9 +14,10 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../database.types.ts";
+import type { Database, Json } from "../database.types.ts";
 
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
+const TIME_RESOURCE_LIMIT = 120;
 
 interface CongressBill {
   congress: number;
@@ -98,7 +99,7 @@ async function sendDiscordNotification(
   }).catch(console.error);
 }
 
-async function triggerNextStep(supabase: SupabaseClient, functionName: string): Promise<void> {
+async function triggerNextStep(supabase: SupabaseClient, functionName: string, args: Json = {}): Promise<void> {
   const projectUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -106,6 +107,7 @@ async function triggerNextStep(supabase: SupabaseClient, functionName: string): 
     p_project_url: projectUrl,
     p_service_role_key: serviceRoleKey,
     p_function_name: functionName,
+    p_payload: args
   });
 }
 
@@ -114,6 +116,15 @@ Deno.serve(async (req: Request) => {
   let lastSync = "";
   let discordUrl = "";
 
+  const START_TIME = Date.now();
+
+  function isRunningLow(): boolean {
+    // get time diff in seconds
+    const currTime = Date.now();
+    const timeDiffMs = currTime - START_TIME;
+    const timeDiffSec = Math.floor(timeDiffMs / 1000);
+    return timeDiffSec > TIME_RESOURCE_LIMIT;
+  }
   try {
     // Stage: Initialize clients
     currentStage = "init_supabase_client";
@@ -154,7 +165,10 @@ Deno.serve(async (req: Request) => {
 
     // Stage: Fetch from Congress API and collect all bills
     currentStage = "fetch_congress_api";
-    let nextUrl: string | null = `${CONGRESS_API_BASE}/bill?fromDateTime=${lastSync}&limit=250&api_key=${congressApiKey}&format=json`;
+
+    const reqBody = await req.json().catch(() => {});
+
+    let nextUrl: string | null = reqBody?.next_url ? reqBody.next_url : `${CONGRESS_API_BASE}/bill?fromDateTime=${lastSync}&limit=250&api_key=${congressApiKey}&format=json`;
     let pageNum = 0;
 
     // Use a Map to dedupe bills by unique key (congress-type-number)
@@ -162,6 +176,12 @@ Deno.serve(async (req: Request) => {
 
     // Fetch all pages first
     while (nextUrl) {
+      if (isRunningLow()) {
+        // do a self invocation with payload as nextUrl
+        console.warn("Current sync running low on time: triggering self invocation with nextUrl=", nextUrl)
+        await triggerNextStep(supabase, "sync-bills-from-congress-api", {next_url: nextUrl});
+        break;
+      }
       pageNum++;
       currentStage = `fetch_congress_api_page_${pageNum}`;
 
