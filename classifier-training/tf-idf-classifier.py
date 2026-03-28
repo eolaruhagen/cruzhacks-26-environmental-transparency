@@ -1,6 +1,6 @@
 import json
 import string
-from types import NoneType
+from typing import Optional, Tuple
 import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
@@ -8,7 +8,6 @@ from sklearn.model_selection import GridSearchCV, StratifiedKFold, train_test_sp
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report
-from typing import Optional
 
 def make_clean_csv() -> pd.DataFrame:
     df = pd.read_csv("classifier-training/MN-DS-news-classification.csv");
@@ -22,7 +21,7 @@ def prep_columns(df: pd.DataFrame) -> pd.DataFrame:
     df["binary_class"] = (df["category_level_1"] == "environment").astype(int)
     df["text"] = (df["title"] + " : " + df["content"].str[:200]).apply(strip_punctuation)
 
-def split_feat_label(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+def split_feat_label(df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
     return (df["text"], df["binary_class"])
 
 def run_test(model: Pipeline, X_test: pd.Series, y_test: pd.Series):
@@ -39,12 +38,15 @@ def train_with_grid_search(feat: pd.Series, labels: pd.Series):
 
         pipe = Pipeline([
             ("tfidf", TfidfVectorizer(stop_words="english")),
-            ("lr", LogisticRegression(class_weight='balanced', max_iter=8000, solver='liblinear', l1_ratio=1))
+            ("lr", LogisticRegression(
+                class_weight='balanced', max_iter=10000,
+                solver='lbfgs', penalty='l2'
+            ))
         ])
         param_grid = {
-            'tfidf__max_features': [8000, 10000, 12000, 15000],
+            'tfidf__max_features': [10000, 12000, 15000],
             'tfidf__ngram_range': [(1,1), (1,2)],
-            'lr__C': [0.1, 1.0, 4.0, 5.0, 10.0],
+            'lr__C': [1.0, 10.0, 50.0, 100.0],
         }
 
         cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
@@ -95,7 +97,8 @@ def export_model_json(model: Pipeline, output_path: str = "classifier-training/m
     non_zero = int(np.count_nonzero(weights))
     print(f"\nModel exported to {output_path}")
     print(f"  Vocab size: {len(vocab)}")
-    print(f"  Non-zero weights: {non_zero} / {len(weights)} (L1 zeroed out {len(weights) - non_zero})")
+    zeroed = len(weights) - non_zero
+    print(f"  Non-zero weights: {non_zero} / {len(weights)} ({zeroed} zeroed out)")
     print(f"  File size: {len(json.dumps(export)) / 1024:.0f} KB")
 
 if __name__ == "__main__":
@@ -104,5 +107,8 @@ if __name__ == "__main__":
     (x, y) = split_feat_label(df)
     best_model, X_test, y_test = train_with_grid_search(x,y)
     run_test(best_model, X_test, y_test)
-    export_model_json(best_model)
+    # Export to new path (preserving original L1 model.json)
+    export_model_json(best_model, output_path="classifier-training/model_v2_l2.json")
+    # Also overwrite main model.json for production use
+    export_model_json(best_model, output_path="classifier-training/model.json")
     
