@@ -209,7 +209,7 @@ export async function releaseArtifactLocksWithRetry(
 
 export async function insertRawArtifacts<TMeta extends Record<string, JsonSerializable> = Record<string, JsonSerializable>>(
     artifacts: StagingArtifact<TMeta>[]
-): Promise<void> {
+): Promise<{ inserted: number; dupes: number }> {
     const rows = artifacts.map(a => ({
         url: a.url,
         type: a.type,
@@ -231,7 +231,13 @@ export async function insertRawArtifacts<TMeta extends Record<string, JsonSerial
         'created_at', 'updated_at',
     ] as const;
 
-    await dbConn<never[]>`
-            INSERT INTO pipelines.artifact_staging ${dbConn(rows, ...columns)} ON CONFLICT (url) DO NOTHING
-        `;
+    const result = await dbConn`
+        INSERT INTO pipelines.artifact_staging ${dbConn(rows, ...columns)} ON CONFLICT (url) DO NOTHING
+    `;
+    const inserted = result.count;
+    return { inserted, dupes: artifacts.length - inserted };
+}
+
+export async function close() {
+    await dbConn.end();
 }

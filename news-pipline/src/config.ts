@@ -1,0 +1,8 @@
+const BATCH_SIZE = 50;
+export const MAX_WORKER_NEWS_REQUESTS = 2;
+const MAX_ARTIFACT_RETRY = 5;
+const FETCH_WORKER_ID = "fetch-worker";
+const FILTER_WORKER_ID = "filter-worker";
+const ENRICH_WORKER_ID = "enrich-worker";
+const CATEGORIZE_WORKER_ID = "categorize-worker";
+export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest"
