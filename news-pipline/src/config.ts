@@ -6,3 +6,4 @@ const FILTER_WORKER_ID = "filter-worker";
 const ENRICH_WORKER_ID = "enrich-worker";
 const CATEGORIZE_WORKER_ID = "categorize-worker";
 export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest"
+export const FILTER_MAX_TRIES = 3;

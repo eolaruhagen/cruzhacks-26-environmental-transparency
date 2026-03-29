@@ -1,48 +1,8 @@
 import postgres, { type Error } from "postgres";
 import pino from "pino";
+import type { ArtifactType, ArtifactStatus, StagingArtifact } from "../types";
 
 const logger = pino({ name: "postgres" });
-
-export type ArtifactStatus = "raw" | "filtered" | "enriched";
-
-export type ArtifactType = "article" | "social_post";
-
-export type JsonSerializable =
-    | string
-    | number
-    | boolean
-    | null
-    | JsonSerializable[]
-    | { [key: string]: JsonSerializable };
-
-
-export type ArtifactEnrichment = {
-    state: string;
-    associated_bill_ids: string[];
-    associated_representatives: string[];
-    subcategories: string[];
-    sentiment: number; // -1 to 1
-}
-/**
- * A row from pipelines.artifact_staging.
- * The metadata JSONB column holds source-specific data (API response fields,
- * social post metrics, etc.) — its shape varies by artifact type.
- */
-export interface StagingArtifact<TMeta extends Record<string, JsonSerializable> = Record<string, JsonSerializable>> {
-    id: string;
-    url: string;
-    type: ArtifactType;
-    status: ArtifactStatus;
-    source_icon_url: string | null;
-    metadata: TMeta;
-    retry_attempts: number;
-    locked_by: string | null;
-    locked_at: Date | null;
-    embedding: number[] | null
-    enrichment: ArtifactEnrichment | null;
-    created_at: Date;
-    updated_at: Date;
-}
 
 type QueryResult<T> =
     | { ok: true, data: T; durationMs: number }
@@ -103,13 +63,14 @@ export async function timedQuery<T>(queryLabel: string, queryFn: () => Promise<T
  * Pull unlocked artifacts at a given pipeline stage.
  * Does NOT acquire a lock — use acquireArtifactLock for that.
  */
-export async function pullArtifactsByStatus<TMeta extends Record<string, JsonSerializable> = Record<string, JsonSerializable>>(
+export async function pullArtifactsByStatus<K extends ArtifactType>(
     status: ArtifactStatus,
+    artifactType: K,
     limit: number = 50
-): Promise<StagingArtifact<TMeta>[]> {
-    return await dbConn<StagingArtifact<TMeta>[]>`
+): Promise<StagingArtifact<K>[]> {
+    return await dbConn<StagingArtifact<K>[]>`
         SELECT * FROM pipelines.artifact_staging
-        WHERE status = ${status} AND locked_by IS NULL
+        WHERE status = ${status} AND type = ${artifactType} AND locked_by IS NULL
         LIMIT ${limit}
     `;
 }
@@ -129,13 +90,13 @@ export async function pullArtifactsByStatus<TMeta extends Record<string, JsonSer
  * @param workerId - Unique identifier for this worker (used to release locks on completion)
  * @returns The locked artifacts, typed with optional metadata generic
  */
-export async function acquireArtifactLock<TMeta extends Record<string, JsonSerializable> = Record<string, JsonSerializable>>(
+export async function acquireArtifactLock<K extends ArtifactType>(
     status: ArtifactStatus,
-    artifactType: ArtifactType,
+    artifactType: K,
     batchSize: number,
     workerId: string
-): Promise<StagingArtifact<TMeta>[]> {
-    return await dbConn<StagingArtifact<TMeta>[]>`
+): Promise<StagingArtifact<K>[]> {
+    return await dbConn<StagingArtifact<K>[]>`
         UPDATE pipelines.artifact_staging
         SET locked_by = ${workerId}, locked_at = now()
         WHERE id IN (
@@ -158,8 +119,8 @@ export async function acquireArtifactLock<TMeta extends Record<string, JsonSeria
  * @param nextStatus - The pipeline stage to advance these artifacts to
  * @returns IDs of artifacts that were successfully advanced
  */
-export async function releaseArtifactLocks<TMeta extends Record<string, JsonSerializable> = Record<string, JsonSerializable>>(
-    artifacts: StagingArtifact<TMeta>[],
+export async function releaseArtifactLocks<K extends ArtifactType>(
+    artifacts: StagingArtifact<K>[],
     workerId: string,
     nextStatus: ArtifactStatus
 ): Promise<string[]> {
@@ -207,8 +168,8 @@ export async function releaseArtifactLocksWithRetry(
     `;
 }
 
-export async function insertRawArtifacts<TMeta extends Record<string, JsonSerializable> = Record<string, JsonSerializable>>(
-    artifacts: StagingArtifact<TMeta>[]
+export async function insertRawArtifacts<K extends ArtifactType>(
+    artifacts: StagingArtifact<K>[]
 ): Promise<{ inserted: number; dupes: number }> {
     const rows = artifacts.map(a => ({
         url: a.url,

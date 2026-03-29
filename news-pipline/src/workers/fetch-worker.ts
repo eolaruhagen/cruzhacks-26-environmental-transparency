@@ -1,26 +1,12 @@
 import { fetchNewsArtifacts, filterNewsArtifactsFromLastDay } from "../lib/externalApis";
 import { MAX_WORKER_NEWS_REQUESTS } from "../config";
-import { insertRawArtifacts, timedQuery, type ArtifactType, type StagingArtifact, type JsonSerializable } from "../lib/database";
+import { insertRawArtifacts, timedQuery } from "../lib/database";
+import type { ArtifactType, ArtifactMetaMap, FetchStrategy, StagingArtifact } from "../types";
 import pino from "pino";
 
 const logger = pino({ name: "fetch-worker" });
 
-
-export interface FetchStrategy<TMeta extends Record<string, JsonSerializable>> {
-    readonly artifactType: ArtifactType;
-    readonly maxRequests: number;
-    fetch(cursor?: string): Promise<{ items: StagingArtifact<TMeta>[]; nextCursor: string | null }>;
-}
-
-export interface NewsArtifactMetadata extends Record<string, JsonSerializable> {
-    title: string;
-    description: string;
-    people: string[];
-    topics: string[];
-    author: string[];
-}
-
-export const newsFetchStrategy: FetchStrategy<NewsArtifactMetadata> = {
+export const newsFetchStrategy: FetchStrategy<"article"> = {
     artifactType: "article",
     maxRequests: MAX_WORKER_NEWS_REQUESTS,
 
@@ -28,7 +14,7 @@ export const newsFetchStrategy: FetchStrategy<NewsArtifactMetadata> = {
         const response = await fetchNewsArtifacts(cursor);
         const filtered = filterNewsArtifactsFromLastDay(response.data);
 
-        const items: StagingArtifact<NewsArtifactMetadata>[] = filtered.map(artifact => ({
+        const items: StagingArtifact<"article">[] = filtered.map(artifact => ({
             id: crypto.randomUUID(),
             url: artifact.link,
             type: "article",
@@ -54,31 +40,26 @@ export const newsFetchStrategy: FetchStrategy<NewsArtifactMetadata> = {
     }
 };
 
-interface strategyMetaMap {
-    article: NewsArtifactMetadata;
-}
-
-
-const strategyRegistry: Record<string, FetchStrategy<strategyMetaMap[keyof strategyMetaMap]>> = {
+const strategyRegistry: { [K in ArtifactType]?: FetchStrategy<K> } = {
     article: newsFetchStrategy,
 };
 
-export function getFetchStrategy<T extends keyof strategyMetaMap>(artifactType: string): FetchStrategy<strategyMetaMap[T]> {
+export function getFetchStrategy<K extends ArtifactType>(artifactType: K): FetchStrategy<K> {
     const strategy = strategyRegistry[artifactType];
     if (!strategy) {
         throw new Error(`Unknown artifact type: "${artifactType}". Available: ${Object.keys(strategyRegistry).join(", ")}`);
     }
-    return strategy;
+    return strategy as FetchStrategy<K>;
 }
 
 
-export async function fetchArtifactsWorker<TMeta extends Record<string, JsonSerializable>>(strategy: FetchStrategy<TMeta>) {
+export async function fetchArtifactsWorker<K extends ArtifactType>(strategy: FetchStrategy<K>) {
     let cursor: string | undefined = undefined;
     let totalInserted = 0;
     let totalDupes = 0;
 
     for (let i = 0; i < strategy.maxRequests; i++) {
-        let items: StagingArtifact<TMeta>[];
+        let items: StagingArtifact<K>[];
         let nextCursor: string | null;
         try {
             const result = await strategy.fetch(cursor);

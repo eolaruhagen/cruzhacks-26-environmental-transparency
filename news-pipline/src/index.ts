@@ -2,8 +2,13 @@ import pino from "pino";
 import { parseArgs } from "util";
 import { fetchArtifactsWorker, getFetchStrategy } from "./workers/fetch-worker";
 import { close } from "./lib/database";
+import { filterWorker } from "./workers/filter-worker";
+import type { ArtifactType } from "./types";
+import { getDocFormatSpec } from "./lib/llm";
 
 const logger = pino({ name: "pipeline-cli" });
+
+const VALID_ARTIFACT_TYPES: ArtifactType[] = ["article"];
 
 const { values } = parseArgs({
     args: Bun.argv.slice(2),
@@ -17,15 +22,26 @@ const { values } = parseArgs({
     strict: true,
 });
 
+function validateArtifactType(input: string): ArtifactType {
+    if (!VALID_ARTIFACT_TYPES.includes(input as ArtifactType)) {
+        throw new Error(`Unknown artifact type: "${input}". Available: ${VALID_ARTIFACT_TYPES.join(", ")}`);
+    }
+    return input as ArtifactType;
+}
+
 async function main() {
+    const artifactType = validateArtifactType(values.artifact_type!);
+
     if (values.fetch) {
-        const strategy = getFetchStrategy(values.artifact_type!);
-        logger.info({ artifactType: values.artifact_type }, "starting fetch worker");
+        const strategy = getFetchStrategy(artifactType);
+        logger.info({ artifactType }, "starting fetch worker");
         await fetchArtifactsWorker(strategy);
     }
 
     if (values.filter) {
-        logger.info("starting filter worker");
+        logger.info({ artifactType }, "starting filter worker");
+        const spec = getDocFormatSpec(artifactType);
+        await filterWorker(spec);
     }
 
     if (values.enrich) {
