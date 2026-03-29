@@ -25,7 +25,7 @@ export interface NewsMeshResponse {
 
 export async function fetchNewsArtifacts(cursor?: string): Promise<NewsMeshResponse> {
     const url = new URL(NEWS_API_BASE_URL);
-    url.searchParams.set("category", "environment");
+    url.searchParams.set("category", "environment, politics");
     url.searchParams.set("country", "us");
     url.searchParams.set("limit", "10");
     url.searchParams.set("apiKey", NEWSMESH_API_KEY!);

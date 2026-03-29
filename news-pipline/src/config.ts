@@ -1,5 +1,5 @@
-export const BATCH_SIZE = 30;
-export const MAX_WORKER_NEWS_REQUESTS = 5;
+export const BATCH_SIZE = 15;
+export const MAX_WORKER_NEWS_REQUESTS = 100;
 export const MAX_ARTIFACT_RETRY = 5;
 export const FETCH_WORKER_ID = "fetch-worker";
 export const FILTER_WORKER_ID = "filter-worker";
@@ -7,4 +7,4 @@ export const ENRICH_WORKER_ID = "enrich-worker";
 export const CATEGORIZE_WORKER_ID = "categorize-worker";
 export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest"
 export const FILTER_MAX_TRIES = 3;
-export const FILTER_MODEL = "google/gemini-3.1-flash-lite-preview-20260303";
+export const FILTER_MODEL = "openai/gpt-5.4-nano";
