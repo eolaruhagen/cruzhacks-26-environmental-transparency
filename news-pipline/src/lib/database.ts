@@ -134,8 +134,8 @@ export async function releaseArtifactLocks<K extends ArtifactType>(
             SET locked_by = NULL,
                 locked_at = NULL,
                 status = ${nextStatus},
-                metadata = ${JSON.stringify(artifact.metadata)},
-                enrichment = ${artifact.enrichment ? JSON.stringify(artifact.enrichment) : null},
+                metadata = ${dbConn.json(artifact.metadata)},
+                enrichment = ${artifact.enrichment ? dbConn.json(artifact.enrichment) : null},
                 embedding = ${artifact.embedding},
                 updated_at = now()
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
@@ -197,6 +197,63 @@ export async function insertRawArtifacts<K extends ArtifactType>(
     `;
     const inserted = result.count;
     return { inserted, dupes: artifacts.length - inserted };
+}
+
+/**
+ * Move artifacts to the failed_artifacts table.
+ * These are artifacts that exceeded MAX_ARTIFACT_RETRY across pipeline stages.
+ * Stores the full artifact data as JSONB for debugging and post-mortem analysis.
+ * Also deletes the artifact from the staging table to prevent re-processing.
+ */
+export async function moveToFailedArtifacts<K extends ArtifactType>(
+    artifacts: StagingArtifact<K>[],
+    workerId: string
+): Promise<void> {
+    if (artifacts.length === 0) return;
+
+    for (const artifact of artifacts) {
+        await dbConn`
+            INSERT INTO pipelines.failed_artifacts (url, type, data)
+            VALUES (
+                ${artifact.url},
+                ${artifact.type},
+                ${dbConn.json({ metadata: artifact.metadata, enrichment: artifact.enrichment, status: artifact.status, retry_attempts: artifact.retry_attempts })}
+            )
+        `;
+        await dbConn`
+            DELETE FROM pipelines.artifact_staging
+            WHERE id = ${artifact.id} AND locked_by = ${workerId}
+        `;
+    }
+}
+
+/**
+ * Move artifacts to the rejected_artifacts table.
+ * These are artifacts the LLM filter determined are not environmentally relevant.
+ * Stored for future classifier training data (the LLM's keep/drop decisions
+ * become labeled examples for distilling into a BERT model later).
+ * Also deletes the artifact from the staging table.
+ */
+export async function moveToRejectedArtifacts<K extends ArtifactType>(
+    artifacts: StagingArtifact<K>[],
+    workerId: string
+): Promise<void> {
+    if (artifacts.length === 0) return;
+
+    for (const artifact of artifacts) {
+        await dbConn`
+            INSERT INTO pipelines.rejected_artifacts (url, type, data)
+            VALUES (
+                ${artifact.url},
+                ${artifact.type},
+                ${dbConn.json({ metadata: artifact.metadata, status: artifact.status })}
+            )
+        `;
+        await dbConn`
+            DELETE FROM pipelines.artifact_staging
+            WHERE id = ${artifact.id} AND locked_by = ${workerId}
+        `;
+    }
 }
 
 export async function close() {
