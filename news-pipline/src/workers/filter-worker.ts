@@ -5,6 +5,7 @@ import {
     releaseArtifactLocksWithRetry,
     moveToFailedArtifacts,
     moveToRejectedArtifacts,
+    timedQuery,
 } from "../lib/database";
 import { filterDocuments } from "../lib/llm";
 import { BATCH_SIZE, FILTER_MAX_TRIES, FILTER_WORKER_ID, MAX_ARTIFACT_RETRY, FILTER_MODEL } from "../config";
@@ -146,7 +147,9 @@ export async function filterWorker<K extends ArtifactType>(artifactSpec: Artifac
     while (true) {
         let batch: StagingArtifact<K>[];
         try {
-            batch = await acquireArtifactLock("raw", artifactSpec.artifactType, BATCH_SIZE, workerId);
+            batch = await timedQuery("acquire-filter-batch", () =>
+                acquireArtifactLock("raw", artifactSpec.artifactType, BATCH_SIZE, workerId)
+            ).then(r => { if (!r.ok) throw r.error; return r.data; });
         } catch (error) {
             if (acquireAttempts >= maxAcquireAttempts) {
                 logger.error(error, "failed to acquire batch lock");
