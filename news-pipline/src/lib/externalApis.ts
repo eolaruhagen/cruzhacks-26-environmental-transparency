@@ -1,7 +1,6 @@
-import type { StringLike } from "bun";
-import { NEWS_API_BASE_URL } from "../config";
+import { NEWS_API_BASE_URL, NEWSIO_API_BASE_URL } from "../config";
 
-const { NEWSMESH_API_KEY } = process.env;
+const { NEWSMESH_API_KEY, NEWSIO_API_KEY } = process.env;
 
 
 export interface NewsMeshItem {
@@ -40,12 +39,48 @@ export async function fetchNewsArtifacts(cursor?: string): Promise<NewsMeshRespo
     return await res.json() as NewsMeshResponse;
 }
 
-export function filterNewsArtifactsFromLastDay(artifacts: NewsMeshItem[]): NewsMeshItem[] {
+export function filterFromLastDay<T>(artifacts: T[], dateField: keyof T): T[] {
+    const now = Date.now();
     return artifacts.filter((artifact) => {
-        const publishedDate = new Date(artifact.published_date);
-        const now = new Date();
-        const diff = now.getTime() - publishedDate.getTime();
-        const hours = diff / (1000 * 60 * 60);
-        return hours < 24;
+        const published = new Date(artifact[dateField] as string);
+        return (now - published.getTime()) / (1000 * 60 * 60) < 24;
     });
+}
+
+// --- NewsData.io (archive endpoint) ---
+
+export interface NewsIOItem {
+    article_id: string;
+    title: string;
+    description: string | null;
+    link: string;
+    source_icon: string | null;
+    pubDate: string;
+    source_name: string;
+    category: string[];
+    keywords: string[] | null;
+    creator: string[] | null;
+}
+
+export interface NewsIOResponse {
+    status: string;
+    totalResults: number;
+    results: NewsIOItem[];
+    nextPage?: string;
+}
+
+export async function fetchNewsIOArtifacts(page?: string): Promise<NewsIOResponse> {
+    const url = new URL(NEWSIO_API_BASE_URL);
+    url.searchParams.set("apikey", NEWSIO_API_KEY!);
+    url.searchParams.set("country", "us");
+    url.searchParams.set("language", "en");
+    url.searchParams.set("category", "environment");
+    url.searchParams.set("size", "10");
+
+    if (page) {
+        url.searchParams.set("page", page);
+    }
+
+    const res = await fetch(url);
+    return await res.json() as NewsIOResponse;
 }

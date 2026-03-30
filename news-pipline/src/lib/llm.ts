@@ -36,7 +36,7 @@ export function getDocFormatSpec<K extends ArtifactType>(artifactType: K): Artif
 function buildFilterDocumentsSystemPrompt<K extends ArtifactType>(documentFormatSpec: ArtifactFormatSpec<K>): string {
     return `You are a binary relevance classifier for an environmental transparency platform that helps U.S. citizens understand how environmental issues affect them and how their government handles these issues.
 
-THE KEY QUESTION for each document: "Would a person reading this LEARN something meaningful about an environmental issue, environmental policy, or how the environment is being affected?" If the answer is no — if the article is just reporting conditions, forecasts, or events without explaining causes, consequences, or policy context — REJECT it.
+THE KEY QUESTION for each document: "Would a person reading this LEARN something meaningful about an environmental issue, environmental policy, or how the environment is being affected?" If the answer is no — if the article is just reporting conditions, forecasts, or events without explaining causes, consequences, or policy context — REJECT it. YOU MUST BE EXTREMELY STRICT IN YOUR JUDGEMENT.
 
 KEEP (true) — documents where a reader learns something about:
 - Environmental policy, regulation, or legislation at any level (federal, state, local) from ANY political perspective — pro-regulation, deregulation, industry-friendly, activist. The platform is nonpartisan.
@@ -98,6 +98,7 @@ export async function filterDocuments<K extends ArtifactType>(
         instructions: buildFilterDocumentsSystemPrompt(artifactFormatSpec),
         input: artifactFormatSpec.serializeArtifacts(artifacts),
         reasoning: { effort: "medium" },
+        text: { format: { type: "json_object" } },
     });
 
     return await result.getText();

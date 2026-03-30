@@ -48,10 +48,15 @@ export interface StagingArtifact<K extends ArtifactType = ArtifactType> {
     updated_at: Date;
 }
 
-export interface FetchStrategy<K extends ArtifactType> {
-    readonly artifactType: K;
+export interface FetchSource<K extends ArtifactType> {
+    readonly name: string;
     readonly maxRequests: number;
     fetch(cursor?: string): Promise<{ items: StagingArtifact<K>[]; nextCursor: string | null }>;
+}
+
+export interface FetchStrategy<K extends ArtifactType> {
+    readonly artifactType: K;
+    readonly sources: FetchSource<K>[];
 }
 
 export interface ArtifactFormatSpec<K extends ArtifactType> {
