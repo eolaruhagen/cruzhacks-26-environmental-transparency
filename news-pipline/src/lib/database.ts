@@ -1,8 +1,10 @@
 import postgres, { type Error } from "postgres";
 import pino from "pino";
-import type { ArtifactType, ArtifactStatus, StagingArtifact } from "../types";
+import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, JsonSerializable, ArtifactEnrichment } from "../types";
 
 const logger = pino({ name: "postgres" });
+
+const toJson = (value: object) => dbConn.json(value as unknown as postgres.JSONValue);
 
 type QueryResult<T> =
     | { ok: true, data: T; durationMs: number }
@@ -134,8 +136,8 @@ export async function releaseArtifactLocks<K extends ArtifactType>(
             SET locked_by = NULL,
                 locked_at = NULL,
                 status = ${nextStatus},
-                metadata = ${dbConn.json(artifact.metadata)},
-                enrichment = ${artifact.enrichment ? dbConn.json(artifact.enrichment) : null},
+                metadata = ${toJson(artifact.metadata)},
+                enrichment = ${artifact.enrichment ? toJson(artifact.enrichment) : null},
                 embedding = ${artifact.embedding},
                 updated_at = now()
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
@@ -176,7 +178,7 @@ export async function insertRawArtifacts<K extends ArtifactType>(
         type: a.type,
         status: a.status,
         source_icon_url: a.source_icon_url,
-        metadata: a.metadata,
+        metadata: toJson(a.metadata),
         retry_attempts: a.retry_attempts,
         locked_by: a.locked_by,
         locked_at: a.locked_at,
@@ -217,7 +219,7 @@ export async function moveToFailedArtifacts<K extends ArtifactType>(
             VALUES (
                 ${artifact.url},
                 ${artifact.type},
-                ${dbConn.json({ metadata: artifact.metadata, enrichment: artifact.enrichment, status: artifact.status, retry_attempts: artifact.retry_attempts })}
+                ${toJson({ metadata: artifact.metadata, enrichment: artifact.enrichment, status: artifact.status, retry_attempts: artifact.retry_attempts })}
             )
         `;
         await dbConn`
@@ -246,7 +248,7 @@ export async function moveToRejectedArtifacts<K extends ArtifactType>(
             VALUES (
                 ${artifact.url},
                 ${artifact.type},
-                ${dbConn.json({ metadata: artifact.metadata, status: artifact.status })}
+                ${toJson({ metadata: artifact.metadata, status: artifact.status })}
             )
         `;
         await dbConn`
@@ -254,6 +256,35 @@ export async function moveToRejectedArtifacts<K extends ArtifactType>(
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
         `;
     }
+}
+
+
+/**
+ * Deduplicate artifacts in the staging pipeline based on a list of fields present inside of the metadata column for the artifact type.
+ * @param artifactType - The artifact type to deduplicate by -> required to check JSONB in DB against fields: T[]
+ * @param fields - The fields to deduplicate by
+ * @param status - The status to deduplicate by, best practice is to use "raw"
+ * @returns The number of artifacts that were deduplicated
+ */
+export async function dedupByMetadataFields<K extends ArtifactType, T extends keyof ArtifactMetaMap[K]>(artifactType: K, fields: T[], status: ArtifactStatus = "raw"): Promise<number> {
+    const jsonFields = fields.map(f => `metadata->>'${String(f)}'`).join(', ');
+    const result = await dbConn.unsafe(`
+        WITH duplicates AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY ${jsonFields}
+                       ORDER BY created_at ASC
+                   ) as rn
+            FROM pipelines.artifact_staging
+            WHERE type = $1 AND status = $2
+        )
+        DELETE FROM pipelines.artifact_staging
+        WHERE id IN (
+            SELECT id FROM duplicates WHERE rn > 1
+        )
+    `, [artifactType, status]);
+
+    return result.count;
 }
 
 export async function close() {

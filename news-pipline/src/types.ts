@@ -7,7 +7,7 @@ export type JsonSerializable =
     | { [key: string]: JsonSerializable };
 
 
-export interface NewsArtifactMetadata extends Record<string, JsonSerializable> {
+export interface NewsArtifactMetadata {
     title: string;
     description: string;
     people: string[];
@@ -57,6 +57,7 @@ export interface FetchSource<K extends ArtifactType> {
 export interface FetchStrategy<K extends ArtifactType> {
     readonly artifactType: K;
     readonly sources: FetchSource<K>[];
+    readonly dedupFields: (keyof ArtifactMetaMap[K])[];
 }
 
 export interface ArtifactFormatSpec<K extends ArtifactType> {

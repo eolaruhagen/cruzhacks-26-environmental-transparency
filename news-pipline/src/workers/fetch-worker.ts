@@ -1,6 +1,6 @@
 import { fetchNewsArtifacts, filterFromLastDay, fetchNewsIOArtifacts } from "../lib/externalApis";
 import { MAX_WORKER_NEWS_REQUESTS, MAX_NEWSIO_REQUESTS } from "../config";
-import { insertRawArtifacts, timedQuery } from "../lib/database";
+import { insertRawArtifacts, timedQuery, dedupByMetadataFields } from "../lib/database";
 import type { ArtifactType, FetchStrategy, FetchSource, StagingArtifact } from "../types";
 import pino from "pino";
 
@@ -79,6 +79,7 @@ const newsIOSource: FetchSource<"article"> = {
 const newsFetchStrategy: FetchStrategy<"article"> = {
     artifactType: "article",
     sources: [newsMeshSource, newsIOSource],
+    dedupFields: ["title"],
 };
 
 const strategyRegistry: { [K in ArtifactType]?: FetchStrategy<K> } = {
@@ -150,6 +151,12 @@ export async function fetchArtifactsWorker<K extends ArtifactType>(strategy: Fet
         const { totalInserted, totalDupes } = await runSource(source);
         grandTotalInserted += totalInserted;
         grandTotalDupes += totalDupes;
+    }
+
+    if (strategy.dedupFields.length > 0) {
+        const deduped = await dedupByMetadataFields(strategy.artifactType, strategy.dedupFields, "raw");
+        grandTotalDupes += deduped;
+        logger.info({ deduped }, "cross-source dedup complete");
     }
 
     logger.info({ totalInserted: grandTotalInserted, totalDupes: grandTotalDupes }, `fetch worker complete for ${strategy.artifactType}`);
