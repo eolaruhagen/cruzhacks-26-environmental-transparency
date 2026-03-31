@@ -53,10 +53,13 @@ async function main() {
     }
 }
 
-main().catch((error) => {
-    logger.fatal(error, "pipeline crashed");
-    process.exit(1);
-}).finally(() => {
-    close();
-    process.exit(0);
-});
+main()
+    .then(async () => {
+        await close();
+        process.exit(0);
+    })
+    .catch(async (error) => {
+        logger.fatal(error, "pipeline crashed");
+        await close();
+        process.exit(1);
+    });

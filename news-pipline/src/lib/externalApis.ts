@@ -32,9 +32,13 @@ export async function fetchNewsArtifacts(cursor?: string): Promise<NewsMeshRespo
         url.searchParams.set("cursor", cursor);
     }
 
-    const res = await fetch(url, {
-        method: "GET",
-    });
+    const res = await fetch(url);
+
+    if (!res.ok) {
+        const error: any = new Error(`NewsMesh API error: ${res.status}`);
+        error.statusCode = res.status;
+        throw error;
+    }
 
     return await res.json() as NewsMeshResponse;
 }
@@ -82,5 +86,12 @@ export async function fetchNewsIOArtifacts(page?: string): Promise<NewsIORespons
     }
 
     const res = await fetch(url);
+
+    if (!res.ok) {
+        const error: any = new Error(`NewsData.io API error: ${res.status}`);
+        error.statusCode = res.status;
+        throw error;
+    }
+
     return await res.json() as NewsIOResponse;
 }

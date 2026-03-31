@@ -175,8 +175,8 @@ export async function filterWorker<K extends ArtifactType>(artifactSpec: Artifac
         totalFailed += result.failed;
 
         if (result.abort) {
-            logger.error("aborting filter worker due to API error");
-            break;
+            logger.error({ totalKept, totalRejected, totalRetried, totalFailed }, `filter worker aborted for ${artifactSpec.artifactType}`);
+            throw new Error("Filter worker aborted: fatal LLM API error (check OPENROUTER_API_KEY / billing)");
         }
     }
 
