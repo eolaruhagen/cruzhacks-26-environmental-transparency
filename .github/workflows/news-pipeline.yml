@@ -3,7 +3,7 @@ name: News Pipeline (Fetch + Filter)
 on:
   schedule:
     # 11:00 AM PST = 19:00 UTC (PST is UTC-8)
-    - cron: '0 19 * * *'
+    - cron: '0 16 * * *'
   workflow_dispatch:
 
 jobs:

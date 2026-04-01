@@ -7,6 +7,6 @@ export const ENRICH_WORKER_ID = "enrich-worker";
 export const CATEGORIZE_WORKER_ID = "categorize-worker";
 export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest";
 export const NEWSIO_API_BASE_URL = "https://newsdata.io/api/1/latest";
-export const MAX_NEWSIO_REQUESTS = 40;
+export const MAX_NEWSIO_REQUESTS = 100;
 export const FILTER_MAX_TRIES = 3;
 export const FILTER_MODEL = "openai/gpt-5.4-nano";
