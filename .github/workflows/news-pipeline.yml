@@ -1,0 +1,39 @@
+name: News Pipeline (Fetch + Filter)
+
+on:
+  schedule:
+    # 11:00 AM PST = 19:00 UTC (PST is UTC-8)
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+jobs:
+  fetch-and-filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: news-pipline
+        run: bun install --frozen-lockfile
+
+      - name: Fetch articles
+        working-directory: news-pipline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NEWSMESH_API_KEY: ${{ secrets.NEWSMESH_API_KEY }}
+          NEWSIO_API_KEY: ${{ secrets.NEWSIO_API_KEY }}
+        run: bun run src/index.ts --fetch
+
+      - name: Filter articles
+        if: always()
+        working-directory: news-pipline
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: bun run src/index.ts --filter

@@ -53,3 +53,5 @@ supabase/.temp
 # local package-lock.json for supabase cli usage
 .package-lock.json
 analytics
+
+.agents
