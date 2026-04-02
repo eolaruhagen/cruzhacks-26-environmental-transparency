@@ -1,11 +1,10 @@
 import pino from "pino";
 import {
-    acquireArtifactLock,
+    acquireBatchWithRetries,
     releaseArtifactLocks,
     releaseArtifactLocksWithRetry,
     moveToFailedArtifacts,
     moveToRejectedArtifacts,
-    timedQuery,
 } from "../lib/database";
 import { filterDocuments } from "../lib/llm";
 import { BATCH_SIZE, FILTER_MAX_TRIES, FILTER_WORKER_ID, MAX_ARTIFACT_RETRY, FILTER_MODEL } from "../config";
@@ -141,29 +140,19 @@ export async function filterWorker<K extends ArtifactType>(artifactSpec: Artifac
     let totalRejected = 0;
     let totalRetried = 0;
     let totalFailed = 0;
-    const maxAcquireAttempts = 5;
-    let acquireAttempts = 0;
 
     while (true) {
-        let batch: StagingArtifact<K>[];
-        try {
-            batch = await timedQuery("acquire-filter-batch", () =>
-                acquireArtifactLock("raw", artifactSpec.artifactType, BATCH_SIZE, workerId)
-            ).then(r => { if (!r.ok) throw r.error; return r.data; });
-        } catch (error) {
-            if (acquireAttempts >= maxAcquireAttempts) {
-                logger.error(error, "failed to acquire batch lock");
-                break;
-            }
-            acquireAttempts++;
-            logger.warn({ attempt: acquireAttempts }, "failed to acquire batch lock, retrying");
-            await new Promise(r => setTimeout(r, Math.pow(2, acquireAttempts) * 1000));
-            continue;
-        }
-        acquireAttempts = 0;
+        const batch = await acquireBatchWithRetries(
+            "acquire-filter-batch", "raw", artifactSpec.artifactType,
+            BATCH_SIZE, workerId, 5,
+            (type, error, attempt) => {
+                if (type === "retry_exhausted") logger.error(error, "failed to acquire batch lock");
+                else logger.warn({ attempt }, "failed to acquire batch lock, retrying");
+            },
+        );
 
-        if (batch.length === 0) {
-            logger.info("no more raw artifacts to filter");
+        if (!batch) {
+            logger.info("no more raw artifacts to filter (or acquire failed)");
             break;
         }
 

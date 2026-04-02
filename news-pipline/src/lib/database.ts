@@ -10,7 +10,7 @@ type QueryResult<T> =
     | { ok: true, data: T; durationMs: number }
     | { ok: false, error: Error; durationMs: number }
 
-const dbConn = postgres(process.env.DATABASE_URL!, {
+export const dbConn = postgres(process.env.DATABASE_URL!, {
     debug: (query, params) => {
         logger.debug({ query, params }, "query executed");
     }
@@ -58,6 +58,53 @@ export async function timedQuery<T>(queryLabel: string, queryFn: () => Promise<T
         const end = performance.now();
         logQuery(end - start, queryLabel, error as Error);
         return { ok: false, error: error as Error, durationMs: end - start };
+    }
+}
+
+type AcquireBatchError = "retry_exhausted" | "query_failed";
+
+/**
+ * Acquire a batch of artifacts with timed query, exponential backoff retries,
+ * and custom error handling. Returns null when no more artifacts are available.
+ *
+ * @param label - Log label for the timed query
+ * @param status - Pipeline stage to pull from
+ * @param artifactType - Artifact type to filter by
+ * @param batchSize - Max artifacts to lock
+ * @param workerId - Worker ID for the lock
+ * @param maxAttempts - Max retry attempts before calling onError
+ * @param onError - Custom behavior when retries are exhausted or query fails
+ * @returns The locked batch, or null if empty (caller should break)
+ */
+export async function acquireBatchWithRetries<K extends ArtifactType>(
+    label: string,
+    status: ArtifactStatus,
+    artifactType: K,
+    batchSize: number,
+    workerId: string,
+    maxAttempts: number,
+    onError: (type: AcquireBatchError, error: unknown, attempt: number) => void,
+): Promise<StagingArtifact<K>[] | null> {
+    let attempts = 0;
+
+    while (true) {
+        try {
+            const result = await timedQuery(label, () =>
+                acquireArtifactLock(status, artifactType, batchSize, workerId)
+            );
+            if (!result.ok) throw result.error;
+
+            if (result.data.length === 0) return null;
+            return result.data;
+        } catch (error) {
+            attempts++;
+            if (attempts >= maxAttempts) {
+                onError("retry_exhausted", error, attempts);
+                return null;
+            }
+            onError("query_failed", error, attempts);
+            await new Promise(r => setTimeout(r, Math.pow(2, attempts) * 1000));
+        }
     }
 }
 
