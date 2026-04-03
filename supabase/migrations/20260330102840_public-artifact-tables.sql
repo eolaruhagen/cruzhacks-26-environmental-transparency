@@ -13,13 +13,23 @@ BEGIN
 END $$;
 
 
+Do $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'bill_reference') THEN
+    CREATE TYPE public.bill_reference AS (
+      legislation_number TEXT,
+      reason TEXT
+    );
+  END IF;
+END $$;
+
 -- (4) Stories table
 
 CREATE TABLE IF NOT EXISTS public.stories (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name        TEXT NOT NULL, -- story name is required on generation
   centroid    extensions.halfvec(1536),
-  created_at  TIMESTAMPTZ DEFAULT now(),
+  created_at  TIMESTAMPTZ DEFAULT now(), -- used as filter time (~1 week window) for adding new artifacts to a story
   updated_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -58,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.artifact_enrichments (
   artifact_id                UUID PRIMARY KEY REFERENCES public.artifacts(id) ON DELETE CASCADE,
   summary                    TEXT NOT NULL,
   state                      TEXT,
-  associated_bills           TEXT[][], -- references bills by their legislation_number column in house bills table ties them to a reason (bill, reason)
+  associated_bills           public.bill_reference[], -- references bills by their legislation_number column in house bills table ties them to a reason (bill, reason)
   associated_representatives TEXT[],
   stakeholders               TEXT[],
   environmental_topic        public.bill_type NOT NULL,
@@ -70,4 +80,4 @@ CREATE TABLE IF NOT EXISTS public.artifact_enrichments (
 CREATE INDEX IF NOT EXISTS idx_enrichments_bill_type ON public.artifact_enrichments(environmental_topic);
 CREATE INDEX IF NOT EXISTS idx_enrichments_impact ON public.artifact_enrichments(impact_level);
 CREATE INDEX IF NOT EXISTS idx_enrichments_state ON public.artifact_enrichments(state) WHERE state IS NOT NULL;
-CREATE INDEX IF NOT EXISTS idx_enrichments_
+CREATE INDEX IF NOT EXISTS idx_enrichments_sentiment ON public.artifact_enrichments(sentiment);

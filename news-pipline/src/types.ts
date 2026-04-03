@@ -36,12 +36,12 @@ export type EnvironmentalTopic =
 
 export type ImpactLevel = "local" | "state" | "national" | "international";
 
-export type StringTuple = [string, string];
+export type BillReference = { legislation_number: string; reason: string };
 
 export type ArtifactEnrichment = {
     summary: string;
     state: string | null;
-    associated_bills: StringTuple[];
+    associated_bills: BillReference[];
     associated_representatives: string[];
     stakeholders: string[];
     environmental_topic: EnvironmentalTopic;
