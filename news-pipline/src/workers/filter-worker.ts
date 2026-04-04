@@ -2,12 +2,10 @@ import pino from "pino";
 import {
     acquireBatchWithRetries,
     releaseArtifactLocks,
-    releaseArtifactLocksWithRetry,
-    moveToFailedArtifacts,
-    moveToRejectedArtifacts,
+    settleBatch,
 } from "../lib/database";
 import { filterDocuments } from "../lib/llm";
-import { BATCH_SIZE, FILTER_MAX_TRIES, FILTER_WORKER_ID, MAX_ARTIFACT_RETRY, FILTER_MODEL } from "../config";
+import { BATCH_SIZE, FILTER_MAX_TRIES, FILTER_WORKER_ID, FILTER_MODEL } from "../config";
 import type { ArtifactFormatSpec, ArtifactType, StagingArtifact } from "../types";
 
 const logger = pino({ name: "filter-worker" });
@@ -16,14 +14,6 @@ interface FilterDocumentsResponse {
     filterValue: boolean[];
 }
 
-
-/**
- * Parses filtering response from LLM
- * - **Asserts that the response array has the same length as the batch size**
- * @param raw - the raw text response from LLM
- * @param expectedLength - the batch size of the artifacts being filtered (the expected size of the filterValue array)
- * @returns FilterDocumentsResponse if successful, null otherwise
- */
 function parseFilterResponse(raw: string, expectedLength: number): FilterDocumentsResponse | null {
     try {
         const parsed = JSON.parse(raw);
@@ -39,33 +29,6 @@ function parseFilterResponse(raw: string, expectedLength: number): FilterDocumen
     } catch {
         return null;
     }
-}
-
-async function handleBatchFailure<K extends ArtifactType>(
-    batch: StagingArtifact<K>[],
-    workerId: string
-): Promise<{ retried: number; failed: number }> {
-    const retryable: string[] = [];
-    const terminal: StagingArtifact<K>[] = [];
-
-    for (const artifact of batch) {
-        if (artifact.retry_attempts + 1 >= MAX_ARTIFACT_RETRY) {
-            terminal.push(artifact);
-        } else {
-            retryable.push(artifact.id);
-        }
-    }
-
-    if (terminal.length > 0) {
-        logger.error({ count: terminal.length }, "artifacts exceeded max retries, moving to failed");
-        await moveToFailedArtifacts(terminal, workerId);
-    }
-
-    if (retryable.length > 0) {
-        await releaseArtifactLocksWithRetry(retryable, workerId);
-    }
-
-    return { retried: retryable.length, failed: terminal.length };
 }
 
 async function processBatch<K extends ArtifactType>(
@@ -107,9 +70,9 @@ async function processBatch<K extends ArtifactType>(
             await releaseArtifactLocks(batch, workerId, "raw");
             return { kept: 0, rejected: 0, retried: 0, failed: 0, abort: true };
         }
-        logger.error({ batchSize: batch.length }, "batch failed all filter attempts");
-        const { retried, failed } = await handleBatchFailure(batch, workerId);
-        return { kept: 0, rejected: 0, retried, failed, abort: false };
+        // Entire batch failed validation — treat all as failed, settleBatch handles retry logic
+        const counts = await settleBatch(workerId, "raw", [], [], batch);
+        return { kept: 0, rejected: 0, retried: counts.retried, failed: counts.failed, abort: false };
     }
 
     const kept: StagingArtifact<K>[] = [];
@@ -123,15 +86,8 @@ async function processBatch<K extends ArtifactType>(
         }
     }
 
-    if (kept.length > 0) {
-        await releaseArtifactLocks(kept, workerId, "filtered");
-    }
-
-    if (rejected.length > 0) {
-        await moveToRejectedArtifacts(rejected, workerId);
-    }
-
-    return { kept: kept.length, rejected: rejected.length, retried: 0, failed: 0, abort: false };
+    const counts = await settleBatch(workerId, "filtered", kept, rejected, []);
+    return { kept: counts.advanced, rejected: counts.rejected, retried: 0, failed: 0, abort: false };
 }
 
 export async function filterWorker<K extends ArtifactType>(artifactSpec: ArtifactFormatSpec<K>) {

@@ -1,5 +1,6 @@
 import postgres, { type Error } from "postgres";
 import pino from "pino";
+import { MAX_ARTIFACT_RETRY } from "../config";
 import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, JsonSerializable, ArtifactEnrichment, EnvironmentalTopic } from "../types";
 
 const logger = pino({ name: "postgres" });
@@ -526,6 +527,53 @@ export async function searchBillsByVectorQuery(
         ORDER BY embedding <=> ${embeddingStr}::halfvec ASC
         LIMIT ${limit}
     `;
+}
+
+// ── Batch settlement ─────────────────────────────────────────────────
+
+export interface SettleBatchResult {
+    advanced: number;
+    rejected: number;
+    retried: number;
+    failed: number;
+}
+
+/**
+ * Settle a processed batch: advance succeeded artifacts, reject irrelevant ones,
+ * and retry or fail the rest. Shared by filter and enrich workers.
+ *
+ * - advanced: status change + lock clear (data already in DB)
+ * - rejected: moved to rejected_artifacts table, deleted from staging
+ * - failed: retry if under MAX_ARTIFACT_RETRY, else move to failed_artifacts
+ */
+export async function settleBatch<K extends ArtifactType>(
+    workerId: string,
+    nextStatus: ArtifactStatus,
+    advanced: StagingArtifact<K>[],
+    rejected: StagingArtifact<K>[],
+    failed: StagingArtifact<K>[],
+): Promise<SettleBatchResult> {
+    if (advanced.length > 0) {
+        await advanceArtifactStatus(advanced.map(a => a.id), workerId, nextStatus);
+    }
+
+    if (rejected.length > 0) {
+        await moveToRejectedArtifacts(rejected, workerId);
+    }
+
+    let retried = 0;
+    let terminal = 0;
+    for (const artifact of failed) {
+        if (artifact.retry_attempts + 1 >= MAX_ARTIFACT_RETRY) {
+            await moveToFailedArtifacts([artifact], workerId);
+            terminal++;
+        } else {
+            await releaseArtifactLocksWithRetry([artifact.id], workerId);
+            retried++;
+        }
+    }
+
+    return { advanced: advanced.length, rejected: rejected.length, retried, failed: terminal };
 }
 
 export async function close() {
