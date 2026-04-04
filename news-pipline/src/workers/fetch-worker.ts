@@ -6,6 +6,13 @@ import pino from "pino";
 
 const logger = pino({ name: "fetch-worker" });
 
+/** Normalize API fields that may be string, string[], or null into string[] */
+function toStringArray(value: unknown): string[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.length > 0) return [value];
+    return [];
+}
+
 const newsMeshSource: FetchSource<"article"> = {
     name: "newsmesh",
     maxRequests: MAX_WORKER_NEWS_REQUESTS,
@@ -23,9 +30,9 @@ const newsMeshSource: FetchSource<"article"> = {
             metadata: {
                 title: artifact.title,
                 description: artifact.description,
-                people: artifact.people ?? [],
-                topics: artifact.topics ?? [],
-                author: artifact.author ?? [],
+                people: toStringArray(artifact.people),
+                topics: toStringArray(artifact.topics),
+                author: toStringArray(artifact.author),
             },
             retry_attempts: 0,
             locked_by: null,
@@ -60,8 +67,8 @@ const newsIOSource: FetchSource<"article"> = {
                     title: artifact.title,
                     description: artifact.description ?? "",
                     people: [],
-                    topics: artifact.keywords ?? [],
-                    author: artifact.creator ?? [],
+                    topics: toStringArray(artifact.keywords),
+                    author: toStringArray(artifact.creator),
                 },
                 retry_attempts: 0,
                 locked_by: null,
