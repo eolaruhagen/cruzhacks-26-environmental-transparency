@@ -24,12 +24,30 @@ export type ArtifactType = keyof ArtifactMetaMap;
 
 export type ArtifactStatus = "raw" | "filtered" | "enriched";
 
+export type EnvironmentalTopic =
+    | "air_and_atmosphere"
+    | "water_resources"
+    | "waste_and_toxics"
+    | "energy_and_resources"
+    | "land_and_conservation"
+    | "disaster_and_emergency"
+    | "climate_and_emissions"
+    | "justice_and_environment";
+
+export type ImpactLevel = "local" | "state" | "national" | "international";
+
+export type BillReference = { legislation_number: string; reason: string };
+
 export type ArtifactEnrichment = {
-    state: string;
-    associated_bill_ids: string[];
+    summary: string;
+    state: string | null;
+    associated_bills: BillReference[];
     associated_representatives: string[];
-    subcategories: string[];
+    stakeholders: string[];
+    environmental_topic: EnvironmentalTopic;
+    impact_level: ImpactLevel;
     sentiment: number;
+    key_quote: string | null;
 }
 
 export interface StagingArtifact<K extends ArtifactType = ArtifactType> {

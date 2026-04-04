@@ -3,6 +3,7 @@ import { parseArgs } from "util";
 import { fetchArtifactsWorker, getFetchStrategy } from "./workers/fetch-worker";
 import { close } from "./lib/database";
 import { filterWorker } from "./workers/filter-worker";
+import { enrichWorker } from "./workers/enrich-worker";
 import type { ArtifactType } from "./types";
 import { getDocFormatSpec } from "./lib/llm";
 
@@ -45,7 +46,8 @@ async function main() {
     }
 
     if (values.enrich) {
-        logger.info("starting enrich worker");
+        logger.info({ artifactType }, "starting enrich worker");
+        await enrichWorker(artifactType);
     }
 
     if (values.categorize) {
