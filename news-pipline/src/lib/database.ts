@@ -708,11 +708,13 @@ async function insertArticleDetails(
     artifact: StagingArtifact<"article">,
 ): Promise<void> {
     const meta = ensureParsed(artifact.metadata);
+    const source = meta.source ?? null;
     await tx`
-        INSERT INTO public.article_details (artifact_id, title, description, author, topics, people)
+        INSERT INTO public.article_details (artifact_id, title, description, author, topics, people, source)
         VALUES (
             ${artifact.id}, ${meta.title ?? ""}, ${meta.description ?? ""},
-            ${toStringArray(meta.author)}, ${toStringArray(meta.topics)}, ${toStringArray(meta.people)}
+            ${toStringArray(meta.author)}, ${toStringArray(meta.topics)}, ${toStringArray(meta.people)},
+            ${source}
         )
     `;
 }
