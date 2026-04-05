@@ -1,11 +1,26 @@
 import postgres, { type Error } from "postgres";
 import pino from "pino";
 import { MAX_ARTIFACT_RETRY } from "../config";
-import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, JsonSerializable, ArtifactEnrichment, EnvironmentalTopic } from "../types";
+import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, ArtifactEnrichment, EnvironmentalTopic } from "../types";
 
 const logger = pino({ name: "postgres" });
 
 const toJson = (value: object) => dbConn.json(value as unknown as postgres.JSONValue);
+
+/** Safely parse a value that may be a JSON string or already an object */
+function ensureParsed<T>(value: T | string): T {
+    if (typeof value === "string") {
+        try { return JSON.parse(value); } catch { return value as unknown as T; }
+    }
+    return value;
+}
+
+/** Normalize a value that should be string[] but might be string, null, or undefined */
+function toStringArray(value: unknown): string[] {
+    if (Array.isArray(value)) return value;
+    if (typeof value === "string" && value.length > 0) return [value];
+    return [];
+}
 
 type QueryResult<T> =
     | { ok: true, data: T; durationMs: number }
@@ -529,6 +544,30 @@ export async function searchBillsByVectorQuery(
     `;
 }
 
+// ── Error classification ─────────────────────────────────────────────
+
+/** Postgres error code classes that are transient and worth retrying */
+const RETRYABLE_PG_ERROR_CLASSES = new Set([
+    "08", // connection exception
+    "40", // transaction rollback (deadlock, serialization)
+    "53", // insufficient resources (too many connections)
+    "57", // operator intervention (admin shutdown)
+]);
+
+/**
+ * Check if a caught error is transient (retry-worthy) or permanent (fail immediately).
+ * Postgres errors with data/constraint/syntax codes should not be retried.
+ */
+export function isRetryablePgError(error: unknown): boolean {
+    if (error && typeof error === "object" && "code" in error && typeof (error as any).code === "string") {
+        const code = (error as any).code as string;
+        const errorClass = code.substring(0, 2);
+        return RETRYABLE_PG_ERROR_CLASSES.has(errorClass);
+    }
+    // Non-postgres errors (network, timeout) are generally retryable
+    return true;
+}
+
 // ── Batch settlement ─────────────────────────────────────────────────
 
 export interface SettleBatchResult {
@@ -574,6 +613,178 @@ export async function settleBatch<K extends ArtifactType>(
     }
 
     return { advanced: advanced.length, rejected: rejected.length, retried, failed: terminal };
+}
+
+// ── Story clustering queries ─────────────────────────────────────────
+
+/**
+ * Find the most similar story by cosine similarity against public.stories.centroid.
+ * Returns null if no story exceeds the threshold.
+ *
+ * @param embeddingStr - Embedding vector as string "[0.1,0.2,...]"
+ * @param threshold - Minimum cosine similarity to match
+ */
+export async function findMostSimilarStory(
+    embeddingStr: string,
+    threshold: number,
+): Promise<{ id: string; name: string; similarity: number } | null> {
+    const rows = await dbConn<{ id: string; name: string; similarity: number }[]>`
+        SELECT id, name,
+               1 - (centroid <=> ${embeddingStr}::halfvec) AS similarity
+        FROM public.stories
+        WHERE centroid IS NOT NULL
+        AND 1 - (centroid <=> ${embeddingStr}::halfvec) >= ${threshold}
+        ORDER BY centroid <=> ${embeddingStr}::halfvec ASC
+        LIMIT 1
+    `;
+    return rows[0] ?? null;
+}
+
+/**
+ * Create a new story row and return its ID.
+ */
+export async function createStory(name: string, centroidStr: string): Promise<string> {
+    const rows = await dbConn<{ id: string }[]>`
+        INSERT INTO public.stories (name, centroid)
+        VALUES (${name}, ${centroidStr}::halfvec)
+        RETURNING id
+    `;
+    return rows[0]!.id;
+}
+
+/**
+ * Overwrite a story's centroid with a pre-computed new centroid.
+ */
+export async function updateStoryCentroid(storyId: string, newCentroidStr: string): Promise<void> {
+    await dbConn`
+        UPDATE public.stories
+        SET centroid = ${newCentroidStr}::halfvec, updated_at = now()
+        WHERE id = ${storyId}
+    `;
+}
+
+/**
+ * Count published artifacts currently assigned to a story.
+ */
+export async function getStoryArticleCount(storyId: string): Promise<number> {
+    const rows = await dbConn<{ count: string }[]>`
+        SELECT count(*)::text AS count FROM public.artifacts WHERE story_id = ${storyId}
+    `;
+    return parseInt(rows[0]!.count, 10);
+}
+
+/**
+ * Read the centroid vector for a story. Returns the string representation.
+ */
+export async function getStoryCentroid(storyId: string): Promise<string | null> {
+    const rows = await dbConn<{ centroid: string | null }[]>`
+        SELECT centroid::text FROM public.stories WHERE id = ${storyId}
+    `;
+    return rows[0]?.centroid ?? null;
+}
+
+// postgres.js@3.4.8 bug: TransactionSql uses Omit<Sql, ...> which strips
+// the tagged-template call signature.
+type TxSql = postgres.Sql;
+
+async function insertPublicArtifact(
+    tx: TxSql,
+    artifact: StagingArtifact<"article">,
+    storyId: string,
+    embeddingStr: string,
+): Promise<void> {
+    await tx`
+        INSERT INTO public.artifacts (id, url, type, source_icon_url, story_id, embedding, published_at)
+        VALUES (
+            ${artifact.id}, ${artifact.url}, ${artifact.type},
+            ${artifact.source_icon_url}, ${storyId},
+            ${embeddingStr}::halfvec, now()
+        )
+    `;
+}
+
+async function insertArticleDetails(
+    tx: TxSql,
+    artifact: StagingArtifact<"article">,
+): Promise<void> {
+    const meta = ensureParsed(artifact.metadata);
+    await tx`
+        INSERT INTO public.article_details (artifact_id, title, description, author, topics, people)
+        VALUES (
+            ${artifact.id}, ${meta.title ?? ""}, ${meta.description ?? ""},
+            ${toStringArray(meta.author)}, ${toStringArray(meta.topics)}, ${toStringArray(meta.people)}
+        )
+    `;
+}
+
+async function insertArtifactEnrichment(
+    tx: TxSql,
+    artifact: StagingArtifact<"article">,
+): Promise<void> {
+    const enrichment = ensureParsed(artifact.enrichment!);
+
+    // Normalize associated_bills — may be a string from bad JSONB serialization
+    let rawBills = enrichment.associated_bills ?? [];
+    if (typeof rawBills === "string") {
+        try { rawBills = JSON.parse(rawBills); } catch { rawBills = []; }
+    }
+    const bills = Array.isArray(rawBills) ? rawBills : [];
+
+    // Split into parallel arrays — let postgres build the composite type via unnest + ARRAY()
+    const billNums = bills.map(b => b.legislation_number ?? "");
+    const billReasons = bills.map(b => b.reason ?? "");
+
+    await tx`
+        INSERT INTO public.artifact_enrichments (
+            artifact_id, summary, state, associated_bills,
+            associated_representatives, stakeholders,
+            environmental_topic, impact_level, sentiment, key_quote
+        )
+        VALUES (
+            ${artifact.id}, ${enrichment.summary}, ${enrichment.state},
+            ARRAY(
+                SELECT ROW(n, r)::public.bill_reference
+                FROM unnest(${billNums}::text[], ${billReasons}::text[]) AS t(n, r)
+            ),
+            ${toStringArray(enrichment.associated_representatives)},
+            ${toStringArray(enrichment.stakeholders)},
+            ${enrichment.environmental_topic ?? "climate_and_emissions"}, ${enrichment.impact_level ?? "national"},
+            ${enrichment.sentiment ?? 0}, ${enrichment.key_quote ?? null}
+        )
+    `;
+}
+
+async function deleteStagingArtifact(
+    tx: TxSql,
+    artifactId: string,
+): Promise<void> {
+    await tx`
+        DELETE FROM pipelines.artifact_staging WHERE id = ${artifactId}
+    `;
+}
+
+/**
+ * Publish an article artifact from staging to public tables.
+ * Inserts into public.artifacts, public.article_details, public.artifact_enrichments,
+ * then deletes from pipelines.artifact_staging.
+ *
+ * Uses a transaction so all four operations are atomic.
+ */
+export async function publishArticleArtifact(
+    artifact: StagingArtifact<"article">,
+    storyId: string,
+): Promise<void> {
+    const embeddingStr = typeof artifact.embedding === "string"
+        ? artifact.embedding
+        : `[${artifact.embedding!.join(",")}]`;
+
+    await dbConn.begin(async (_tx) => {
+        const sql = _tx as unknown as TxSql;
+        await insertPublicArtifact(sql, artifact, storyId, embeddingStr);
+        await insertArticleDetails(sql, artifact);
+        await insertArtifactEnrichment(sql, artifact);
+        await deleteStagingArtifact(sql, artifact.id);
+    });
 }
 
 export async function close() {
