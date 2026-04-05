@@ -21,7 +21,7 @@ interface JinaResponse {
  * - Strips images and links to reduce token usage
  * - Caps output at tokenBudget tokens
  */
-export async function scrapeArticle(url: string, tokenBudget: number = 4000): Promise<string | null> {
+export async function scrapeArticle(url: string, tokenBudget: number = 80000): Promise<string | null> {
     if (!JINA_API_KEY) throw new Error("JINA_API_KEY is required");
 
     const response = await fetch(JINA_READER_URL, {
@@ -33,7 +33,7 @@ export async function scrapeArticle(url: string, tokenBudget: number = 4000): Pr
             "X-Return-Format": "markdown",
             "X-Retain-Images": "none",
             "X-Md-Link-Style": "discarded",
-            "X-Robots-Txt": "*",
+            //"X-Robots-Txt": "*",
             "X-Token-Budget": String(tokenBudget),
         },
         body: JSON.stringify({ url }),
