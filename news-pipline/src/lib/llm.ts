@@ -1,3 +1,4 @@
+import pino from "pino";
 import { OpenRouter } from "@openrouter/sdk";
 import type { Tool, StopWhen, ContextInput } from "@openrouter/sdk";
 import type {
@@ -8,6 +9,7 @@ import type {
 } from "@openrouter/sdk/models"
 import type { ArtifactType, ArtifactFormatSpec, StagingArtifact } from "../types";
 import type { ToolContextMap } from "@openrouter/sdk/lib/tool-types.js";
+import { STORY_NAME_MODEL } from "../config";
 
 const { OPENROUTER_API_KEY } = process.env;
 
@@ -186,4 +188,57 @@ export class ModelStream {
             context: this._context ?? undefined,
         });
     }
+}
+
+const storyNamingLogger = pino({ name: "story-naming" });
+
+const STORY_NAME_PROMPT = `You are a headline writer for an environmental news platform.
+Given an article's title and enrichment summary, generate a concise 5-8 word story headline
+that captures the broader environmental topic or event (not just this single article).
+
+Rules:
+- 5 to 8 words only
+- No quotes, no punctuation at the end
+- Noun-phrase or short declarative style (like a newspaper section header)
+- Focus on the environmental TOPIC, not the specific article
+- Return ONLY the headline text, nothing else`;
+
+/**
+ * Generate a short story name from an artifact's metadata and enrichment.
+ * Falls back to a truncated title if the LLM call fails.
+ */
+export async function generateStoryName<K extends ArtifactType>(
+    artifact: StagingArtifact<K>,
+): Promise<string> {
+    const meta = typeof artifact.metadata === "string" ? JSON.parse(artifact.metadata) : artifact.metadata;
+    const title = meta?.title ?? "";
+    const summary = artifact.enrichment?.summary ?? "";
+
+    const input = `Title: ${title}\nSummary: ${summary}`;
+
+    try {
+        const result = new ModelStream()
+            .model(STORY_NAME_MODEL)
+            .instructions(STORY_NAME_PROMPT)
+            .input(input)
+            .execute();
+
+        const text = await result.getText();
+        const cleaned = text.trim().replace(/^["']|["']$/g, "");
+
+        if (cleaned.length > 0 && cleaned.length < 120) {
+            return cleaned;
+        }
+
+        storyNamingLogger.warn({ raw: text }, "LLM returned unusable story name, falling back");
+    } catch (error) {
+        storyNamingLogger.warn({ error }, "story name generation failed, falling back to title");
+    }
+
+    return buildFallbackName(title);
+}
+
+function buildFallbackName(title: string): string {
+    const words = title.split(/\s+/).slice(0, 7);
+    return words.join(" ") || "Untitled Story";
 }
