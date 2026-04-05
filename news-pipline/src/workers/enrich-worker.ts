@@ -46,40 +46,31 @@ function getEnrichmentContentFn<K extends ArtifactType>(artifactType: K): Enrich
 }
 
 // ── System prompt ────────────────────────────────────────────────────
-const ENRICH_SYSTEM_PROMPT = `You are an enrichment agent for an environmental transparency platform. You receive a news article and must either enrich it with structured data OR reject it if it's not environmentally relevant.
+const ENRICH_SYSTEM_PROMPT = `You are an enrichment agent for an environmental transparency platform. You receive a news article and must either enrich it or reject it.
 
-FIRST DECISION — Is this article environmentally relevant?
-If NO, call reject_article with a brief reason and stop. Rejection criteria (same as filter step):
-- Weather forecasts, temperature predictions, storm warnings without climate analysis
-- Pet stories, zoo exhibits, gardening tips, seasonal nature tourism
+STEP 1 — Is this article environmentally relevant?
+If NOT relevant, call reject_article and stop. Reject if:
+- Weather forecasts without climate analysis, pet stories, gardening tips
 - General politics/sports/entertainment without environmental substance
 - Routine emergency coverage without environmental analysis
-- Advertisements or non-English content
-- Content too short or paywalled to meaningfully analyze
+- Advertisements, non-English content, paywalled/truncated content
 
-If YES, follow this workflow:
-1. Read the article.
-2. Search for related house bills (use 1-2 search tools: search_bills_by_text, search_bills_by_vector, or search_bills_by_sponsor).
-3. Call set_article_analysis with ALL analysis fields filled in.
-4. Call set_associated_bills with the bills you found (or empty array if none).
+STEP 2 — If relevant, search for related house bills:
+Use 1-2 search tools (search_bills_by_text, search_bills_by_vector, or search_bills_by_sponsor).
 
-TOOL: reject_article — call this INSTEAD of the enrichment tools if the article is not relevant.
-
-TOOL: set_article_analysis — You MUST fill every field:
-- summary: 2-3 substantive sentences about the article's environmental significance
+STEP 3 — Call enrich_article with ALL fields in ONE call:
+- summary: 2-3 substantive sentences about environmental significance
 - state: U.S. state abbreviation or null if national/international
 - stakeholders: organizations, agencies, communities (at least one)
-- environmental_topic: choose carefully from the enum — not everything is climate_and_emissions
-- impact_level: local (city/county), state, national, or international
-- sentiment: -1 to 1 based on environmental IMPACT in the content (not author tone)
-- key_quote: a direct quote from the article, or null only if truly none exists
+- environmental_topic: choose carefully — not everything is climate_and_emissions
+- impact_level: local / state / national / international
+- sentiment: -1 to 1 based on environmental IMPACT (not author tone)
+- key_quote: direct quote from the article, or null
+- associated_bills: array of objects from search results, or empty array []. Each object:
+  - legislation_number: EXACT format from search results — e.g. "H.R." = House Resolution, "S." = Senate, number, then congress session in parens: "H.R. 4513 (108)", "S. 2856 (116)"
+  - reason: short phrase (few words) for the connection, e.g. "regulates same pollutant", "directly referenced"
 
-TOOL: set_associated_bills — bills from your search results:
-- legislation_number: exact format from search results, e.g. "H.R. 123 (119)"
-- reason: short phrase explaining the connection (few words, not a sentence)
-- Empty array if no relevant bills found
-
-Do not write prose. Only make tool calls.`;
+You MUST call exactly one of: reject_article OR enrich_article. Do not write prose.`;
 
 // ── Outcome type ─────────────────────────────────────────────────────
 type EnrichOutcome =
@@ -113,21 +104,21 @@ async function enrichArtifact<K extends ArtifactType>(
         .input(content)
         .reasoning({ effort: "high" })
         .tools([...billTools, ...enrichTools])
-        .stopWhen([stepCountIs(ENRICH_MAX_STEPS), hasToolCall("reject_article")])
+        .stopWhen([stepCountIs(ENRICH_MAX_STEPS), hasToolCall("reject_article"), hasToolCall("enrich_article")])
         .context({} as any)
         .execute();
 
     await result.getText();
-    alog.debug({ rejected: status.rejected, analysisSet: status.analysisSet, billsSet: status.billsSet }, "LLM stream complete");
+    alog.debug({ rejected: status.rejected, enriched: status.enriched }, "LLM stream complete");
 
     if (status.rejected) {
         alog.info({ reason: status.rejectionReason }, "article rejected by LLM");
         return { outcome: "rejected", reason: status.rejectionReason };
     }
 
-    if (!status.analysisSet) {
-        alog.warn("analysis tool was not called");
-        return { outcome: "failed", error: "LLM stream completed but set_article_analysis was not called" };
+    if (!status.enriched) {
+        alog.warn("enrich_article tool was not called — article will be retried");
+        return { outcome: "failed", error: "LLM stream completed without calling enrich_article" };
     }
 
     alog.debug("generating embedding");
@@ -151,7 +142,7 @@ export async function enrichWorker<K extends ArtifactType>(artifactType: K) {
     let totalRetried = 0;
     let totalFailed = 0;
 
-    for (let _ = 0; _ < 2; _++) {
+    while (true) {
         const batch = await acquireBatchWithRetries(
             "acquire-enrich-batch", "filtered", artifactType,
             ENRICH_BATCH_SIZE, workerId, 5,
@@ -181,12 +172,13 @@ export async function enrichWorker<K extends ArtifactType>(artifactType: K) {
             const artifact = batch[i]!;
 
             if (settled.status === "rejected") {
+                logger.error({ artifactId: artifact.id, error: settled.reason?.message ?? settled.reason }, "enrichArtifact threw");
                 failed.push(artifact);
             } else {
                 switch (settled.value.outcome) {
                     case "enriched": succeeded.push(artifact); break;
                     case "rejected": rejected.push(artifact); break;
-                    case "failed":   failed.push(artifact); break;
+                    case "failed": failed.push(artifact); break;
                 }
             }
         }

@@ -55,15 +55,17 @@ const embeddingContentRegistry: { [K in ArtifactType]?: EmbeddingContentFn<K> } 
         if (artifact.metadata.description) {
             parts.push(artifact.metadata.description);
         }
-        if (artifact.metadata.topics.length > 0) {
-            parts.push(`Topics: ${artifact.metadata.topics.join(", ")}`);
+        const topics = Array.isArray(artifact.metadata.topics) ? artifact.metadata.topics : [];
+        if (topics.length > 0) {
+            parts.push(`Topics: ${topics.join(", ")}`);
         }
 
         // Enrichment (if available)
         if (enrichment) {
             if (enrichment.summary) parts.push(`Summary: ${enrichment.summary}`);
-            if (enrichment.stakeholders.length > 0) {
-                parts.push(`Stakeholders: ${enrichment.stakeholders.join(", ")}`);
+            const stakeholders = Array.isArray(enrichment.stakeholders) ? enrichment.stakeholders : [];
+            if (stakeholders.length > 0) {
+                parts.push(`Stakeholders: ${stakeholders.join(", ")}`);
             }
             parts.push(`Environmental topic: ${enrichment.environmental_topic}`);
             if (enrichment.key_quote) parts.push(`Key quote: ${enrichment.key_quote}`);
