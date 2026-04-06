@@ -24,9 +24,9 @@ export async function assignToStory<K extends ArtifactType>(
     artifact: StagingArtifact<K>,
     threshold: number,
 ): Promise<StoryAssignment> {
+    if (!artifact.embedding) throw new Error(`Artifact ${artifact.id} has null embedding`);
     const embeddingStr = formatEmbedding(artifact.embedding);
-    // postgres.js returns halfvec as string — always parse to number[] for math
-    const embeddingVec = parseEmbedding(artifact.embedding);
+    const embeddingVec = artifact.embedding;
 
     const match = await findMostSimilarStory(embeddingStr, threshold);
 
@@ -48,15 +48,14 @@ export async function assignToStory<K extends ArtifactType>(
  */
 async function updateCentroidRunningAverage(storyId: string, newEmbedding: number[]): Promise<void> {
     const oldCount = await getStoryArticleCount(storyId);
-    const centroidStr = await getStoryCentroid(storyId);
+    const oldCentroid = await getStoryCentroid(storyId);
 
-    if (!centroidStr) {
+    if (!oldCentroid) {
         logger.warn({ storyId }, "story has no centroid, overwriting with new embedding");
         await updateStoryCentroid(storyId, formatEmbedding(newEmbedding));
         return;
     }
 
-    const oldCentroid = parseCentroid(centroidStr);
     const newCount = oldCount + 1;
     const updated = computeRunningAverage(oldCentroid, oldCount, newEmbedding, newCount);
     await updateStoryCentroid(storyId, `[${updated.join(",")}]`);
@@ -71,19 +70,7 @@ function computeRunningAverage(
     return oldCentroid.map((v, i) => (v * oldCount + newEmbedding[i]!) / newCount);
 }
 
-function parseCentroid(centroidStr: string): number[] {
-    return centroidStr.replace(/[\[\]]/g, "").split(",").map(Number);
-}
-
-function formatEmbedding(embedding: number[] | string | null): string {
-    if (typeof embedding === "string") return embedding;
-    if (!embedding) throw new Error("Cannot format null embedding");
+function formatEmbedding(embedding: number[]): string {
     return `[${embedding.join(",")}]`;
 }
 
-/** Parse an embedding that may be a string (from postgres halfvec) or already a number[] */
-function parseEmbedding(embedding: number[] | string | null): number[] {
-    if (!embedding) throw new Error("Cannot parse null embedding");
-    if (Array.isArray(embedding)) return embedding;
-    return embedding.replace(/[\[\]]/g, "").split(",").map(Number);
-}

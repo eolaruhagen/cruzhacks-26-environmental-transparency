@@ -170,7 +170,7 @@ export async function acquireArtifactLock<K extends ArtifactType>(
             LIMIT ${batchSize}
             FOR UPDATE SKIP LOCKED
         )
-        RETURNING *
+        RETURNING *, embedding::float4[] AS embedding
     `;
 }
 
@@ -673,11 +673,12 @@ export async function getStoryArticleCount(storyId: string): Promise<number> {
 }
 
 /**
- * Read the centroid vector for a story. Returns the string representation.
+ * Read the centroid vector for a story as a native number array.
+ * Uses ::float4[] cast so postgres.js deserializes directly — no string parsing.
  */
-export async function getStoryCentroid(storyId: string): Promise<string | null> {
-    const rows = await dbConn<{ centroid: string | null }[]>`
-        SELECT centroid::text FROM public.stories WHERE id = ${storyId}
+export async function getStoryCentroid(storyId: string): Promise<number[] | null> {
+    const rows = await dbConn<{ centroid: number[] | null }[]>`
+        SELECT centroid::float4[] AS centroid FROM public.stories WHERE id = ${storyId}
     `;
     return rows[0]?.centroid ?? null;
 }
