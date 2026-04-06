@@ -271,7 +271,6 @@ export async function insertRawArtifacts<K extends ArtifactType>(
         locked_by: a.locked_by,
         locked_at: a.locked_at,
         embedding: a.embedding,
-        enrichment: a.enrichment,
         created_at: a.created_at,
         updated_at: a.updated_at,
     }));
