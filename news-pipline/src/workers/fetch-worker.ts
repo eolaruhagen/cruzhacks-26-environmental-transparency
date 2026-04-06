@@ -26,7 +26,7 @@ const newsMeshSource: FetchSource<"article"> = {
             url: artifact.link,
             type: "article",
             status: "raw",
-            source_icon_url: artifact.media_url,
+            source_icon_url: artifact.media_url ?? null,
             metadata: {
                 title: artifact.title,
                 description: artifact.description,

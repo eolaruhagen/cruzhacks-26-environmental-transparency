@@ -1,3 +1,4 @@
+import { z } from "zod";
 import pino from "pino";
 import { readArtifactEnrichment, writeArtifactEmbedding } from "./database";
 import { OPENROUTER_EMBEDDINGS_URL, EMBEDDING_MODEL, EMBEDDING_DIMENSIONS } from "../config";
@@ -7,9 +8,19 @@ const logger = pino({ name: "embeddings" });
 
 const { OPENROUTER_API_KEY } = process.env;
 
+// ── Embedding API schema ────────────────────────────────────────────
+
+export const EmbeddingResponseSchema = z.object({
+    data: z.array(z.object({
+        embedding: z.array(z.number()),
+    })).min(1, "Embedding API returned empty data array"),
+});
+
+export type EmbeddingResponse = z.infer<typeof EmbeddingResponseSchema>;
+
 /**
  * Embed a text string via OpenRouter's embedding API.
- * Returns a 1536-dim vector.
+ * Returns a vector (dimension set by EMBEDDING_DIMENSIONS config).
  */
 export async function embedText(text: string): Promise<number[]> {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is required");
@@ -32,8 +43,16 @@ export async function embedText(text: string): Promise<number[]> {
         throw new Error(`Embedding API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json() as { data: { embedding: number[] }[] };
-    return data.data[0]!.embedding;
+    const parsed = EmbeddingResponseSchema.parse(await response.json());
+    const { embedding } = parsed.data[0] ?? { embedding: [] };
+
+    if (embedding.length !== EMBEDDING_DIMENSIONS) {
+        throw new Error(
+            `Embedding dimension mismatch: expected ${EMBEDDING_DIMENSIONS}, got ${embedding.length}`
+        );
+    }
+
+    return embedding;
 }
 
 // ── Embedding content registry ───────────────────────────────────────

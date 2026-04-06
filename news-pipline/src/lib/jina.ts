@@ -1,3 +1,4 @@
+import { z } from "zod";
 import pino from "pino";
 import { JINA_READER_URL } from "../config";
 
@@ -5,14 +6,16 @@ const logger = pino({ name: "jina-reader" });
 
 const { JINA_API_KEY } = process.env;
 
-interface JinaResponse {
-    code: number;
-    data: {
-        content: string;
-        title?: string;
-        url?: string;
-    };
-}
+export const JinaResponseSchema = z.object({
+    code: z.number(),
+    data: z.object({
+        content: z.string().nullish(),
+        title: z.string().nullish(),
+        url: z.string().nullish(),
+    }),
+});
+
+export type JinaResponse = z.infer<typeof JinaResponseSchema>;
 
 /**
  * Scrape article content via Jina Reader API.
@@ -44,9 +47,9 @@ export async function scrapeArticle(url: string, tokenBudget: number = 80000): P
         return null;
     }
 
-    const data = await response.json() as JinaResponse;
+    const data = JinaResponseSchema.parse(await response.json());
 
-    if (!data.data?.content) {
+    if (!data.data.content) {
         logger.warn({ url }, "Jina returned empty content");
         return null;
     }
