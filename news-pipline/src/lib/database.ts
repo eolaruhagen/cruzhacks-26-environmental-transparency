@@ -1,25 +1,41 @@
 import postgres, { type Error } from "postgres";
 import pino from "pino";
-import { MAX_ARTIFACT_RETRY } from "../config";
+import { MAX_ARTIFACT_RETRY, EMBEDDING_DIMENSIONS } from "../config";
 import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, ArtifactEnrichment, EnvironmentalTopic } from "../types";
+import { formatEmbedding } from "./story-clustering";
 
 const logger = pino({ name: "postgres" });
 
 const toJson = (value: object) => dbConn.json(value as unknown as postgres.JSONValue);
 
-/** Safely parse a value that may be a JSON string or already an object */
-function ensureParsed<T>(value: T | string): T {
+/**
+ * Parse a value that may be a JSON string or already an object.
+ * Throws on invalid JSON — callers must handle corrupted data explicitly.
+ */
+export function ensureParsed<T>(value: T | string): T {
     if (typeof value === "string") {
-        try { return JSON.parse(value); } catch { return value as unknown as T; }
+        return JSON.parse(value);
     }
     return value;
 }
 
 /** Normalize a value that should be string[] but might be string, null, or undefined */
-function toStringArray(value: unknown): string[] {
-    if (Array.isArray(value)) return value;
-    if (typeof value === "string" && value.length > 0) return [value];
-    return [];
+export function toStringArray(value: unknown): string[] {
+    if (value == null) return [];
+    if (typeof value === "string") {
+        if (value.length === 0) return [];
+        return value.includes(",") ? value.split(",").map(s => s.trim()).filter(Boolean) : [value];
+    }
+    if (Array.isArray(value)) {
+        return value
+            .filter((v): v is NonNullable<typeof v> => v != null)
+            .map(v => {
+                if (typeof v === "string") return v;
+                if (typeof v === "number" || typeof v === "boolean") return String(v);
+                throw new Error(`toStringArray: unexpected element type ${typeof v} in array`);
+            });
+    }
+    throw new Error(`toStringArray: cannot convert ${typeof value} to string[]`);
 }
 
 type QueryResult<T> =
@@ -220,11 +236,12 @@ export async function releaseArtifactLocks<K extends ArtifactType>(
 export async function advanceArtifactStatus(
     artifactIds: string[],
     workerId: string,
-    nextStatus: ArtifactStatus
+    nextStatus: ArtifactStatus,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<string[]> {
     if (artifactIds.length === 0) return [];
 
-    const rows = await dbConn<{ id: string }[]>`
+    const rows = await sql<{ id: string }[]>`
         UPDATE pipelines.artifact_staging
         SET locked_by = NULL,
             locked_at = NULL,
@@ -247,11 +264,12 @@ export async function advanceArtifactStatus(
  */
 export async function releaseArtifactLocksWithRetry(
     artifactIds: string[],
-    workerId: string
+    workerId: string,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<void> {
     if (artifactIds.length === 0) return;
 
-    await dbConn`
+    await sql`
         UPDATE pipelines.artifact_staging
         SET locked_by = NULL, locked_at = NULL, retry_attempts = retry_attempts + 1, updated_at = now()
         WHERE id = ANY(${artifactIds}) AND locked_by = ${workerId}
@@ -296,12 +314,13 @@ export async function insertRawArtifacts<K extends ArtifactType>(
  */
 export async function moveToFailedArtifacts<K extends ArtifactType>(
     artifacts: StagingArtifact<K>[],
-    workerId: string
+    workerId: string,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<void> {
     if (artifacts.length === 0) return;
 
     for (const artifact of artifacts) {
-        await dbConn`
+        await sql`
             INSERT INTO pipelines.failed_artifacts (url, type, data)
             VALUES (
                 ${artifact.url},
@@ -309,7 +328,7 @@ export async function moveToFailedArtifacts<K extends ArtifactType>(
                 ${toJson({ metadata: artifact.metadata, enrichment: artifact.enrichment, status: artifact.status, retry_attempts: artifact.retry_attempts })}
             )
         `;
-        await dbConn`
+        await sql`
             DELETE FROM pipelines.artifact_staging
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
         `;
@@ -325,12 +344,13 @@ export async function moveToFailedArtifacts<K extends ArtifactType>(
  */
 export async function moveToRejectedArtifacts<K extends ArtifactType>(
     artifacts: StagingArtifact<K>[],
-    workerId: string
+    workerId: string,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<void> {
     if (artifacts.length === 0) return;
 
     for (const artifact of artifacts) {
-        await dbConn`
+        await sql`
             INSERT INTO pipelines.rejected_artifacts (url, type, data)
             VALUES (
                 ${artifact.url},
@@ -338,7 +358,7 @@ export async function moveToRejectedArtifacts<K extends ArtifactType>(
                 ${toJson({ metadata: artifact.metadata, status: artifact.status })}
             )
         `;
-        await dbConn`
+        await sql`
             DELETE FROM pipelines.artifact_staging
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
         `;
@@ -558,13 +578,22 @@ const RETRYABLE_PG_ERROR_CLASSES = new Set([
  * Postgres errors with data/constraint/syntax codes should not be retried.
  */
 export function isRetryablePgError(error: unknown): boolean {
-    if (error && typeof error === "object" && "code" in error && typeof (error as any).code === "string") {
-        const code = (error as any).code as string;
+    if (!(error && typeof error === "object" && "code" in error)) {
+        return false;
+    }
+
+    const { code } = error as { code: unknown };
+    if (typeof code !== "string") return false;
+
+    const connectionCodes = new Set(["CONNECTION_DESTROYED", "CONNECT_TIMEOUT", "CONNECTION_CLOSED", "CONNECTION_ENDED"]);
+    if (connectionCodes.has(code)) return true;
+
+    if (code.length === 5) {
         const errorClass = code.substring(0, 2);
         return RETRYABLE_PG_ERROR_CLASSES.has(errorClass);
     }
-    // Non-postgres errors (network, timeout) are generally retryable
-    return true;
+    // for other non pg errors
+    return false;
 }
 
 // ── Batch settlement ─────────────────────────────────────────────────
@@ -583,6 +612,7 @@ export interface SettleBatchResult {
  * - advanced: status change + lock clear (data already in DB)
  * - rejected: moved to rejected_artifacts table, deleted from staging
  * - failed: retry if under MAX_ARTIFACT_RETRY, else move to failed_artifacts
+ * - terminal: move directly to failed_artifacts (no retry check, e.g. non-retryable PG errors)
  */
 export async function settleBatch<K extends ArtifactType>(
     workerId: string,
@@ -590,28 +620,37 @@ export async function settleBatch<K extends ArtifactType>(
     advanced: StagingArtifact<K>[],
     rejected: StagingArtifact<K>[],
     failed: StagingArtifact<K>[],
+    terminal: StagingArtifact<K>[] = [],
 ): Promise<SettleBatchResult> {
-    if (advanced.length > 0) {
-        await advanceArtifactStatus(advanced.map(a => a.id), workerId, nextStatus);
-    }
+    return await dbConn.begin(async (_tx) => {
+        const tx = _tx as unknown as TxSql;
 
-    if (rejected.length > 0) {
-        await moveToRejectedArtifacts(rejected, workerId);
-    }
-
-    let retried = 0;
-    let terminal = 0;
-    for (const artifact of failed) {
-        if (artifact.retry_attempts + 1 >= MAX_ARTIFACT_RETRY) {
-            await moveToFailedArtifacts([artifact], workerId);
-            terminal++;
-        } else {
-            await releaseArtifactLocksWithRetry([artifact.id], workerId);
-            retried++;
+        if (advanced.length > 0) {
+            await advanceArtifactStatus(advanced.map(a => a.id), workerId, nextStatus, tx);
         }
-    }
 
-    return { advanced: advanced.length, rejected: rejected.length, retried, failed: terminal };
+        if (rejected.length > 0) {
+            await moveToRejectedArtifacts(rejected, workerId, tx);
+        }
+
+        if (terminal.length > 0) {
+            await moveToFailedArtifacts(terminal, workerId, tx);
+        }
+
+        let retried = 0;
+        let failedCount = 0;
+        for (const artifact of failed) {
+            if (artifact.retry_attempts + 1 >= MAX_ARTIFACT_RETRY) {
+                await moveToFailedArtifacts([artifact], workerId, tx);
+                failedCount++;
+            } else {
+                await releaseArtifactLocksWithRetry([artifact.id], workerId, tx);
+                retried++;
+            }
+        }
+
+        return { advanced: advanced.length, rejected: rejected.length, retried, failed: failedCount + terminal.length };
+    });
 }
 
 // ── Story clustering queries ─────────────────────────────────────────
@@ -776,9 +815,9 @@ export async function publishArticleArtifact(
     artifact: StagingArtifact<"article">,
     storyId: string,
 ): Promise<void> {
-    const embeddingStr = typeof artifact.embedding === "string"
-        ? artifact.embedding
-        : `[${artifact.embedding!.join(",")}]`;
+    if (!artifact.embedding) throw new Error(`Cannot publish artifact ${artifact.id}: embedding is null`);
+    const embeddingVec = artifact.embedding;
+    const embeddingStr = formatEmbedding(embeddingVec, EMBEDDING_DIMENSIONS);
 
     await dbConn.begin(async (_tx) => {
         const sql = _tx as unknown as TxSql;

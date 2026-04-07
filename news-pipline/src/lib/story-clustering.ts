@@ -7,6 +7,7 @@ import {
     getStoryCentroid,
 } from "./database";
 import { generateStoryName } from "./llm";
+import { EMBEDDING_DIMENSIONS } from "../config";
 import type { ArtifactType, StagingArtifact } from "../types";
 
 const logger = pino({ name: "story-clustering" });
@@ -25,7 +26,7 @@ export async function assignToStory<K extends ArtifactType>(
     threshold: number,
 ): Promise<StoryAssignment> {
     if (!artifact.embedding) throw new Error(`Artifact ${artifact.id} has null embedding`);
-    const embeddingStr = formatEmbedding(artifact.embedding);
+    const embeddingStr = formatEmbedding(artifact.embedding, EMBEDDING_DIMENSIONS);
     const embeddingVec = artifact.embedding;
 
     const match = await findMostSimilarStory(embeddingStr, threshold);
@@ -52,16 +53,16 @@ async function updateCentroidRunningAverage(storyId: string, newEmbedding: numbe
 
     if (!oldCentroid) {
         logger.warn({ storyId }, "story has no centroid, overwriting with new embedding");
-        await updateStoryCentroid(storyId, formatEmbedding(newEmbedding));
+        await updateStoryCentroid(storyId, formatEmbedding(newEmbedding, EMBEDDING_DIMENSIONS));
         return;
     }
 
     const newCount = oldCount + 1;
     const updated = computeRunningAverage(oldCentroid, oldCount, newEmbedding, newCount);
-    await updateStoryCentroid(storyId, `[${updated.join(",")}]`);
+    await updateStoryCentroid(storyId, formatEmbedding(updated, EMBEDDING_DIMENSIONS));
 }
 
-function computeRunningAverage(
+export function computeRunningAverage(
     oldCentroid: number[],
     oldCount: number,
     newEmbedding: number[],
@@ -70,7 +71,10 @@ function computeRunningAverage(
     return oldCentroid.map((v, i) => (v * oldCount + newEmbedding[i]!) / newCount);
 }
 
-function formatEmbedding(embedding: number[]): string {
+export function formatEmbedding(embedding: number[], dims?: number): string {
+    if (dims !== undefined && embedding.length !== dims) {
+        throw new Error(`formatEmbedding: expected ${dims} dimensions, got ${embedding.length}`);
+    }
     return `[${embedding.join(",")}]`;
 }
 

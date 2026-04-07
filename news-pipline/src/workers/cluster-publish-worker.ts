@@ -1,5 +1,5 @@
 import pino from "pino";
-import { acquireBatchWithRetries, settleBatch, isRetryablePgError, moveToFailedArtifacts, publishArticleArtifact } from "../lib/database";
+import { acquireBatchWithRetries, settleBatch, isRetryablePgError, publishArticleArtifact } from "../lib/database";
 import { assignToStory, type StoryAssignment } from "../lib/story-clustering";
 import { CLUSTER_WORKER_ID, CLUSTER_BATCH_SIZE, STORY_SIMILARITY_THRESHOLD } from "../config";
 import type { ArtifactType, StagingArtifact } from "../types";
@@ -83,14 +83,10 @@ async function processBatch<K extends ArtifactType>(
         }
     }
 
-    // Terminal failures bypass retry — move directly to failed_artifacts
-    if (terminal.length > 0) {
-        await moveToFailedArtifacts(terminal, workerId);
-    }
-
-    // Published artifacts already deleted from staging; only retryable failures need settling
-    const counts = await settleBatch(workerId, "enriched", [], [], retryable);
-    return { published: published.length, retried: counts.retried, failed: counts.failed + terminal.length };
+    // Published artifacts already deleted from staging inside the publish transaction.
+    // Route retryable and terminal failures through settleBatch.
+    const counts = await settleBatch(workerId, "enriched", [], [], retryable, terminal);
+    return { published: published.length, retried: counts.retried, failed: counts.failed };
 }
 
 export async function clusterPublishWorker<K extends ArtifactType>(artifactType: K) {
@@ -117,12 +113,17 @@ export async function clusterPublishWorker<K extends ArtifactType>(artifactType:
         }
 
         logger.info({ batchSize: batch.length }, "processing cluster-publish batch");
-        const counts = await processBatch(batch, publishFn, workerId);
-        totalPublished += counts.published;
-        totalRetried += counts.retried;
-        totalFailed += counts.failed;
-
-        logger.info(counts, "batch complete");
+        try {
+            const counts = await processBatch(batch, publishFn, workerId);
+            totalPublished += counts.published;
+            totalRetried += counts.retried;
+            totalFailed += counts.failed;
+            logger.info(counts, "batch complete");
+        } catch (error) {
+            // honestly not 100% best way to handle this now, just better than pg erroring out
+            logger.error({ error }, "failed to process batch");
+            break;
+        }
     }
 
     logger.info({ totalPublished, totalRetried, totalFailed }, `cluster-publish worker complete for ${artifactType}`);

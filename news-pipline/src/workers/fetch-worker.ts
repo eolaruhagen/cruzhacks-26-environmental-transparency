@@ -1,17 +1,10 @@
 import { fetchNewsArtifacts, filterFromLastDay, fetchNewsIOArtifacts } from "../lib/externalApis";
 import { MAX_WORKER_NEWS_REQUESTS, MAX_NEWSIO_REQUESTS } from "../config";
-import { insertRawArtifacts, timedQuery, dedupByMetadataFields } from "../lib/database";
+import { insertRawArtifacts, timedQuery, dedupByMetadataFields, toStringArray } from "../lib/database";
 import type { ArtifactType, FetchStrategy, FetchSource, StagingArtifact } from "../types";
 import pino from "pino";
 
 const logger = pino({ name: "fetch-worker" });
-
-/** Normalize API fields that may be string, string[], or null into string[] */
-function toStringArray(value: unknown): string[] {
-    if (Array.isArray(value)) return value;
-    if (typeof value === "string" && value.length > 0) return [value];
-    return [];
-}
 
 const newsMeshSource: FetchSource<"article"> = {
     name: "newsmesh",
