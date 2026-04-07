@@ -5,7 +5,7 @@ import {
     NewsIOResponseSchema,
     NewsIOItemSchema,
     filterFromLastDay,
-} from "./externalApis";
+} from "../externalApis";
 
 // ── NewsMesh schema tests ───────────────────────────────────────────
 

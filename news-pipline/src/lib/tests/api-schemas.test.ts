@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
-import { JinaResponseSchema } from "./jina";
-import { EmbeddingResponseSchema } from "./embeddings";
+import { JinaResponseSchema } from "../jina";
+import { EmbeddingResponseSchema } from "../embeddings";
 
 
 describe("JinaResponseSchema", () => {
