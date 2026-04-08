@@ -3,7 +3,7 @@ import pino from "pino";
 import { MAX_ARTIFACT_RETRY, EMBEDDING_DIMENSIONS } from "../config";
 import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, ArtifactEnrichment, EnvironmentalTopic } from "../types";
 import { formatEmbedding } from "./story-clustering";
-import { ensureParsed, toStringArray } from "./parse-utils";
+import { ensureParsed, toStringArray, isRetryablePgError } from "./parse-utils";
 export { ensureParsed, toStringArray } from "./parse-utils";
 
 const logger = pino({ name: "postgres" });
@@ -786,6 +786,26 @@ export async function pullAllEnrichedArtifacts(): Promise<{ id: string, embeddin
         FROM pipelines.artifact_staging a
         WHERE a.embedding IS NOT NULL AND a.status = 'enriched'
     `;
+}
+
+/**
+ * Retry a DB call up to maxRetries times with exponential backoff if the error is transient.
+ * Non-retryable errors are rethrown immediately.
+ */
+export async function withPgRetry<T>(fn: () => Promise<T>, maxRetries: number = 2): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (!isRetryablePgError(error) || attempt === maxRetries) {
+                throw error;
+            }
+            await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+        }
+    }
+    throw lastError;
 }
 
 export async function close() {

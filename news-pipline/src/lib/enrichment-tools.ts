@@ -1,11 +1,11 @@
 import { tool } from "@openrouter/sdk";
 import { z } from "zod";
-import { readArtifactEnrichment, writeArtifactEnrichment, validateBillIds } from "./database";
+import { readArtifactEnrichment, writeArtifactEnrichment, validateBillIds, withPgRetry } from "./database";
 import { DEFAULT_ENRICHMENT } from "../config";
 import type { ArtifactEnrichment, StagingArtifact, ArtifactType } from "../types";
 
 async function getOrCreateEnrichment(artifactId: string): Promise<ArtifactEnrichment> {
-    const enrichment = await readArtifactEnrichment(artifactId);
+    const enrichment = await withPgRetry(() => readArtifactEnrichment(artifactId));
     return enrichment ?? { ...DEFAULT_ENRICHMENT };
 }
 
@@ -94,13 +94,13 @@ export function createEnrichmentTools<K extends ArtifactType>(artifact: StagingA
             const bills = params.associated_bills ?? [];
             if (bills.length > 0) {
                 const candidateIds = bills.map(b => b.legislation_number);
-                const validIds = new Set(await validateBillIds(candidateIds));
+                const validIds = new Set(await withPgRetry(() => validateBillIds(candidateIds)));
                 enrichment.associated_bills = bills.filter(b => validIds.has(b.legislation_number));
             } else {
                 enrichment.associated_bills = [];
             }
 
-            await writeArtifactEnrichment(artifact.id, enrichment);
+            await withPgRetry(() => writeArtifactEnrichment(artifact.id, enrichment));
             status.enriched = true;
 
             const dropped = bills.length - enrichment.associated_bills.length;
