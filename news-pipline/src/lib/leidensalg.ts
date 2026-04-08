@@ -154,26 +154,21 @@ function isPublicArtifact(storyId: string | null): boolean {
 /**
  * Apply rules to Leiden cluster assignments to produce the set of story mutations
  * (updates, creations, deletions) needed to reconcile clusters with existing stories.
- *
- * Classification rules per cluster:
- * - If a cluster has a majority (>50%) of members from one existing story → UPDATE that story
- * - Otherwise → NEW story (including clusters of all-pipeline artifacts)
- *
- * Artifacts that leave their original story are tracked in removeFromStory
- * so deriveDeletedStories can detect fully-emptied stories.
  */
 export function consolidateClusters(
     nodes: Node[],
     articleMap: Map<string, { storyId: string | null, embedding: number[] }>,
 ): ClusteringConsolidation {
+    if (nodes.length !== articleMap.size) {
+        throw new Error(`nodes length (${nodes.length}) does not match articleMap size (${articleMap.size})`);
+    }
+
     // first we have to make a map of the clusters created by leidens
     const clusterGroups = new Map<number, string[]>();
     for (const node of nodes) {
         if (node.cluster === undefined) {
-            // i love my non-null assertions so safe :) 
-            console.warn(`unclustered node found??? with id ${node.id} is public artifact (t/f): ${isPublicArtifact(articleMap.get(String(node.id))!.storyId)}`);
-            continue
-        };
+            throw new Error(`unclustered node found with id ${node.id} — Leiden should assign every node a cluster`);
+        }
         const id = String(node.id);
         let group = clusterGroups.get(node.cluster);
         if (!group) {
@@ -232,15 +227,19 @@ export function consolidateClusters(
         // when there is a winning story -> i.e must be updated in some way
         if (isMajority && winningStoryId !== null) {
             const newPublic = publicIds.filter(id => articleMap.get(id)!.storyId !== winningStoryId);
-            const existing = partial.updateStories.get(winningStoryId);
-            if (existing) {
-                existing.newPublicTableArtifactIds.push(...newPublic);
-                existing.newPipelineArtifactIds.push(...pipelineIds);
-            } else {
-                partial.updateStories.set(winningStoryId, {
-                    newPublicTableArtifactIds: newPublic,
-                    newPipelineArtifactIds: pipelineIds,
-                });
+
+            // only add to updateStories if there are actually new members joining
+            if (newPublic.length > 0 || pipelineIds.length > 0) {
+                const existing = partial.updateStories.get(winningStoryId);
+                if (existing) {
+                    existing.newPublicTableArtifactIds.push(...newPublic);
+                    existing.newPipelineArtifactIds.push(...pipelineIds);
+                } else {
+                    partial.updateStories.set(winningStoryId, {
+                        newPublicTableArtifactIds: newPublic,
+                        newPipelineArtifactIds: pipelineIds,
+                    });
+                }
             }
 
             // find articles to be removed from its original storiy
