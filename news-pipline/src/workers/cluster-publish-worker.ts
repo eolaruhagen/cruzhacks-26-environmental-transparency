@@ -1,5 +1,6 @@
 import pino from "pino";
-import { acquireBatchWithRetries, settleBatch, isRetryablePgError, publishArticleArtifact } from "../lib/database";
+import { acquireBatchWithRetries, settleBatch, publishArticleArtifact } from "../lib/database";
+import { isRetryablePgError } from "../lib/parse-utils";
 import { assignToStory, type StoryAssignment } from "../lib/story-clustering";
 import { CLUSTER_WORKER_ID, CLUSTER_BATCH_SIZE, STORY_SIMILARITY_THRESHOLD } from "../config";
 import type { ArtifactType, StagingArtifact } from "../types";

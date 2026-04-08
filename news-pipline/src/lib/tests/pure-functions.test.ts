@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { ensureParsed, toStringArray, isRetryablePgError } from "../database";
+import { ensureParsed, toStringArray, isRetryablePgError } from "../parse-utils";
 import { computeRunningAverage, formatEmbedding } from "../story-clustering";
 
 
