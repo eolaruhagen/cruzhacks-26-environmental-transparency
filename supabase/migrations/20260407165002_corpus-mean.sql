@@ -3,7 +3,7 @@
 CREATE TABLE IF NOT EXISTS pipelines.corpus_mean (
     id SERIAL PRIMARY KEY,
     embedding extensions.halfvec(1536) NOT NULL,
-    count BIGINT NOT NULL
+    artifact_type public.artifact_type NOT NULL
 );
 
 
@@ -17,10 +17,10 @@ CREATE POLICY "anon can read artifacts"
   TO anon
   USING (true);
 
-ALTER TABLE "public"."artifact_enrichment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "public"."artifact_enrichments" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "anon can read artifact_enrichment"
-  ON "public"."artifact_enrichment"
+CREATE POLICY "anon can read artifact_enrichments"
+  ON "public"."artifact_enrichments"
   FOR SELECT
   TO anon
   USING (true);
