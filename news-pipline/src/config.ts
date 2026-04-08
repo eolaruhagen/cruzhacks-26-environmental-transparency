@@ -16,7 +16,7 @@ export const ENRICH_MAX_STEPS = 12;
 export const CLUSTER_BATCH_SIZE = 10;
 
 // ── Story clustering ────────────────────────────────────────────────
-export const STORY_SIMILARITY_THRESHOLD = 0.95;
+export const STORY_SIMILARITY_THRESHOLD = 0.85;
 
 // ── External API URLs ────────────────────────────────────────────────
 export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest";

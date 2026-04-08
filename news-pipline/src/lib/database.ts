@@ -828,6 +828,27 @@ export async function publishArticleArtifact(
     });
 }
 
+/**
+ * Pull all artifacts from public artifacts table that are assigned to a story within a last week (using join)
+ * @returns rows of {id: string, embedding: number[]}
+ */
+export async function pullPublicArtifactsForLeiden(): Promise<{ id: string, embedding: number[], storyId: string }[]> {
+    return await dbConn<{ id: string, embedding: number[], storyId: string }[]>`
+        SELECT a.id, a.embedding::float4[] AS embedding, a.story_id as "storyId"
+        FROM public.artifacts a
+        JOIN public.stories s ON a.story_id = s.id
+        WHERE a.embedding IS NOT NULL AND s.updated_at >= now() - interval '1 week'
+    `;
+}
+
+export async function pullAllEnrichedArtifacts(): Promise<{ id: string, embedding: number[] }[]> {
+    return await dbConn<{ id: string, embedding: number[] }[]>`
+        SELECT a.id, a.embedding::float4[] AS embedding
+        FROM pipelines.artifact_staging a
+        WHERE a.embedding IS NOT NULL AND a.status = 'enriched'
+    `;
+}
+
 export async function close() {
     await dbConn.end();
 }
