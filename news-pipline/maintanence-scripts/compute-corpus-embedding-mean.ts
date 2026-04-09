@@ -65,9 +65,10 @@ async function main() {
     const meanStr = formatEmbedding(mean, EMBEDDING_DIMENSIONS);
 
     const result = await sql`
-        UPDATE pipelines.corpus_mean
-        SET embedding = ${meanStr}::halfvec, updated_at = now()
-        WHERE artifact_type = ${type}
+        INSERT INTO pipelines.corpus_mean (artifact_type, embedding)
+        VALUES (${type}, ${meanStr}::halfvec)
+        ON CONFLICT (artifact_type) DO UPDATE
+        SET embedding = EXCLUDED.embedding
         RETURNING *
     `;
 
