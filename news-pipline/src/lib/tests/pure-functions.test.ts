@@ -1,6 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { ensureParsed, toStringArray, isRetryablePgError } from "../parse-utils";
-import { computeRunningAverage, formatEmbedding } from "../story-clustering";
+import { ensureParsed, toStringArray, isRetryablePgError, formatEmbedding } from "../parse-utils";
 
 
 // ── ensureParsed ────────────────────────────────────────────────────
@@ -203,41 +202,6 @@ describe("isRetryablePgError", () => {
 
     test("does NOT retry numeric code (not a string)", () => {
         expect(isRetryablePgError({ code: 23505 })).toBe(false);
-    });
-});
-
-
-describe("computeRunningAverage", () => {
-    test("computes correct average for 2D vectors", () => {
-        const result = computeRunningAverage([0.6, 0.4], 3, [0.9, 0.1], 4);
-        expect(result[0]).toBeCloseTo(0.675);
-        expect(result[1]).toBeCloseTo(0.325);
-    });
-
-    test("first article added to a story (oldCount=0)", () => {
-        const result = computeRunningAverage([0, 0, 0], 0, [0.5, 0.3, 0.8], 1);
-        expect(result).toEqual([0.5, 0.3, 0.8]);
-    });
-
-    test("identical embeddings produce same centroid", () => {
-        const embedding = [0.1, 0.2, 0.3];
-        const result = computeRunningAverage(embedding, 5, embedding, 6);
-        result.forEach((v, i) => expect(v).toBeCloseTo(embedding[i]!));
-    });
-
-    test("handles negative values", () => {
-        const result = computeRunningAverage([-0.5, 0.5], 1, [0.5, -0.5], 2);
-        expect(result[0]).toBeCloseTo(0.0);
-        expect(result[1]).toBeCloseTo(0.0);
-    });
-
-    test("handles high-dimensional vectors (1536-dim)", () => {
-        const old = new Array(1536).fill(0.5);
-        const newEmb = new Array(1536).fill(1.0);
-        const result = computeRunningAverage(old, 9, newEmb, 10);
-        expect(result).toHaveLength(1536);
-        expect(result[0]).toBeCloseTo(0.55);
-        expect(result[1535]).toBeCloseTo(0.55);
     });
 });
 

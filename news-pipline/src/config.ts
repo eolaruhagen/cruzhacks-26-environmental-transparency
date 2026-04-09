@@ -13,10 +13,8 @@ export const MAX_ARTIFACT_RETRY = 5;
 export const FILTER_MAX_TRIES = 3;
 export const ENRICH_BATCH_SIZE = 5;
 export const ENRICH_MAX_STEPS = 12;
-export const CLUSTER_BATCH_SIZE = 10;
-
 // ── Story clustering ────────────────────────────────────────────────
-export const STORY_SIMILARITY_THRESHOLD = 0.85;
+export const STORY_SIMILARITY_THRESHOLD = 0.73;
 
 // ── External API URLs ────────────────────────────────────────────────
 export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest";

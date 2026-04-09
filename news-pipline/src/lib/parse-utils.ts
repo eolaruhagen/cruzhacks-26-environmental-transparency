@@ -58,3 +58,11 @@ export function isRetryablePgError(error: unknown): boolean {
     // for other non pg errors
     return false;
 }
+
+
+export function formatEmbedding(embedding: number[], dims?: number): string {
+    if (dims !== undefined && embedding.length !== dims) {
+        throw new Error(`formatEmbedding: expected ${dims} dimensions, got ${embedding.length}`);
+    }
+    return `[${embedding.join(",")}]`;
+}

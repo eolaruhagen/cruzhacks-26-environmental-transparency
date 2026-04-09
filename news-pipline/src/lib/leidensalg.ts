@@ -6,7 +6,7 @@
 // step 4 -> run leiden algorithm on the graph created in step 3.
 // step 5 -> consolidate changes
 import { type Node, type Link, NetworkClustering } from "networkanalysis-ts/run";
-import { pullPublicArtifactsForLeiden, pullAllEnrichedArtifacts, timedQuery } from "./database";
+import { pullPublicArtifactsForLeiden, pullAllEnrichedArtifacts, timedQuery, withPgRetry } from "./database";
 import { STORY_SIMILARITY_THRESHOLD } from "../config";
 
 
@@ -22,8 +22,13 @@ export async function createStoryClusteringArticleMap(): Promise<Map<string, { s
     const articleMap = new Map<string, { storyId: string | null, embedding: number[] }>();
 
     const [publicArtifacts, enrichedArtifacts] = await Promise.all([
-        timedQuery("pullPublicArtifactsForLeiden", pullPublicArtifactsForLeiden),
-        timedQuery("pullAllEnrichedArtifacts", pullAllEnrichedArtifacts)
+        // use pg retry with the timed query wrapper. Because of course lets have 3 layers of abstraction for a select statement.
+        withPgRetry(async () => {
+            return await timedQuery("pullPublicArtifactsForLeiden", pullPublicArtifactsForLeiden);
+        }),
+        withPgRetry(async () => {
+            return await timedQuery("pullAllEnrichedArtifacts", pullAllEnrichedArtifacts);
+        })
     ]);
 
     if (!publicArtifacts.ok || !enrichedArtifacts.ok) {

@@ -595,29 +595,6 @@ export async function settleBatch<K extends ArtifactType>(
 // ── Story clustering queries ─────────────────────────────────────────
 
 /**
- * Find the most similar story by cosine similarity against public.stories.centroid.
- * Returns null if no story exceeds the threshold.
- *
- * @param embeddingStr - Embedding vector as string "[0.1,0.2,...]"
- * @param threshold - Minimum cosine similarity to match
- */
-export async function findMostSimilarStory(
-    embeddingStr: string,
-    threshold: number,
-): Promise<{ id: string; name: string; similarity: number } | null> {
-    const rows = await dbConn<{ id: string; name: string; similarity: number }[]>`
-        SELECT id, name,
-               1 - (centroid <=> ${embeddingStr}::halfvec) AS similarity
-        FROM public.stories
-        WHERE centroid IS NOT NULL
-        AND 1 - (centroid <=> ${embeddingStr}::halfvec) >= ${threshold}
-        ORDER BY centroid <=> ${embeddingStr}::halfvec ASC
-        LIMIT 1
-    `;
-    return rows[0] ?? null;
-}
-
-/**
  * Create a new story row and return its ID.
  */
 export async function createStory(name: string, centroidStr: string): Promise<string> {
@@ -627,38 +604,6 @@ export async function createStory(name: string, centroidStr: string): Promise<st
         RETURNING id
     `;
     return rows[0]!.id;
-}
-
-/**
- * Overwrite a story's centroid with a pre-computed new centroid.
- */
-export async function updateStoryCentroid(storyId: string, newCentroidStr: string): Promise<void> {
-    await dbConn`
-        UPDATE public.stories
-        SET centroid = ${newCentroidStr}::halfvec, updated_at = now()
-        WHERE id = ${storyId}
-    `;
-}
-
-/**
- * Count published artifacts currently assigned to a story.
- */
-export async function getStoryArticleCount(storyId: string): Promise<number> {
-    const rows = await dbConn<{ count: string }[]>`
-        SELECT count(*)::text AS count FROM public.artifacts WHERE story_id = ${storyId}
-    `;
-    return parseInt(rows[0]!.count, 10);
-}
-
-/**
- * Read the centroid vector for a story as a native number array.
- * Uses ::float4[] cast so postgres.js deserializes directly — no string parsing.
- */
-export async function getStoryCentroid(storyId: string): Promise<number[] | null> {
-    const rows = await dbConn<{ centroid: number[] | null }[]>`
-        SELECT centroid::float4[] AS centroid FROM public.stories WHERE id = ${storyId}
-    `;
-    return rows[0]?.centroid ?? null;
 }
 
 // postgres.js@3.4.8 bug: TransactionSql uses Omit<Sql, ...> which strips
@@ -786,6 +731,84 @@ export async function pullAllEnrichedArtifacts(): Promise<{ id: string, embeddin
         FROM pipelines.artifact_staging a
         WHERE a.embedding IS NOT NULL AND a.status = 'enriched'
     `;
+}
+
+// ── Cluster-publish queries ─────────────────────────────────────────
+
+/**
+ * Pull full StagingArtifact rows by their IDs. Used to get pipeline artifacts
+ * for publishing during cluster consolidation.
+ */
+export async function pullStagingArtifactsByIds<K extends ArtifactType>(
+    ids: string[],
+): Promise<StagingArtifact<K>[]> {
+    if (ids.length === 0) return [];
+    return await dbConn<StagingArtifact<K>[]>`
+        SELECT *, embedding::float4[] AS embedding
+        FROM pipelines.artifact_staging
+        WHERE id = ANY(${ids})
+    `;
+}
+
+/**
+ * Pull title + enrichment summary from published artifacts for story naming.
+ */
+export async function pullPublicArtifactNamingContext(
+    artifactIds: string[],
+): Promise<{ title: string; summary: string }[]> {
+    if (artifactIds.length === 0) return [];
+    return await dbConn<{ title: string; summary: string }[]>`
+        SELECT ad.title, coalesce(ae.summary, '') AS summary
+        FROM public.article_details ad
+        LEFT JOIN public.artifact_enrichments ae ON ae.artifact_id = ad.artifact_id
+        WHERE ad.artifact_id = ANY(${artifactIds})
+    `;
+}
+
+/**
+ * Reassign public artifacts to a different story.
+ */
+export async function reassignArtifactStories(
+    artifactIds: string[],
+    newStoryId: string,
+): Promise<number> {
+    if (artifactIds.length === 0) return 0;
+    const result = await dbConn`
+        UPDATE public.artifacts
+        SET story_id = ${newStoryId}, updated_at = now()
+        WHERE id = ANY(${artifactIds})
+    `;
+    return result.count;
+}
+
+/**
+ * Delete stories that have been fully emptied by cluster consolidation.
+ * Warns and skips stories that still have artifact references, deletes the rest.
+ * Returns { deleted, skipped } counts.
+ */
+export async function deleteEmptyStories(storyIds: string[]): Promise<{ deleted: number; skipped: string[] }> {
+    if (storyIds.length === 0) return { deleted: 0, skipped: [] };
+
+    const orphanCheck = await dbConn<{ story_id: string; count: string }[]>`
+        SELECT story_id, count(*)::text AS count
+        FROM public.artifacts
+        WHERE story_id = ANY(${storyIds})
+        GROUP BY story_id
+    `;
+
+    const unsafeIds = new Set(orphanCheck.map(r => r.story_id));
+    if (unsafeIds.size > 0) {
+        const details = orphanCheck.map(r => `story ${r.story_id}: ${r.count} artifacts`).join(", ");
+        logger.warn({ unsafeStories: details }, "skipping story deletion — artifacts still reference them");
+    }
+
+    const safeIds = storyIds.filter(id => !unsafeIds.has(id));
+    if (safeIds.length === 0) return { deleted: 0, skipped: [...unsafeIds] };
+
+    const result = await dbConn`
+        DELETE FROM public.stories WHERE id = ANY(${safeIds})
+    `;
+    return { deleted: result.count, skipped: [...unsafeIds] };
 }
 
 /**

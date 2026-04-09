@@ -1,131 +1,158 @@
 import pino from "pino";
-import { acquireBatchWithRetries, settleBatch, publishArticleArtifact } from "../lib/database";
-import { isRetryablePgError } from "../lib/parse-utils";
-import { assignToStory, type StoryAssignment } from "../lib/story-clustering";
-import { CLUSTER_WORKER_ID, CLUSTER_BATCH_SIZE, STORY_SIMILARITY_THRESHOLD } from "../config";
+import {
+    publishArticleArtifact,
+    createStory,
+    reassignArtifactStories,
+    deleteEmptyStories,
+    pullStagingArtifactsByIds,
+    pullPublicArtifactNamingContext,
+    withPgRetry,
+} from "../lib/database";
+import {
+    createStoryClusteringArticleMap,
+    createPairWiseSimilarities,
+    runLeidenClustering,
+    consolidateClusters,
+    type ClusteringConsolidation,
+} from "../lib/leidensalg";
+import { generateStoryName, artifactsToNamingContext, type StoryNamingContext } from "../lib/llm";
+import { formatEmbedding } from "../lib/parse-utils";
+import { EMBEDDING_DIMENSIONS } from "../config";
 import type { ArtifactType, StagingArtifact } from "../types";
-
-type PublishFn<K extends ArtifactType> = (artifact: StagingArtifact<K>, storyId: string) => Promise<void>;
-
-const publishRegistry: { [K in ArtifactType]?: PublishFn<K> } = {
-    article: publishArticleArtifact,
-};
-
-/**
- * Look up the publish function for an artifact type.
- * Throws if no publisher is registered for the given type.
- */
-function getPublishFn<K extends ArtifactType>(artifactType: K): PublishFn<K> {
-    const fn = publishRegistry[artifactType];
-    if (!fn) {
-        throw new Error(`No publish function registered for artifact type: "${artifactType}"`);
-    }
-    return fn as PublishFn<K>;
-}
 
 const logger = pino({ name: "cluster-publish-worker", level: process.env.LOG_LEVEL ?? "info" });
 
-interface BatchCounts {
-    published: number;
-    retried: number;
-    failed: number;
+const ZERO_CENTROID = formatEmbedding(new Array(EMBEDDING_DIMENSIONS).fill(0), EMBEDDING_DIMENSIONS);
+
+/**
+ * create new stories and publish their artifacts.
+ * For each new story make a name from its member articles, create the story row,
+ * then reassign any public artifacts and publish any pipeline artifacts.
+ */
+async function executeNewStories(
+    newStories: ClusteringConsolidation["newStories"],
+): Promise<{ storiesCreated: number; artifactsPublished: number; artifactsReassigned: number }> {
+    let storiesCreated = 0;
+    let artifactsPublished = 0;
+    let artifactsReassigned = 0;
+
+    for (const story of newStories) {
+        const pipelineArtifacts = await withPgRetry(() =>
+            pullStagingArtifactsByIds<"article">(story.pipelineArtifactIds)
+        );
+
+        // pull naming context from both public and pipeline artifacts
+        const publicContext = await withPgRetry(() =>
+            pullPublicArtifactNamingContext(story.publicTableArtifactIds)
+        );
+        const pipelineContext = artifactsToNamingContext(pipelineArtifacts);
+        const namingContext: StoryNamingContext[] = [...publicContext, ...pipelineContext];
+
+        const name = await generateStoryName(namingContext);
+        const storyId = await withPgRetry(() => createStory(name, ZERO_CENTROID));
+        storiesCreated++;
+        logger.info({ storyId, name, publicCount: story.publicTableArtifactIds.length, pipelineCount: story.pipelineArtifactIds.length }, "created new story");
+
+        // reassign existing public artifacts to the new story
+        if (story.publicTableArtifactIds.length > 0) {
+            const reassigned = await withPgRetry(() =>
+                reassignArtifactStories(story.publicTableArtifactIds, storyId)
+            );
+            artifactsReassigned += reassigned;
+        }
+
+        // publish pipeline artifacts into the new story
+        for (const artifact of pipelineArtifacts) {
+            await withPgRetry(() => publishArticleArtifact(artifact, storyId));
+            artifactsPublished++;
+        }
+    }
+
+    return { storiesCreated, artifactsPublished, artifactsReassigned };
 }
 
 /**
- * Process a single artifact: assign to story, then publish.
- * Returns true on success. On failure, the caller handles cleanup.
+ * update stories via artifact publishing and reassignment
  */
-async function processArtifact<K extends ArtifactType>(
-    artifact: StagingArtifact<K>,
-    publishFn: (artifact: StagingArtifact<K>, storyId: string) => Promise<void>,
-): Promise<boolean> {
-    const alog = logger.child({ artifactId: artifact.id });
+async function executeStoryUpdates(
+    updateStories: ClusteringConsolidation["updateStories"],
+): Promise<{ artifactsPublished: number; artifactsReassigned: number }> {
+    let artifactsPublished = 0;
+    let artifactsReassigned = 0;
 
-    if (!artifact.embedding) {
-        alog.warn("artifact has no embedding, cannot cluster");
-        return false;
-    }
-    if (!artifact.enrichment) {
-        alog.warn("artifact has no enrichment, cannot publish");
-        return false;
-    }
+    for (const [storyId, update] of updateStories) {
+        // reassign public artifacts from other stories to this one
+        if (update.newPublicTableArtifactIds.length > 0) {
+            const reassigned = await withPgRetry(() =>
+                reassignArtifactStories(update.newPublicTableArtifactIds, storyId)
+            );
+            artifactsReassigned += reassigned;
+            logger.info({ storyId, reassigned }, "reassigned public artifacts to existing story");
+        }
 
-    const assignment: StoryAssignment = await assignToStory(artifact, STORY_SIMILARITY_THRESHOLD);
-    alog.info({ storyId: assignment.storyId, created: assignment.created }, "story assigned");
-
-    await publishFn(artifact, assignment.storyId);
-    alog.info("published to public tables");
-    return true;
-}
-
-async function processBatch<K extends ArtifactType>(
-    batch: StagingArtifact<K>[],
-    publishFn: (artifact: StagingArtifact<K>, storyId: string) => Promise<void>,
-    workerId: string,
-): Promise<BatchCounts> {
-    const published: StagingArtifact<K>[] = [];
-    const retryable: StagingArtifact<K>[] = [];
-    const terminal: StagingArtifact<K>[] = [];
-
-    for (const artifact of batch) {
-        try {
-            const ok = await processArtifact(artifact, publishFn);
-            if (ok) published.push(artifact);
-            else retryable.push(artifact);
-        } catch (error) {
-            const err = error instanceof Error ? { message: error.message, stack: error.stack, code: (error as any).code } : String(error);
-            logger.error({ artifactId: artifact.id, error: err }, "failed to process artifact");
-            if (isRetryablePgError(error)) {
-                retryable.push(artifact);
-            } else {
-                logger.error({ artifactId: artifact.id, code: (error as any).code }, "permanent DB error — moving to failed immediately");
-                terminal.push(artifact);
+        // publish pipeline artifacts into this story
+        if (update.newPipelineArtifactIds.length > 0) {
+            const pipelineArtifacts = await withPgRetry(() =>
+                // shouldnt have hard typed artifact type here but whatever TODO LATER
+                pullStagingArtifactsByIds<"article">(update.newPipelineArtifactIds)
+            );
+            for (const artifact of pipelineArtifacts) {
+                // same issue here
+                await withPgRetry(() => publishArticleArtifact(artifact, storyId));
+                artifactsPublished++;
             }
+            logger.info({ storyId, published: pipelineArtifacts.length }, "published pipeline artifacts to existing story");
         }
     }
 
-    // Published artifacts already deleted from staging inside the publish transaction.
-    // Route retryable and terminal failures through settleBatch.
-    const counts = await settleBatch(workerId, "enriched", [], [], retryable, terminal);
-    return { published: published.length, retried: counts.retried, failed: counts.failed };
+    return { artifactsPublished, artifactsReassigned };
+}
+
+/**
+ * delete stories that have had all of their artifacts stripped
+ */
+async function executeStoryDeletions(deleteStories: string[]): Promise<{ deleted: number; skipped: string[] }> {
+    if (deleteStories.length === 0) return { deleted: 0, skipped: [] };
+
+    const result = await withPgRetry(() => deleteEmptyStories(deleteStories));
+    logger.info({ deleted: result.deleted, skipped: result.skipped.length, requested: deleteStories.length }, "story deletion phase complete");
+    return result;
 }
 
 export async function clusterPublishWorker<K extends ArtifactType>(artifactType: K) {
-    const publishFn = getPublishFn(artifactType);
-    const workerId = CLUSTER_WORKER_ID + "-" + artifactType + "-" + Math.random().toString(36).substring(2, 15);
+    const clusteringArticleMap = await createStoryClusteringArticleMap();
 
-    let totalPublished = 0;
-    let totalRetried = 0;
-    let totalFailed = 0;
-
-    while (true) {
-        const batch = await acquireBatchWithRetries(
-            "acquire-cluster-batch", "enriched", artifactType,
-            CLUSTER_BATCH_SIZE, workerId, 5,
-            (type, error, attempt) => {
-                if (type === "retry_exhausted") logger.error(error, "failed to acquire cluster batch lock");
-                else logger.warn({ attempt }, "failed to acquire batch lock, retrying");
-            },
-        );
-
-        if (!batch) {
-            logger.info("no more enriched artifacts to cluster/publish (or acquire failed)");
-            break;
-        }
-
-        logger.info({ batchSize: batch.length }, "processing cluster-publish batch");
-        try {
-            const counts = await processBatch(batch, publishFn, workerId);
-            totalPublished += counts.published;
-            totalRetried += counts.retried;
-            totalFailed += counts.failed;
-            logger.info(counts, "batch complete");
-        } catch (error) {
-            // honestly not 100% best way to handle this now, just better than pg erroring out
-            logger.error({ error }, "failed to process batch");
-            break;
-        }
+    if (clusteringArticleMap.size === 0) {
+        logger.info("no artifacts to cluster, exiting");
+        return;
     }
 
-    logger.info({ totalPublished, totalRetried, totalFailed }, `cluster-publish worker complete for ${artifactType}`);
+    const { nodes, links } = createPairWiseSimilarities(clusteringArticleMap);
+    logger.info({ nodes: nodes.length, links: links.length }, "pairwise similarities computed");
+
+    const clusteredNodes = runLeidenClustering(nodes, links);
+    const results = consolidateClusters(clusteredNodes, clusteringArticleMap);
+
+    logger.info({
+        newStories: results.newStories.length,
+        updateStories: results.updateStories.size,
+        deleteStories: results.deleteStories.length,
+    }, "consolidation complete");
+
+    const newResults = await executeNewStories(results.newStories);
+    logger.info(newResults, "new stories phase complete");
+
+    const updateResults = await executeStoryUpdates(results.updateStories);
+    logger.info(updateResults, "story updates phase complete");
+
+    const deleteResult = await executeStoryDeletions(results.deleteStories);
+
+    logger.info({
+        storiesCreated: newResults.storiesCreated,
+        storiesDeleted: deleteResult.deleted,
+        storiesSkipped: deleteResult.skipped,
+        storiesUpdated: results.updateStories.size,
+        totalPublished: newResults.artifactsPublished + updateResults.artifactsPublished,
+        totalReassigned: newResults.artifactsReassigned + updateResults.artifactsReassigned,
+    }, "cluster-publish worker complete");
 }

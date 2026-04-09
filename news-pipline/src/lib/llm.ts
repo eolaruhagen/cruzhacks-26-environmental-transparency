@@ -203,18 +203,39 @@ Rules:
 - Focus on the environmental TOPIC, not the specific article
 - Return ONLY the headline text, nothing else`;
 
-/**
- * Generate a short story name from an artifact's metadata and enrichment.
- * Falls back to a truncated title if the LLM call fails.
- */
-export async function generateStoryName<K extends ArtifactType>(
-    artifact: StagingArtifact<K>,
-): Promise<string> {
-    const meta = typeof artifact.metadata === "string" ? JSON.parse(artifact.metadata) : artifact.metadata;
-    const title = meta?.title ?? "";
-    const summary = artifact.enrichment?.summary ?? "";
+export interface StoryNamingContext {
+    title: string;
+    summary: string;
+}
 
-    const input = `Title: ${title}\nSummary: ${summary}`;
+/**
+ * Extract naming context from StagingArtifacts.
+ */
+export function artifactsToNamingContext<K extends ArtifactType>(
+    artifacts: StagingArtifact<K>[],
+): StoryNamingContext[] {
+    return artifacts.map(a => {
+        const meta = typeof a.metadata === "string" ? JSON.parse(a.metadata) : a.metadata;
+        return { title: meta?.title ?? "", summary: a.enrichment?.summary ?? "" };
+    });
+}
+
+/**
+ * Generate a short story name from naming context entries (title + summary pairs).
+ * Uses up to 5 entries to give the LLM context for a broader topic headline.
+ * Falls back to a truncated title of the first entry if the LLM call fails.
+ */
+export async function generateStoryName(
+    contexts: StoryNamingContext[],
+): Promise<string> {
+    if (contexts.length === 0) throw new Error("No naming contexts provided");
+
+    const entries = contexts.slice(0, 5).map(c =>
+        `Title: ${c.title}\nSummary: ${c.summary}`
+    );
+    const input = entries.join("\n---\n");
+
+    const fallbackTitle = contexts[0]!.title;
 
     try {
         const result = new ModelStream()
@@ -235,7 +256,7 @@ export async function generateStoryName<K extends ArtifactType>(
         storyNamingLogger.warn({ error }, "story name generation failed, falling back to title");
     }
 
-    return buildFallbackName(title);
+    return buildFallbackName(fallbackTitle);
 }
 
 function buildFallbackName(title: string): string {
