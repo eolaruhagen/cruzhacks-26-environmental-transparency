@@ -2,8 +2,7 @@ import postgres, { type Error } from "postgres";
 import pino from "pino";
 import { MAX_ARTIFACT_RETRY, EMBEDDING_DIMENSIONS } from "../config";
 import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, ArtifactEnrichment, EnvironmentalTopic } from "../types";
-import { formatEmbedding } from "./story-clustering";
-import { ensureParsed, toStringArray, isRetryablePgError } from "./parse-utils";
+import { formatEmbedding, ensureParsed, toStringArray, isRetryablePgError } from "./parse-utils";
 export { ensureParsed, toStringArray } from "./parse-utils";
 
 const logger = pino({ name: "postgres" });

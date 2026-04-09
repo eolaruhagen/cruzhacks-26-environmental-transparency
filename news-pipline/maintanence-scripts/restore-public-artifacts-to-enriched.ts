@@ -1,7 +1,7 @@
 import { parseArgs } from "util";
 import postgres from "postgres";
 import pino from "pino";
-import { formatEmbedding } from "../src/lib/story-clustering";
+import { formatEmbedding } from "../src/lib/parse-utils";
 import { EMBEDDING_DIMENSIONS } from "../src/config";
 import type { NewsArtifactMetadata, ArtifactEnrichment, BillReference } from "../src/types";
 
