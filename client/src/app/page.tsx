@@ -68,12 +68,6 @@ export default function Home() {
                 icon={<svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>}
               />
               <PageNavCard
-                href="/news"
-                title="Environmental News"
-                description="Stay updated to see if an asteroid collision is... bullish?"
-                icon={<svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M 4 8 L 10 1 L 8 4 L 5 9 V 9 C 7 11 8 12 5 9 A 1.42 1.42 0 0 1 4 9 A 5 5 0 0 0 4 10 T 2 12 A 5 5 90 0 0 3 8 A 1.42 1.42 0 0 1 3 8 L 4 8 M 10 1" /></svg>}
-              />
-              <PageNavCard
                 href="/legislative-process"
                 title="Learn About the US Congress"
                 description="Quick guides on the US legislative process and the power of the executive branch in creating policy."
