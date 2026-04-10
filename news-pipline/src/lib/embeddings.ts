@@ -64,30 +64,32 @@ type EmbeddingContentFn<K extends ArtifactType> = (artifact: StagingArtifact<K>)
 
 const embeddingContentRegistry: { [K in ArtifactType]?: EmbeddingContentFn<K> } = {
     article: async (artifact) => {
-        // Read the enrichment that was just written by the enrichment tools
         const enrichment = await readArtifactEnrichment(artifact.id);
 
         const parts: string[] = [];
 
-        // Metadata
-        parts.push(artifact.metadata.title);
-        if (artifact.metadata.description) {
-            parts.push(artifact.metadata.description);
+        if (enrichment) {
+            parts.push(`Environmental topic: ${enrichment.environmental_topic}`);
         }
+
+        // Title provides event-level specificity (prevents mega-cluster collapse)
+        parts.push(artifact.metadata.title);
+
+        // Summary is the main semantic content (LLM-generated from full article)
+        if (enrichment?.summary) {
+            parts.push(`Summary: ${enrichment.summary}`);
+        }
+
         const topics = Array.isArray(artifact.metadata.topics) ? artifact.metadata.topics : [];
         if (topics.length > 0) {
             parts.push(`Topics: ${topics.join(", ")}`);
         }
 
-        // Enrichment (if available)
         if (enrichment) {
-            if (enrichment.summary) parts.push(`Summary: ${enrichment.summary}`);
             const stakeholders = Array.isArray(enrichment.stakeholders) ? enrichment.stakeholders : [];
             if (stakeholders.length > 0) {
                 parts.push(`Stakeholders: ${stakeholders.join(", ")}`);
             }
-            parts.push(`Environmental topic: ${enrichment.environmental_topic}`);
-            if (enrichment.key_quote) parts.push(`Key quote: ${enrichment.key_quote}`);
         }
 
         return parts.join("\n\n");
