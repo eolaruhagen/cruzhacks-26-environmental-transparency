@@ -695,23 +695,24 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                         onClick={() => setHoveredCluster(hoveredCluster === i ? null : i)}
                                         style={{
                                             opacity: isDimmed ? 0.3 : 1,
-                                            transition: 'opacity 0.2s ease'
+                                            transition: 'opacity 0.2s ease, transform 0.2s ease',
+                                            transform: `translate(${cluster.x}px, ${cluster.y}px)`
                                         }}
                                     >
                                         <circle
-                                            cx={cluster.x}
-                                            cy={cluster.y}
+                                            cx={0}
+                                            cy={0}
                                             r={bubbleRadius}
                                             fill={clusterColors[i % clusterColors.length]}
                                             stroke={isSelected ? '#1e40af' : clusterColors[i % clusterColors.length].replace('0.7', '1')}
                                             strokeWidth={isSelected ? 3 : 2}
-                                            className="cursor-pointer transition-all"
+                                            className="cursor-pointer"
                                         >
                                             <title>{`Cluster ${i + 1}: ${cluster.bills.length} bills - Click to view`}</title>
                                         </circle>
                                         <text
-                                            x={cluster.x}
-                                            y={cluster.y}
+                                            x={0}
+                                            y={0}
                                             textAnchor="middle"
                                             dominantBaseline="middle"
                                             fill="white"
