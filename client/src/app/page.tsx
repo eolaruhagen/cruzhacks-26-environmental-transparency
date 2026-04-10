@@ -70,7 +70,7 @@ export default function Home() {
               <PageNavCard
                 href="/news"
                 title="Environmental News"
-                description="Stay updated to see if an asteroid collision is... bullish?"
+                description="Work in progress..."
                 icon={<svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M 4 8 L 10 1 L 8 4 L 5 9 V 9 C 7 11 8 12 5 9 A 1.42 1.42 0 0 1 4 9 A 5 5 0 0 0 4 10 T 2 12 A 5 5 90 0 0 3 8 A 1.42 1.42 0 0 1 3 8 L 4 8 M 10 1" /></svg>}
               />
               <PageNavCard
