@@ -1,6 +1,6 @@
 import { tool } from "@openrouter/sdk";
 import { z } from "zod";
-import { searchBillsByTextQuery, searchBillsBySponsorQuery, searchBillsByVectorQuery } from "./database";
+import { searchBillsByTextQuery, searchBillsBySponsorQuery, searchBillsByVectorQuery, withPgRetry } from "./database";
 import { embedText } from "./embeddings";
 
 const billTypeEnum = z.enum([
@@ -24,7 +24,7 @@ export const searchBillsByText = tool({
         limit: z.number().optional().default(10).describe("Max results to return (default: 10) cannot be more than 75"),
     }),
     execute: async ({ patterns, category, limit }) => {
-        return await searchBillsByTextQuery(patterns, category, Math.min(limit, 75));
+        return await withPgRetry(() => searchBillsByTextQuery(patterns, category, Math.min(limit, 75)));
     },
 });
 
@@ -39,7 +39,7 @@ export const searchBillsBySponsor = tool({
         limit: z.number().optional().default(10).describe("Max results to return"),
     }),
     execute: async ({ patterns, category, party, limit }) => {
-        return await searchBillsBySponsorQuery(patterns, category, party, limit);
+        return await withPgRetry(() => searchBillsBySponsorQuery(patterns, category, party, limit));
     },
 });
 
@@ -56,7 +56,7 @@ export const searchBillsByVector = tool({
     execute: async ({ query, category, limit, similarityThreshold }) => {
         const queryEmbedding = await embedText(query);
         const embeddingStr = `[${queryEmbedding.join(",")}]`;
-        return await searchBillsByVectorQuery(embeddingStr, category, limit, similarityThreshold);
+        return await withPgRetry(() => searchBillsByVectorQuery(embeddingStr, category, limit, similarityThreshold));
     },
 });
 

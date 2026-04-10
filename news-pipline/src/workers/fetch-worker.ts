@@ -1,17 +1,10 @@
 import { fetchNewsArtifacts, filterFromLastDay, fetchNewsIOArtifacts } from "../lib/externalApis";
 import { MAX_WORKER_NEWS_REQUESTS, MAX_NEWSIO_REQUESTS } from "../config";
-import { insertRawArtifacts, timedQuery, dedupByMetadataFields } from "../lib/database";
+import { insertRawArtifacts, timedQuery, dedupByMetadataFields, toStringArray } from "../lib/database";
 import type { ArtifactType, FetchStrategy, FetchSource, StagingArtifact } from "../types";
 import pino from "pino";
 
 const logger = pino({ name: "fetch-worker" });
-
-/** Normalize API fields that may be string, string[], or null into string[] */
-function toStringArray(value: unknown): string[] {
-    if (Array.isArray(value)) return value;
-    if (typeof value === "string" && value.length > 0) return [value];
-    return [];
-}
 
 const newsMeshSource: FetchSource<"article"> = {
     name: "newsmesh",
@@ -26,13 +19,14 @@ const newsMeshSource: FetchSource<"article"> = {
             url: artifact.link,
             type: "article",
             status: "raw",
-            source_icon_url: artifact.media_url,
+            source_icon_url: artifact.media_url ?? null,
             metadata: {
                 title: artifact.title,
                 description: artifact.description,
                 people: toStringArray(artifact.people),
                 topics: toStringArray(artifact.topics),
                 author: toStringArray(artifact.author),
+                source: artifact.source ?? null,
             },
             retry_attempts: 0,
             locked_by: null,
@@ -69,6 +63,7 @@ const newsIOSource: FetchSource<"article"> = {
                     people: [],
                     topics: toStringArray(artifact.keywords),
                     author: toStringArray(artifact.creator),
+                    source: artifact.source_name ?? null,
                 },
                 retry_attempts: 0,
                 locked_by: null,

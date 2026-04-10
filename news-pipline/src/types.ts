@@ -13,6 +13,7 @@ export interface NewsArtifactMetadata {
     people: string[];
     topics: string[];
     author: string[];
+    source: string | null;
 }
 
 

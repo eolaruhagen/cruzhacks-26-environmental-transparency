@@ -1,3 +1,4 @@
+import pino from "pino";
 import { OpenRouter } from "@openrouter/sdk";
 import type { Tool, StopWhen, ContextInput } from "@openrouter/sdk";
 import type {
@@ -8,6 +9,7 @@ import type {
 } from "@openrouter/sdk/models"
 import type { ArtifactType, ArtifactFormatSpec, StagingArtifact } from "../types";
 import type { ToolContextMap } from "@openrouter/sdk/lib/tool-types.js";
+import { STORY_NAME_MODEL } from "../config";
 
 const { OPENROUTER_API_KEY } = process.env;
 
@@ -186,4 +188,78 @@ export class ModelStream {
             context: this._context ?? undefined,
         });
     }
+}
+
+const storyNamingLogger = pino({ name: "story-naming" });
+
+const STORY_NAME_PROMPT = `You are a headline writer for an environmental news platform.
+Given an article's title and enrichment summary, generate a concise 5-8 word story headline
+that captures the broader environmental topic or event (not just this single article).
+
+Rules:
+- 5 to 8 words only
+- No quotes, no punctuation at the end
+- Noun-phrase or short declarative style (like a newspaper section header)
+- Focus on the environmental TOPIC, not the specific article
+- Return ONLY the headline text, nothing else`;
+
+export interface StoryNamingContext {
+    title: string;
+    summary: string;
+}
+
+/**
+ * Extract naming context from StagingArtifacts.
+ */
+export function artifactsToNamingContext<K extends ArtifactType>(
+    artifacts: StagingArtifact<K>[],
+): StoryNamingContext[] {
+    return artifacts.map(a => {
+        const meta = typeof a.metadata === "string" ? JSON.parse(a.metadata) : a.metadata;
+        return { title: meta?.title ?? "", summary: a.enrichment?.summary ?? "" };
+    });
+}
+
+/**
+ * Generate a short story name from naming context entries (title + summary pairs).
+ * Uses up to 5 entries to give the LLM context for a broader topic headline.
+ * Falls back to a truncated title of the first entry if the LLM call fails.
+ */
+export async function generateStoryName(
+    contexts: StoryNamingContext[],
+): Promise<string> {
+    if (contexts.length === 0) throw new Error("No naming contexts provided");
+
+    const entries = contexts.slice(0, 5).map(c =>
+        `Title: ${c.title}\nSummary: ${c.summary}`
+    );
+    const input = entries.join("\n---\n");
+
+    const fallbackTitle = contexts[0]!.title;
+
+    try {
+        const result = new ModelStream()
+            .model(STORY_NAME_MODEL)
+            .instructions(STORY_NAME_PROMPT)
+            .input(input)
+            .execute();
+
+        const text = await result.getText();
+        const cleaned = text.trim().replace(/^["']|["']$/g, "");
+
+        if (cleaned.length > 0 && cleaned.length < 120) {
+            return cleaned;
+        }
+
+        storyNamingLogger.warn({ raw: text }, "LLM returned unusable story name, falling back");
+    } catch (error) {
+        storyNamingLogger.warn({ error }, "story name generation failed, falling back to title");
+    }
+
+    return buildFallbackName(fallbackTitle);
+}
+
+function buildFallbackName(title: string): string {
+    const words = title.split(/\s+/).slice(0, 7);
+    return words.join(" ") || "Untitled Story";
 }

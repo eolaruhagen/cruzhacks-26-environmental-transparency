@@ -1,3 +1,4 @@
+import { z } from "zod";
 import pino from "pino";
 import { readArtifactEnrichment, writeArtifactEmbedding } from "./database";
 import { OPENROUTER_EMBEDDINGS_URL, EMBEDDING_MODEL, EMBEDDING_DIMENSIONS } from "../config";
@@ -7,9 +8,19 @@ const logger = pino({ name: "embeddings" });
 
 const { OPENROUTER_API_KEY } = process.env;
 
+// ── Embedding API schema ────────────────────────────────────────────
+
+export const EmbeddingResponseSchema = z.object({
+    data: z.array(z.object({
+        embedding: z.array(z.number()),
+    })).min(1, "Embedding API returned empty data array"),
+});
+
+export type EmbeddingResponse = z.infer<typeof EmbeddingResponseSchema>;
+
 /**
  * Embed a text string via OpenRouter's embedding API.
- * Returns a 1536-dim vector.
+ * Returns a vector (dimension set by EMBEDDING_DIMENSIONS config).
  */
 export async function embedText(text: string): Promise<number[]> {
     if (!OPENROUTER_API_KEY) throw new Error("OPENROUTER_API_KEY is required");
@@ -32,8 +43,16 @@ export async function embedText(text: string): Promise<number[]> {
         throw new Error(`Embedding API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json() as { data: { embedding: number[] }[] };
-    return data.data[0]!.embedding;
+    const parsed = EmbeddingResponseSchema.parse(await response.json());
+    const { embedding } = parsed.data[0] ?? { embedding: [] };
+
+    if (embedding.length !== EMBEDDING_DIMENSIONS) {
+        throw new Error(
+            `Embedding dimension mismatch: expected ${EMBEDDING_DIMENSIONS}, got ${embedding.length}`
+        );
+    }
+
+    return embedding;
 }
 
 // ── Embedding content registry ───────────────────────────────────────
@@ -45,28 +64,32 @@ type EmbeddingContentFn<K extends ArtifactType> = (artifact: StagingArtifact<K>)
 
 const embeddingContentRegistry: { [K in ArtifactType]?: EmbeddingContentFn<K> } = {
     article: async (artifact) => {
-        // Read the enrichment that was just written by the enrichment tools
         const enrichment = await readArtifactEnrichment(artifact.id);
 
         const parts: string[] = [];
 
-        // Metadata
-        parts.push(artifact.metadata.title);
-        if (artifact.metadata.description) {
-            parts.push(artifact.metadata.description);
-        }
-        if (artifact.metadata.topics.length > 0) {
-            parts.push(`Topics: ${artifact.metadata.topics.join(", ")}`);
+        if (enrichment) {
+            parts.push(`Environmental topic: ${enrichment.environmental_topic}`);
         }
 
-        // Enrichment (if available)
+        // Title provides event-level specificity (prevents mega-cluster collapse)
+        parts.push(artifact.metadata.title);
+
+        // Summary is the main semantic content (LLM-generated from full article)
+        if (enrichment?.summary) {
+            parts.push(`Summary: ${enrichment.summary}`);
+        }
+
+        const topics = Array.isArray(artifact.metadata.topics) ? artifact.metadata.topics : [];
+        if (topics.length > 0) {
+            parts.push(`Topics: ${topics.join(", ")}`);
+        }
+
         if (enrichment) {
-            if (enrichment.summary) parts.push(`Summary: ${enrichment.summary}`);
-            if (enrichment.stakeholders.length > 0) {
-                parts.push(`Stakeholders: ${enrichment.stakeholders.join(", ")}`);
+            const stakeholders = Array.isArray(enrichment.stakeholders) ? enrichment.stakeholders : [];
+            if (stakeholders.length > 0) {
+                parts.push(`Stakeholders: ${stakeholders.join(", ")}`);
             }
-            parts.push(`Environmental topic: ${enrichment.environmental_topic}`);
-            if (enrichment.key_quote) parts.push(`Key quote: ${enrichment.key_quote}`);
         }
 
         return parts.join("\n\n");

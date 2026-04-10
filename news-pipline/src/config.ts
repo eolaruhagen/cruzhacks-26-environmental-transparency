@@ -5,13 +5,16 @@ export const FETCH_WORKER_ID = "fetch-worker";
 export const FILTER_WORKER_ID = "filter-worker";
 export const ENRICH_WORKER_ID = "enrich-worker";
 export const CATEGORIZE_WORKER_ID = "categorize-worker";
+export const CLUSTER_WORKER_ID = "cluster-worker";
 
 // ── Batch / retry limits ─────────────────────────────────────────────
 export const BATCH_SIZE = 15;
 export const MAX_ARTIFACT_RETRY = 5;
 export const FILTER_MAX_TRIES = 3;
-export const ENRICH_BATCH_SIZE = 2;
+export const ENRICH_BATCH_SIZE = 5;
 export const ENRICH_MAX_STEPS = 12;
+// ── Story clustering ────────────────────────────────────────────────
+export const STORY_SIMILARITY_THRESHOLD = 0.73;
 
 // ── External API URLs ────────────────────────────────────────────────
 export const NEWS_API_BASE_URL = "https://api.newsmesh.co/v1/latest";
@@ -28,6 +31,7 @@ export const FILTER_MODEL = "openai/gpt-5.4-nano";
 export const ENRICH_MODEL = "x-ai/grok-4-fast";
 export const EMBEDDING_MODEL = "openai/text-embedding-3-small";
 export const EMBEDDING_DIMENSIONS = 1536;
+export const STORY_NAME_MODEL = "openai/gpt-5.4-nano";
 
 // ── Default enrichment shape ─────────────────────────────────────────
 export const DEFAULT_ENRICHMENT: ArtifactEnrichment = {

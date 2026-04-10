@@ -1,7 +1,9 @@
 import postgres, { type Error } from "postgres";
 import pino from "pino";
-import { MAX_ARTIFACT_RETRY } from "../config";
-import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, JsonSerializable, ArtifactEnrichment, EnvironmentalTopic } from "../types";
+import { MAX_ARTIFACT_RETRY, EMBEDDING_DIMENSIONS } from "../config";
+import type { ArtifactType, ArtifactStatus, StagingArtifact, ArtifactMetaMap, ArtifactEnrichment, EnvironmentalTopic } from "../types";
+import { formatEmbedding, ensureParsed, toStringArray, isRetryablePgError } from "./parse-utils";
+export { ensureParsed, toStringArray } from "./parse-utils";
 
 const logger = pino({ name: "postgres" });
 
@@ -155,7 +157,7 @@ export async function acquireArtifactLock<K extends ArtifactType>(
             LIMIT ${batchSize}
             FOR UPDATE SKIP LOCKED
         )
-        RETURNING *
+        RETURNING *, embedding::float4[] AS embedding
     `;
 }
 
@@ -205,11 +207,12 @@ export async function releaseArtifactLocks<K extends ArtifactType>(
 export async function advanceArtifactStatus(
     artifactIds: string[],
     workerId: string,
-    nextStatus: ArtifactStatus
+    nextStatus: ArtifactStatus,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<string[]> {
     if (artifactIds.length === 0) return [];
 
-    const rows = await dbConn<{ id: string }[]>`
+    const rows = await sql<{ id: string }[]>`
         UPDATE pipelines.artifact_staging
         SET locked_by = NULL,
             locked_at = NULL,
@@ -232,11 +235,12 @@ export async function advanceArtifactStatus(
  */
 export async function releaseArtifactLocksWithRetry(
     artifactIds: string[],
-    workerId: string
+    workerId: string,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<void> {
     if (artifactIds.length === 0) return;
 
-    await dbConn`
+    await sql`
         UPDATE pipelines.artifact_staging
         SET locked_by = NULL, locked_at = NULL, retry_attempts = retry_attempts + 1, updated_at = now()
         WHERE id = ANY(${artifactIds}) AND locked_by = ${workerId}
@@ -256,7 +260,6 @@ export async function insertRawArtifacts<K extends ArtifactType>(
         locked_by: a.locked_by,
         locked_at: a.locked_at,
         embedding: a.embedding,
-        enrichment: a.enrichment,
         created_at: a.created_at,
         updated_at: a.updated_at,
     }));
@@ -282,12 +285,13 @@ export async function insertRawArtifacts<K extends ArtifactType>(
  */
 export async function moveToFailedArtifacts<K extends ArtifactType>(
     artifacts: StagingArtifact<K>[],
-    workerId: string
+    workerId: string,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<void> {
     if (artifacts.length === 0) return;
 
     for (const artifact of artifacts) {
-        await dbConn`
+        await sql`
             INSERT INTO pipelines.failed_artifacts (url, type, data)
             VALUES (
                 ${artifact.url},
@@ -295,7 +299,7 @@ export async function moveToFailedArtifacts<K extends ArtifactType>(
                 ${toJson({ metadata: artifact.metadata, enrichment: artifact.enrichment, status: artifact.status, retry_attempts: artifact.retry_attempts })}
             )
         `;
-        await dbConn`
+        await sql`
             DELETE FROM pipelines.artifact_staging
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
         `;
@@ -311,12 +315,13 @@ export async function moveToFailedArtifacts<K extends ArtifactType>(
  */
 export async function moveToRejectedArtifacts<K extends ArtifactType>(
     artifacts: StagingArtifact<K>[],
-    workerId: string
+    workerId: string,
+    sql: TxSql = dbConn as unknown as TxSql,
 ): Promise<void> {
     if (artifacts.length === 0) return;
 
     for (const artifact of artifacts) {
-        await dbConn`
+        await sql`
             INSERT INTO pipelines.rejected_artifacts (url, type, data)
             VALUES (
                 ${artifact.url},
@@ -324,7 +329,7 @@ export async function moveToRejectedArtifacts<K extends ArtifactType>(
                 ${toJson({ metadata: artifact.metadata, status: artifact.status })}
             )
         `;
-        await dbConn`
+        await sql`
             DELETE FROM pipelines.artifact_staging
             WHERE id = ${artifact.id} AND locked_by = ${workerId}
         `;
@@ -545,6 +550,7 @@ export interface SettleBatchResult {
  * - advanced: status change + lock clear (data already in DB)
  * - rejected: moved to rejected_artifacts table, deleted from staging
  * - failed: retry if under MAX_ARTIFACT_RETRY, else move to failed_artifacts
+ * - terminal: move directly to failed_artifacts (no retry check, e.g. non-retryable PG errors)
  */
 export async function settleBatch<K extends ArtifactType>(
     workerId: string,
@@ -552,28 +558,276 @@ export async function settleBatch<K extends ArtifactType>(
     advanced: StagingArtifact<K>[],
     rejected: StagingArtifact<K>[],
     failed: StagingArtifact<K>[],
+    terminal: StagingArtifact<K>[] = [],
 ): Promise<SettleBatchResult> {
-    if (advanced.length > 0) {
-        await advanceArtifactStatus(advanced.map(a => a.id), workerId, nextStatus);
+    return await dbConn.begin(async (_tx) => {
+        const tx = _tx as unknown as TxSql;
+
+        if (advanced.length > 0) {
+            await advanceArtifactStatus(advanced.map(a => a.id), workerId, nextStatus, tx);
+        }
+
+        if (rejected.length > 0) {
+            await moveToRejectedArtifacts(rejected, workerId, tx);
+        }
+
+        if (terminal.length > 0) {
+            await moveToFailedArtifacts(terminal, workerId, tx);
+        }
+
+        let retried = 0;
+        let failedCount = 0;
+        for (const artifact of failed) {
+            if (artifact.retry_attempts + 1 >= MAX_ARTIFACT_RETRY) {
+                await moveToFailedArtifacts([artifact], workerId, tx);
+                failedCount++;
+            } else {
+                await releaseArtifactLocksWithRetry([artifact.id], workerId, tx);
+                retried++;
+            }
+        }
+
+        return { advanced: advanced.length, rejected: rejected.length, retried, failed: failedCount + terminal.length };
+    });
+}
+
+// ── Story clustering queries ─────────────────────────────────────────
+
+/**
+ * Create a new story row and return its ID.
+ */
+export async function createStory(name: string, centroidStr: string): Promise<string> {
+    const rows = await dbConn<{ id: string }[]>`
+        INSERT INTO public.stories (name, centroid)
+        VALUES (${name}, ${centroidStr}::halfvec)
+        RETURNING id
+    `;
+    return rows[0]!.id;
+}
+
+// postgres.js@3.4.8 bug: TransactionSql uses Omit<Sql, ...> which strips
+// the tagged-template call signature.
+type TxSql = postgres.Sql;
+
+async function insertPublicArtifact(
+    tx: TxSql,
+    artifact: StagingArtifact<"article">,
+    storyId: string,
+    embeddingStr: string,
+): Promise<void> {
+    await tx`
+        INSERT INTO public.artifacts (id, url, type, source_icon_url, story_id, embedding, published_at)
+        VALUES (
+            ${artifact.id}, ${artifact.url}, ${artifact.type},
+            ${artifact.source_icon_url}, ${storyId},
+            ${embeddingStr}::halfvec, now()
+        )
+    `;
+}
+
+async function insertArticleDetails(
+    tx: TxSql,
+    artifact: StagingArtifact<"article">,
+): Promise<void> {
+    const meta = ensureParsed(artifact.metadata);
+    const source = meta.source ?? null;
+    await tx`
+        INSERT INTO public.article_details (artifact_id, title, description, author, topics, people, source)
+        VALUES (
+            ${artifact.id}, ${meta.title ?? ""}, ${meta.description ?? ""},
+            ${toStringArray(meta.author)}, ${toStringArray(meta.topics)}, ${toStringArray(meta.people)},
+            ${source}
+        )
+    `;
+}
+
+async function insertArtifactEnrichment(
+    tx: TxSql,
+    artifact: StagingArtifact<"article">,
+): Promise<void> {
+    const enrichment = ensureParsed(artifact.enrichment!);
+
+    // Normalize associated_bills — may be a string from bad JSONB serialization
+    let rawBills = enrichment.associated_bills ?? [];
+    if (typeof rawBills === "string") {
+        try { rawBills = JSON.parse(rawBills); } catch { rawBills = []; }
+    }
+    const bills = Array.isArray(rawBills) ? rawBills : [];
+
+    // Split into parallel arrays — let postgres build the composite type via unnest + ARRAY()
+    const billNums = bills.map(b => b.legislation_number ?? "");
+    const billReasons = bills.map(b => b.reason ?? "");
+
+    await tx`
+        INSERT INTO public.artifact_enrichments (
+            artifact_id, summary, state, associated_bills,
+            associated_representatives, stakeholders,
+            environmental_topic, impact_level, sentiment, key_quote
+        )
+        VALUES (
+            ${artifact.id}, ${enrichment.summary}, ${enrichment.state},
+            ARRAY(
+                SELECT ROW(n, r)::public.bill_reference
+                FROM unnest(${billNums}::text[], ${billReasons}::text[]) AS t(n, r)
+            ),
+            ${toStringArray(enrichment.associated_representatives)},
+            ${toStringArray(enrichment.stakeholders)},
+            ${enrichment.environmental_topic ?? "climate_and_emissions"}, ${enrichment.impact_level ?? "national"},
+            ${enrichment.sentiment ?? 0}, ${enrichment.key_quote ?? null}
+        )
+    `;
+}
+
+async function deleteStagingArtifact(
+    tx: TxSql,
+    artifactId: string,
+): Promise<void> {
+    await tx`
+        DELETE FROM pipelines.artifact_staging WHERE id = ${artifactId}
+    `;
+}
+
+/**
+ * Publish an article artifact from staging to public tables.
+ * Inserts into public.artifacts, public.article_details, public.artifact_enrichments,
+ * then deletes from pipelines.artifact_staging.
+ *
+ * Uses a transaction so all four operations are atomic.
+ */
+export async function publishArticleArtifact(
+    artifact: StagingArtifact<"article">,
+    storyId: string,
+): Promise<void> {
+    if (!artifact.embedding) throw new Error(`Cannot publish artifact ${artifact.id}: embedding is null`);
+    const embeddingVec = artifact.embedding;
+    const embeddingStr = formatEmbedding(embeddingVec, EMBEDDING_DIMENSIONS);
+
+    await dbConn.begin(async (_tx) => {
+        const sql = _tx as unknown as TxSql;
+        await insertPublicArtifact(sql, artifact, storyId, embeddingStr);
+        await insertArticleDetails(sql, artifact);
+        await insertArtifactEnrichment(sql, artifact);
+        await deleteStagingArtifact(sql, artifact.id);
+    });
+}
+
+/**
+ * Pull all artifacts from public artifacts table that are assigned to a story within a last week (using join)
+ * @returns rows of {id: string, embedding: number[]}
+ */
+export async function pullPublicArtifactsForLeiden(): Promise<{ id: string, embedding: number[], storyId: string }[]> {
+    return await dbConn<{ id: string, embedding: number[], storyId: string }[]>`
+        SELECT a.id, a.embedding::float4[] AS embedding, a.story_id as "storyId"
+        FROM public.artifacts a
+        JOIN public.stories s ON a.story_id = s.id
+        WHERE a.embedding IS NOT NULL AND s.updated_at >= now() - interval '1 week'
+    `;
+}
+
+export async function pullAllEnrichedArtifacts(): Promise<{ id: string, embedding: number[] }[]> {
+    return await dbConn<{ id: string, embedding: number[] }[]>`
+        SELECT a.id, a.embedding::float4[] AS embedding
+        FROM pipelines.artifact_staging a
+        WHERE a.embedding IS NOT NULL AND a.status = 'enriched'
+    `;
+}
+
+// ── Cluster-publish queries ─────────────────────────────────────────
+
+/**
+ * Pull full StagingArtifact rows by their IDs. Used to get pipeline artifacts
+ * for publishing during cluster consolidation.
+ */
+export async function pullStagingArtifactsByIds<K extends ArtifactType>(
+    ids: string[],
+): Promise<StagingArtifact<K>[]> {
+    if (ids.length === 0) return [];
+    return await dbConn<StagingArtifact<K>[]>`
+        SELECT *, embedding::float4[] AS embedding
+        FROM pipelines.artifact_staging
+        WHERE id = ANY(${ids})
+    `;
+}
+
+/**
+ * Pull title + enrichment summary from published artifacts for story naming.
+ */
+export async function pullPublicArtifactNamingContext(
+    artifactIds: string[],
+): Promise<{ title: string; summary: string }[]> {
+    if (artifactIds.length === 0) return [];
+    return await dbConn<{ title: string; summary: string }[]>`
+        SELECT ad.title, coalesce(ae.summary, '') AS summary
+        FROM public.article_details ad
+        LEFT JOIN public.artifact_enrichments ae ON ae.artifact_id = ad.artifact_id
+        WHERE ad.artifact_id = ANY(${artifactIds})
+    `;
+}
+
+/**
+ * Reassign public artifacts to a different story.
+ */
+export async function reassignArtifactStories(
+    artifactIds: string[],
+    newStoryId: string,
+): Promise<number> {
+    if (artifactIds.length === 0) return 0;
+    const result = await dbConn`
+        UPDATE public.artifacts
+        SET story_id = ${newStoryId}, updated_at = now()
+        WHERE id = ANY(${artifactIds})
+    `;
+    return result.count;
+}
+
+/**
+ * Delete stories that have been fully emptied by cluster consolidation.
+ * Warns and skips stories that still have artifact references, deletes the rest.
+ * Returns { deleted, skipped } counts.
+ */
+export async function deleteEmptyStories(storyIds: string[]): Promise<{ deleted: number; skipped: string[] }> {
+    if (storyIds.length === 0) return { deleted: 0, skipped: [] };
+
+    const orphanCheck = await dbConn<{ story_id: string; count: string }[]>`
+        SELECT story_id, count(*)::text AS count
+        FROM public.artifacts
+        WHERE story_id = ANY(${storyIds})
+        GROUP BY story_id
+    `;
+
+    const unsafeIds = new Set(orphanCheck.map(r => r.story_id));
+    if (unsafeIds.size > 0) {
+        const details = orphanCheck.map(r => `story ${r.story_id}: ${r.count} artifacts`).join(", ");
+        logger.warn({ unsafeStories: details }, "skipping story deletion — artifacts still reference them");
     }
 
-    if (rejected.length > 0) {
-        await moveToRejectedArtifacts(rejected, workerId);
-    }
+    const safeIds = storyIds.filter(id => !unsafeIds.has(id));
+    if (safeIds.length === 0) return { deleted: 0, skipped: [...unsafeIds] };
 
-    let retried = 0;
-    let terminal = 0;
-    for (const artifact of failed) {
-        if (artifact.retry_attempts + 1 >= MAX_ARTIFACT_RETRY) {
-            await moveToFailedArtifacts([artifact], workerId);
-            terminal++;
-        } else {
-            await releaseArtifactLocksWithRetry([artifact.id], workerId);
-            retried++;
+    const result = await dbConn`
+        DELETE FROM public.stories WHERE id = ANY(${safeIds})
+    `;
+    return { deleted: result.count, skipped: [...unsafeIds] };
+}
+
+/**
+ * Retry a DB call up to maxRetries times with exponential backoff if the error is transient.
+ * Non-retryable errors are rethrown immediately.
+ */
+export async function withPgRetry<T>(fn: () => Promise<T>, maxRetries: number = 2): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            if (!isRetryablePgError(error) || attempt === maxRetries) {
+                throw error;
+            }
+            await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
         }
     }
-
-    return { advanced: advanced.length, rejected: rejected.length, retried, failed: terminal };
+    throw lastError;
 }
 
 export async function close() {

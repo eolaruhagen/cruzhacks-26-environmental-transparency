@@ -1,3 +1,4 @@
+import { z } from "zod";
 import pino from "pino";
 import { JINA_READER_URL } from "../config";
 
@@ -5,14 +6,16 @@ const logger = pino({ name: "jina-reader" });
 
 const { JINA_API_KEY } = process.env;
 
-interface JinaResponse {
-    code: number;
-    data: {
-        content: string;
-        title?: string;
-        url?: string;
-    };
-}
+export const JinaResponseSchema = z.object({
+    code: z.number(),
+    data: z.object({
+        content: z.string().nullish(),
+        title: z.string().nullish(),
+        url: z.string().nullish(),
+    }),
+});
+
+export type JinaResponse = z.infer<typeof JinaResponseSchema>;
 
 /**
  * Scrape article content via Jina Reader API.
@@ -21,7 +24,7 @@ interface JinaResponse {
  * - Strips images and links to reduce token usage
  * - Caps output at tokenBudget tokens
  */
-export async function scrapeArticle(url: string, tokenBudget: number = 4000): Promise<string | null> {
+export async function scrapeArticle(url: string, tokenBudget: number = 80000): Promise<string | null> {
     if (!JINA_API_KEY) throw new Error("JINA_API_KEY is required");
 
     const response = await fetch(JINA_READER_URL, {
@@ -33,7 +36,7 @@ export async function scrapeArticle(url: string, tokenBudget: number = 4000): Pr
             "X-Return-Format": "markdown",
             "X-Retain-Images": "none",
             "X-Md-Link-Style": "discarded",
-            "X-Robots-Txt": "*",
+            //"X-Robots-Txt": "*",
             "X-Token-Budget": String(tokenBudget),
         },
         body: JSON.stringify({ url }),
@@ -44,9 +47,9 @@ export async function scrapeArticle(url: string, tokenBudget: number = 4000): Pr
         return null;
     }
 
-    const data = await response.json() as JinaResponse;
+    const data = JinaResponseSchema.parse(await response.json());
 
-    if (!data.data?.content) {
+    if (!data.data.content) {
         logger.warn({ url }, "Jina returned empty content");
         return null;
     }

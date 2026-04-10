@@ -1,26 +1,32 @@
+import { z } from "zod";
 import { NEWS_API_BASE_URL, NEWSIO_API_BASE_URL } from "../config";
 
 const { NEWSMESH_API_KEY, NEWSIO_API_KEY } = process.env;
 
+// Strict on fields we read directly, lenient on fields normalized
+// downstream by toStringArray() in the fetch worker.
 
-export interface NewsMeshItem {
-    article_id: string;
-    title: string;
-    description: string;
-    link: string;
-    media_url: string;
-    published_date: string;
-    source: string;
-    category: string;
-    topics: string[];
-    people: string[];
-    author: string[];
-}
+export const NewsMeshItemSchema = z.object({
+    article_id: z.string(),
+    title: z.string(),
+    description: z.string(),
+    link: z.string(),
+    media_url: z.string().nullish(),
+    published_date: z.string(),
+    source: z.string().nullish(),
+    category: z.string().nullish(),
+    topics: z.unknown().default([]),
+    people: z.unknown().default([]),
+    author: z.unknown().default([]),
+});
 
-export interface NewsMeshResponse {
-    data: NewsMeshItem[];
-    next_cursor?: string;
-}
+export const NewsMeshResponseSchema = z.object({
+    data: z.array(NewsMeshItemSchema),
+    next_cursor: z.string().nullish(),
+});
+
+export type NewsMeshItem = z.infer<typeof NewsMeshItemSchema>;
+export type NewsMeshResponse = z.infer<typeof NewsMeshResponseSchema>;
 
 export async function fetchNewsArtifacts(cursor?: string): Promise<NewsMeshResponse> {
     const url = new URL(NEWS_API_BASE_URL);
@@ -40,7 +46,7 @@ export async function fetchNewsArtifacts(cursor?: string): Promise<NewsMeshRespo
         throw error;
     }
 
-    return await res.json() as NewsMeshResponse;
+    return NewsMeshResponseSchema.parse(await res.json());
 }
 
 export function filterFromLastDay<T>(artifacts: T[], dateField: keyof T): T[] {
@@ -51,27 +57,30 @@ export function filterFromLastDay<T>(artifacts: T[], dateField: keyof T): T[] {
     });
 }
 
-// --- NewsData.io (archive endpoint) ---
+// ── NewsData.io schemas ─────────────────────────────────────────────
 
-export interface NewsIOItem {
-    article_id: string;
-    title: string;
-    description: string | null;
-    link: string;
-    source_icon: string | null;
-    pubDate: string;
-    source_name: string;
-    category: string[];
-    keywords: string[] | null;
-    creator: string[] | null;
-}
+export const NewsIOItemSchema = z.object({
+    article_id: z.string(),
+    title: z.string(),
+    description: z.string().nullish(),
+    link: z.string(),
+    source_icon: z.string().nullish(),
+    pubDate: z.string(),
+    source_name: z.string(),
+    category: z.array(z.string()).nullish(),
+    keywords: z.unknown().default(null),
+    creator: z.unknown().default(null),
+});
 
-export interface NewsIOResponse {
-    status: string;
-    totalResults: number;
-    results: NewsIOItem[];
-    nextPage?: string;
-}
+export const NewsIOResponseSchema = z.object({
+    status: z.string(),
+    totalResults: z.number(),
+    results: z.array(NewsIOItemSchema),
+    nextPage: z.string().nullish(),
+});
+
+export type NewsIOItem = z.infer<typeof NewsIOItemSchema>;
+export type NewsIOResponse = z.infer<typeof NewsIOResponseSchema>;
 
 export async function fetchNewsIOArtifacts(page?: string): Promise<NewsIOResponse> {
     const url = new URL(NEWSIO_API_BASE_URL);
@@ -93,5 +102,5 @@ export async function fetchNewsIOArtifacts(page?: string): Promise<NewsIORespons
         throw error;
     }
 
-    return await res.json() as NewsIOResponse;
+    return NewsIOResponseSchema.parse(await res.json());
 }

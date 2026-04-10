@@ -4,6 +4,7 @@ import { fetchArtifactsWorker, getFetchStrategy } from "./workers/fetch-worker";
 import { close } from "./lib/database";
 import { filterWorker } from "./workers/filter-worker";
 import { enrichWorker } from "./workers/enrich-worker";
+import { clusterPublishWorker } from "./workers/cluster-publish-worker";
 import type { ArtifactType } from "./types";
 import { getDocFormatSpec } from "./lib/llm";
 
@@ -17,7 +18,7 @@ const { values } = parseArgs({
         fetch: { type: "boolean", default: false },
         filter: { type: "boolean", default: false },
         enrich: { type: "boolean", default: false },
-        categorize: { type: "boolean", default: false },
+        cluster: { type: "boolean", default: false },
         artifact_type: { type: "string", default: "article" },
     },
     strict: true,
@@ -50,8 +51,9 @@ async function main() {
         await enrichWorker(artifactType);
     }
 
-    if (values.categorize) {
-        logger.info("starting categorize worker");
+    if (values.cluster) {
+        logger.info({ artifactType }, "starting cluster-publish worker");
+        await clusterPublishWorker(artifactType);
     }
 }
 
