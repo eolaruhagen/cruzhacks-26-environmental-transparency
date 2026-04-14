@@ -1,6 +1,6 @@
 import React from 'react'
-import LandingImages from '@/components/LandingImages'
-import { PageNavCard } from '@/components/LandingPage'
+import LandingImages from '@/components/landing/LandingImages'
+import { PageNavCard } from '@/components/landing/LandingPage'
 
 export default function Home() {
   return (

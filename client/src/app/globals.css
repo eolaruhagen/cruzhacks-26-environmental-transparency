@@ -60,7 +60,6 @@ body {
   .text-light { color: var(--color-text-light); }
   .text-accent { color: var(--color-accent); }
   .text-accent-dark { color: var(--color-accent-dark); }
-  .border-card { border-color: var(--color-border); }
   .border-border { border-color: var(--color-border); }
 }
 
@@ -128,6 +127,15 @@ body {
 @layer utilities {
   .touch-friendly {
     @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;       /* IE/Edge */
+    scrollbar-width: none;          /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;                  /* Chrome/Safari/Opera */
   }
 }
 
