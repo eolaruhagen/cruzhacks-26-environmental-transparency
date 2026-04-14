@@ -126,8 +126,8 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
     const virtualizer = useVirtualizer({
         count: bills.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 160, // Estimated height of each bill card
-        overscan: 5, // Number of items to render outside visible area
+        estimateSize: () => 160,
+        overscan: 5,
     });
 
     return (
@@ -146,6 +146,8 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
                 {virtualizer.getVirtualItems().map((virtualRow) => (
                     <div
                         key={virtualRow.key}
+                        ref={virtualizer.measureElement}
+                        data-index={virtualRow.index}
                         style={{
                             position: 'absolute',
                             top: 0,
