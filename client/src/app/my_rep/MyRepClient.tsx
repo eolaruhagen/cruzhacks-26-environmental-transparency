@@ -20,8 +20,8 @@ type Bill = {
   title: string
   url: string
   latest_action: string
-  category: string
-  date_of_introduction: string
+  category: string | null
+  date_of_introduction: string | null
 }
 
 // Types for mini radar
@@ -35,7 +35,7 @@ type RadarBill = {
 
 type Subcategory = {
   subcategory: string
-  bill_type: string
+  bill_type: "air_and_atmosphere" | "water_resources" | "waste_and_toxics" | "energy_and_resources" | "land_and_conservation" | "disaster_and_emergency" | "climate_and_emissions" | "justice_and_environment"
   embedding: number[]
 }
 
@@ -71,7 +71,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
   // Fetch bills and subcategories when rep name changes
   useEffect(() => {
-    async function fetchData() {
+    const fetchData = async () => {
       setLoading(true)
       const { firstName, lastName } = extractNames(repName)
 
@@ -82,7 +82,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
           .select('subcategory, bill_type, embedding')
 
         if (subcatData) {
-          setSubcategories(subcatData)
+          setSubcategories(subcatData as Subcategory[])
           // Set initial category
           const categories = Array.from(new Set(subcatData.map(s => s.bill_type))).sort()
           if (categories.length > 0) {
@@ -482,7 +482,7 @@ export default function MyRepClient() {
 
   // Fetch bills when a representative is selected
   useEffect(() => {
-    async function fetchBills() {
+    const fetchBills = async () => {
       if (!selectedRep) {
         setSponsoredBills([])
         setCosponsoredBills([])
@@ -506,7 +506,7 @@ export default function MyRepClient() {
         // Fetch cosponsored bills via RPC - cosponsors are stored as full names
         // like "Rep. Smith, John [R-TX-3]" so we need a text cast + ilike
         const { data: cosponsored } = await supabase
-          .rpc('search_cosponsored_bills', { cosponsor_name: lastName, max_results: 25 })
+          .rpc('search_cosponsored_bills', { cosponsor_name: lastName, max_results: 25 }) // why the max results??
 
         setCosponsoredBills(cosponsored || [])
       } catch (err) {

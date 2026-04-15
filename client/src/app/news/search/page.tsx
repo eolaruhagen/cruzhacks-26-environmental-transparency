@@ -1,5 +1,5 @@
-import { SearchCardShell, BillSearchResult } from "@/components/search/SearchResultItem"
-import type { ResultItemBadge as ResultItemBadgeType } from "@/components/search/SearchResultItem"
+import { SearchCardShell, BillSearchResult, ArticleSearchResult } from "@/components/search/SearchResultItem"
+import type { ArticleSearchResultProps, ResultItemBadge as ResultItemBadgeType } from "@/components/search/SearchResultItem"
 import type { BillSearchResultProps } from "@/components/search/SearchResultItem"
 
 const testBillSearchProps: BillSearchResultProps = {
@@ -17,12 +17,37 @@ const testBillSearchProps: BillSearchResultProps = {
     }
 }
 
+const testArticleSearchProps: ArticleSearchResultProps = {
+    article: {
+        id: '1',
+        url: 'https://www.google.com',
+        source_icon_url: 'https://www.google.com/s2/favicons?domain=reuters.com&sz=32',
+        published_at: '2 hours ago',
+        title: 'EPA Announces New Water Quality Standards Affecting 12 States',
+        description: 'The Environmental Protection Agency unveiled stricter water quality standards that will require states to update their monitoring infrastructure by 2028.',
+        source: 'Reuters',
+        author: ['John Doe', 'Jane Smith'],
+        topics: ['Water Resources', 'Environmental Protection'],
+        summary: 'The Environmental Protection Agency unveiled stricter water quality standards that will require states to update their monitoring infrastructure by 2028. The article argues that this bill is nothing but pure 21st century bureaucratic overreach.',
+        environmental_topic: 'Water Resources',
+        impact_level: 'national',
+        sentiment: -0.5,
+        key_quote: 'The Environmental Protection Agency unveiled stricter water quality standards that will require states to update their monitoring infrastructure by 2028.',
+        associated_bills: [
+            { legislation_number: 'H.R. 2924 (118)', reason: 'Addresses water quality monitoring methods that define the scope of the EPA standards.' },
+            { legislation_number: 'H.R. 8551 (117)', reason: 'Addresses water quality monitoring methods that define the scope of the EPA standards.' },
+            { legislation_number: 'S. 228 (112)', reason: 'Something something' }
+        ],
+        associated_representatives: ['Rep. Johnson, Maria', 'Rep. Smith, John'],
+    }
+}
+
 export default function SearchPage() {
     return (
         <div className="w-full flex flex-col items-center pt-4 px-4">
             <h1 className="text-3xl font-bold mb-6">Card Shell Tests</h1>
 
-            <div className="w-full max-w-2xl space-y-4">
+            <div className="w-full max-w-3xl flex flex-col gap-8">
                 {/* Test 1: Bill-style card (mimics existing SearchClient BillCard) */}
                 <SearchCardShell
                     alias="H.R. 1234"
@@ -40,6 +65,7 @@ export default function SearchPage() {
 
 
                 <BillSearchResult {...testBillSearchProps} />
+                <ArticleSearchResult {...testArticleSearchProps} />
                 {/* Test 2: News article card */}
                 <SearchCardShell
                     title="EPA Announces New Water Quality Standards Affecting 12 States"
@@ -52,34 +78,6 @@ export default function SearchPage() {
                     ]}
                     metadata={[
                         { label: "Summary", value: "The Environmental Protection Agency unveiled stricter water quality standards that will require states to update their monitoring infrastructure by 2028.", clamp: true },
-                    ]}
-                />
-
-                {/* Test 3: Minimal card (just title + one badge) */}
-                <SearchCardShell
-                    title="Short simple card with minimal info"
-                    badges={[
-                        { label: "Energy & Resources", className: "bg-accent/10 text-accent" },
-                    ]}
-                    metadata={[]}
-                />
-
-                {/* Test 4: Overflow badges test */}
-                <SearchCardShell
-                    alias="S. 5678"
-                    title="A bill with many badges to test horizontal scrolling behavior"
-                    badges={[
-                        { label: "Air & Atmosphere", className: "bg-accent/10 text-accent" },
-                        { label: "Introduced", className: "bg-blue-100 text-blue-700" },
-                        { label: "Bipartisan", className: "bg-green-100 text-green-700" },
-                        { label: "Committee Review", className: "bg-yellow-100 text-yellow-700" },
-                        { label: "Priority", className: "bg-red-100 text-red-700" },
-                        { label: "super long test name that shold maybe be truncated but. idk", className: "bg-white text-blue-500" },
-                        { label: "short", className: "bg-red-500 text-white" },
-                        { label: "medium", className: "bg-blue-500 text-white" }
-                    ]}
-                    metadata={[
-                        { label: "Sponsor", value: "Sen. Williams, Robert (R-TX)" },
                     ]}
                 />
             </div>
