@@ -60,9 +60,9 @@ export default function Navbar() {
 
   return (
     <nav className="w-full bg-nav shadow-sm sticky top-0 z-50" ref={menuRef}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-white font-semibold text-xl" style={{ marginLeft: '-150px' }}>
+      <div className="max-w-screen overflow-x-hidden mx-auto px-4 md:px-6 py-3 md:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-2 text-white font-semibold text-xl" style={{ marginLeft: '-1vw' }}>
             <img src="/EcoGlass.png" alt="EcoGlass" className="w-24 h-24" />
             EcoGlass
           </Link>
