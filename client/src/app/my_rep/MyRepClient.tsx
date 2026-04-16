@@ -2,42 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-
-type Representative = {
-  name: string
-  title: string
-  party: string
-  photoUrl: string
-  state: string
-  district?: string
-  url?: string
-  terms?: number
-}
-
-type Bill = {
-  id: string
-  legislation_number: string
-  title: string
-  url: string
-  latest_action: string
-  category: string | null
-  date_of_introduction: string | null
-}
-
-// Types for mini radar
-type RadarBill = {
-  legislation_number: string
-  category: string
-  subcategory_scores: Record<string, number> | null
-  title: string
-  url: string
-}
-
-type Subcategory = {
-  subcategory: string
-  bill_type: "air_and_atmosphere" | "water_resources" | "waste_and_toxics" | "energy_and_resources" | "land_and_conservation" | "disaster_and_emergency" | "climate_and_emissions" | "justice_and_environment"
-  embedding: number[]
-}
+import { RepBill, RadarBill, Subcategory, Representative } from '@/lib/types'
 
 // Mini Policy Radar Component
 interface MiniPolicyRadarProps {
@@ -104,7 +69,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
         // Filter to only bills with subcategory_scores and combine
         const cosponsoredFiltered = (cosponsored || []).filter(
-          (b: any) => b.subcategory_scores != null
+          (b) => b.subcategory_scores != null
         )
 
         // Combine and deduplicate by legislation_number
@@ -464,8 +429,8 @@ export default function MyRepClient() {
   const [error, setError] = useState('')
 
   // Bills state
-  const [sponsoredBills, setSponsoredBills] = useState<Bill[]>([])
-  const [cosponsoredBills, setCosponsoredBills] = useState<Bill[]>([])
+  const [sponsoredBills, setSponsoredBills] = useState<RepBill[]>([])
+  const [cosponsoredBills, setCosponsoredBills] = useState<RepBill[]>([])
   const [activeBillsTab, setActiveBillsTab] = useState<'sponsored' | 'cosponsored'>('sponsored')
   const [billsLoading, setBillsLoading] = useState(false)
 

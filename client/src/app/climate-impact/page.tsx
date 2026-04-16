@@ -42,13 +42,13 @@ export default function ClimateImpactPage() {
 
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <p className="text-gray-700 leading-relaxed mb-4">
-              The Paris Agreement's primary goal is to limit global warming to <strong>well below 2°C</strong>, 
+              The Paris Agreement&apos;s primary goal is to limit global warming to <strong>well below 2°C</strong>, 
               preferably <strong>1.5°C</strong>, compared to pre-industrial levels (1850–1900). Every fraction 
               of a degree matters—0.5°C can mean the difference between manageable adaptation and catastrophic change.
             </p>
             <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
               <p className="text-red-800 text-sm font-medium">
-                Current trajectory: We're on track for approximately 2.7°C warming by 2100 under current policies.
+                Current trajectory: We&apos;re on track for approximately 2.7°C warming by 2100 under current policies.
               </p>
             </div>
           </div>
@@ -67,7 +67,7 @@ export default function ClimateImpactPage() {
                 <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded-full">Primary</span>
               </div>
               <p className="text-main/70 text-sm mb-4">
-                Measures deviation from the 1850–1900 baseline average. The "headline" metric of climate change.
+                Measures deviation from the 1850–1900 baseline average. The &quot;headline&quot; metric of climate change.
               </p>
               <div className="pt-3 border-t border-border">
                 <p className="text-xs text-main/60 mb-1">Goal</p>
@@ -84,7 +84,7 @@ export default function ClimateImpactPage() {
                 <span className="text-xs px-2 py-1 bg-accent/20 text-accent rounded-full">Driver</span>
               </div>
               <p className="text-main/70 text-sm mb-4">
-                The "thermostat" of the planet. Measured in parts per million (ppm). Pre-industrial level was ~280 ppm.
+                The &quot;thermostat&quot; of the planet. Measured in parts per million (ppm). Pre-industrial level was ~280 ppm.
               </p>
               <div className="pt-3 border-t border-border">
                 <p className="text-xs text-main/60 mb-1">Safe Level</p>
@@ -123,8 +123,8 @@ export default function ClimateImpactPage() {
 
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <p className="text-gray-700 leading-relaxed">
-              The Clean Air Act focuses on <strong>"Criteria Pollutants"</strong> that directly affect human health. 
-              These are highly localized—your air quality can differ from a city just miles away. The <strong>Air 
+              The Clean Air Act focuses on <strong>&quot;Criteria Pollutants&quot;</strong> that directly affect human health.
+              These are highly localized—your air quality can differ from a city just miles away. The <strong>Air
               Quality Index (AQI)</strong> is the public-facing summary of these measurements.
             </p>
           </div>
@@ -192,7 +192,7 @@ export default function ClimateImpactPage() {
               <h3 className="font-bold text-main mb-2">Sulfur Dioxide (SO₂)</h3>
               <p className="text-main/70 text-sm mb-3">
                 From burning fossil fuels, especially coal. Causes acid rain and respiratory issues. 
-                Levels have dropped dramatically since the Clean Air Act's acid rain program.
+                Levels have dropped dramatically since the Clean Air Act&apos;s acid rain program.
               </p>
               <div className="pt-3 border-t border-border">
                 <p className="text-xs text-main/60">1-hour Standard</p>
@@ -221,7 +221,7 @@ export default function ClimateImpactPage() {
 
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <p className="text-gray-700 leading-relaxed">
-              The Clean Water Act's goal is to make all U.S. waters <strong>"fishable and swimmable."</strong> 
+              The Clean Water Act&apos;s goal is to make all U.S. waters <strong>&quot;fishable and swimmable.&quot;</strong> 
               Water quality is complex and varies by location and intended use. These metrics provide the 
               most accessible snapshot of watershed health.
             </p>
@@ -250,7 +250,7 @@ export default function ClimateImpactPage() {
             <div className="bg-card rounded-xl p-5 border border-border">
               <h3 className="font-bold text-main mb-2">Nutrient Loading</h3>
               <p className="text-main/70 text-sm mb-3">
-                Nitrogen & Phosphorus levels (mg/L). Main cause of "Dead Zones" and toxic algae blooms. 
+                Nitrogen & Phosphorus levels (mg/L). Main cause of &quot;Dead Zones&quot; and toxic algae blooms. 
                 Often from agricultural runoff.
               </p>
               <div className="pt-3 border-t border-border">
@@ -269,15 +269,15 @@ export default function ClimateImpactPage() {
               <div className="pt-3 border-t border-border">
                 <p className="text-xs text-main/60">Healthy Level</p>
                 <p className="text-xl font-bold text-accent">≥ 5 mg/L</p>
-                <p className="text-xs text-main/60 mt-1">Below 2 mg/L = "Dead Zone"</p>
+                <p className="text-xs text-main/60 mt-1">Below 2 mg/L = &quot;Dead Zone&quot;</p>
               </div>
             </div>
           </div>
 
           <div className="p-4 bg-cyan-50 border border-cyan-200 rounded-xl">
             <p className="text-cyan-800 text-sm">
-              <strong>Check Your Water:</strong> Use the EPA's{' '}
-              <a href="https://mywaterway.epa.gov/" target="_blank" rel="noopener noreferrer" className="underline">How's My Waterway</a>{' '}
+              <strong>Check Your Water:</strong> Use the EPA&apos;s{' '}
+              <a href="https://mywaterway.epa.gov/" target="_blank" rel="noopener noreferrer" className="underline">How&apos;s My Waterway</a>{' '}
               app to enter any zip code and see the health of your local watershed.
             </p>
           </div>
@@ -292,14 +292,14 @@ export default function ClimateImpactPage() {
 
           <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6">
             <p className="text-gray-700 leading-relaxed mb-4">
-              The <strong>Living Planet Index (LPI)</strong> tracks the average change in population size of 
-              thousands of vertebrate species worldwide. It's increasingly used alongside climate metrics 
-              because <em>climate change isn't just about heat—it's about the collapse of biological systems 
+              The <strong>Living Planet Index (LPI)</strong> tracks the average change in population size of
+              thousands of vertebrate species worldwide. It&apos;s increasingly used alongside climate metrics
+              because <em>climate change isn&apos;t just about heat—it&apos;s about the collapse of biological systems
               that support human life.</em>
             </p>
             <p className="text-gray-700 leading-relaxed">
-              A declining LPI suggests that even if we meet "Net Zero" carbon goals, we may still be losing 
-              the "infrastructure" of nature—pollinators, food chains, and ecosystem services we depend on.
+              A declining LPI suggests that even if we meet &quot;Net Zero&quot; carbon goals, we may still be losing
+              the &quot;infrastructure&quot; of nature—pollinators, food chains, and ecosystem services we depend on.
             </p>
           </div>
 
@@ -338,7 +338,7 @@ export default function ClimateImpactPage() {
             <div>
               <h3 className="font-semibold text-main mb-2">Accountability</h3>
               <p className="text-main/80 text-sm">
-                Metrics create measurable goals. Without numbers, it's impossible to know if policies are working
+                Metrics create measurable goals. Without numbers, it&apos;s impossible to know if policies are working
                 or if leaders are keeping their promises.
               </p>
             </div>
@@ -352,14 +352,14 @@ export default function ClimateImpactPage() {
             <div>
               <h3 className="font-semibold text-main mb-2">Informed Voting</h3>
               <p className="text-main/80 text-sm">
-                Understanding the data helps you evaluate candidates' environmental claims and hold elected
+                Understanding the data helps you evaluate candidates&apos; environmental claims and hold elected
                 officials accountable.
               </p>
             </div>
             <div>
               <h3 className="font-semibold text-main mb-2">Global Context</h3>
               <p className="text-main/80 text-sm">
-                Climate change is global. These metrics let you compare your country's progress against
+                Climate change is global. These metrics let you compare your country&apos;s progress against
                 international goals and other nations.
               </p>
             </div>
@@ -371,7 +371,7 @@ export default function ClimateImpactPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Take Action</h2>
           <p className="text-gray-700 mb-6 max-w-2xl mx-auto">
             Your representatives vote on climate policy, EPA funding, and environmental regulations. 
-            Find out who represents you and how they've voted on environmental issues.
+            Find out who represents you and how they&apos;ve voted on environmental issues.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a 

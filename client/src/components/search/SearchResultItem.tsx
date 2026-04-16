@@ -3,6 +3,7 @@
 import { supabase } from "@/lib/supabase"
 import { useCallback, useEffect, useState } from "react"
 import { Database } from "../../../../supabase/functions/database.types"
+import { Bill } from "@/lib/types"
 
 export type ResultItemBadge = {
     label: string
@@ -27,26 +28,15 @@ interface SearchCardShellProps {
 }
 
 
+
 export interface BillSearchResultProps {
-    bill: {
-        id: string
-        legislation_number: string
-        title: string
-        url: string
-        category: string | null
-        latest_action: string | null
-        latest_tracker_stage: string | null
-        // Optional: only shown in full search context, not in MyRep
-        sponsor?: string
-        party_of_sponsor?: string
-        date_of_introduction?: string
-        reason?: string
-        compact?: boolean
-        dropSponsor?: boolean
-    }
+    bill: Bill
+    reason?: string
+    compact?: boolean
+    dropSponsor?: boolean
 }
 
-export function BillSearchResult({ bill }: BillSearchResultProps) {
+export function BillSearchResult({ bill, reason, compact, dropSponsor }: BillSearchResultProps) {
     const alias = bill.legislation_number
     const { title } = bill
     const date = bill.date_of_introduction
@@ -67,17 +57,17 @@ export function BillSearchResult({ bill }: BillSearchResultProps) {
         </span>
     ) : 'Unknown sponsor'
     let metadata: ResultMetadataLine[] = [
-        { label: 'Latest Action', value: bill.latest_action ?? 'Cannot find latest action', clamp: bill.compact },
-        { label: 'Sponsor', value: coloredSponsorName, clamp: bill.compact },
-        { label: 'Party of Sponsor', value: bill.party_of_sponsor ?? 'Unknown party', clamp: bill.compact },
+        { label: 'Latest Action', value: bill.latest_action ?? 'Cannot find latest action', clamp: compact },
+        { label: 'Sponsor', value: coloredSponsorName, clamp: compact },
+        { label: 'Party of Sponsor', value: bill.party_of_sponsor ?? 'Unknown party', clamp: compact },
     ]
 
-    if (bill.dropSponsor) {
+    if (dropSponsor) {
         metadata = metadata.filter(meta => meta.label !== 'Sponsor' && meta.label !== 'Party of Sponsor')
     }
 
-    if (bill.reason) {
-        metadata.push({ label: 'Reason', value: bill.reason, clamp: false })
+    if (reason) {
+        metadata.push({ label: 'Reason', value: reason, clamp: false })
     }
 
 
@@ -86,7 +76,7 @@ export function BillSearchResult({ bill }: BillSearchResultProps) {
             <SearchCardShell
                 title={title}
                 alias={alias}
-                date={date}
+                date={date ?? undefined}
                 badges={badges}
                 metadata={metadata}
             />
@@ -259,18 +249,21 @@ function ArticleSearchResultExpansion({ article }: ArticleSearchResultProps) {
             {/* TODO add inline scroling box for compressed associated search results */}
             <div className="flex flex-col gap-4 max-h-[30vh] overflow-y-auto">
                 {relatedBills.length !== 0 ? (
-                    relatedBills.map((relatedBill) => (
-                        <div key={relatedBill.bill.bill.id} className="flex flex-col gap-2">
-                            {/* inline append the reason in to the metadata of the bill search results */}
-                            <BillSearchResult bill={{ ...relatedBill.bill.bill, reason: relatedBill.reason }} />
-                        </div>
-                    ))
+                    <div className="flex flex-col gap-2">
+                        <p className="text-sm font-medium text-light text-left">Associated Bills</p>
+                        {relatedBills.map((relatedBill) => (
+                            <div key={relatedBill.bill.bill.id} className="flex flex-col gap-2">
+                                {/* inline append the reason in to the metadata of the bill search results */}
+                                <BillSearchResult bill={{ ...relatedBill.bill.bill }} reason={relatedBill.reason} compact={true} />
+                            </div>
+                        ))}
+                    </div>
                 ) : (
                     <p>No associated bills found</p>
                 )}
             </div>
 
-        </div>
+        </div >
     )
 }
 
@@ -301,6 +294,7 @@ function transformBillToSearchProps(bill: Database['public']['Tables']['house_bi
             url: bill.url,
             latest_action: bill.latest_action,
             latest_tracker_stage: bill.latest_tracker_stage,
+            date_of_introduction: bill.date_of_introduction
         },
     }
 }

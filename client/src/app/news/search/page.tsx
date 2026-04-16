@@ -9,7 +9,7 @@ const testBillSearchProps: BillSearchResultProps = {
         title: 'To amend the Clean Air Act to reduce greenhouse gas emissions from power plants and establish a carbon pricing mechanism',
         sponsor: 'Rep. Johnson, Maria',
         party_of_sponsor: 'Democrat',
-        category: 'Climate & Emissions',
+        category: 'climate_and_emissions',
         url: 'https://www.google.com',
         latest_action: 'Referred to the Senate Committee on Environment and Public Works',
         latest_tracker_stage: 'Passed House',
