@@ -80,7 +80,7 @@ export default function Navbar() {
                     transition-all duration-200 ease-out
                     ${isActive
                       ? 'bg-white text-accent shadow-[inset_0_2px_4px_rgba(0,0,0,0.15),inset_0_-2px_4px_rgba(255,255,255,0.9)]'
-                      : 'text-white/90 hover:bg-white/20 hover:text-white shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),inset_0_-2px_4px_rgba(255,255,255,0.1)]'
+                      : 'text-white/90 hover:bg-white/20 hover:text-white shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2),inset_0_2px_4px_rgba(255,255,255,0.1)]'
                     }
                   `}
                 >
@@ -92,7 +92,7 @@ export default function Navbar() {
             {/* Dark Mode Toggle - Desktop */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl text-white/90 hover:bg-white/20 hover:text-white transition-all duration-200 ease-out shadow-[inset_0_2px_4px_rgba(0,0,0,0.2),inset_0_-2px_4px_rgba(255,255,255,0.1)]"
+              className="p-2.5 rounded-xl text-white/90 hover:bg-white/20 hover:text-white transition-all duration-200 ease-out shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2),inset_0_2px_4px_rgba(255,255,255,0.1)]"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {mounted && theme === 'dark' ? (

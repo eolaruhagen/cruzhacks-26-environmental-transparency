@@ -43,7 +43,7 @@ export default function LegislativeProcessPage() {
                 </div>
 
                 <p className="text-main/80 leading-relaxed">
-                  The "lower chamber" represents the people directly. Each state's representation is based on population,
+                  The &quot;lower chamber&quot; represents the people directly. Each state&apos;s representation is based on population,
                   with districts redrawn every 10 years after the census. Representatives serve <strong>2-year terms</strong>.
                 </p>
 
@@ -76,7 +76,7 @@ export default function LegislativeProcessPage() {
                 </div>
 
                 <p className="text-main/80 leading-relaxed">
-                  The "upper chamber" provides equal representation for all states regardless of population.
+                  The &quot;upper chamber&quot; provides equal representation for all states regardless of population.
                   Each state elects 2 senators who serve <strong>6-year terms</strong>, with elections staggered so
                   roughly 1/3 are elected every 2 years.
                 </p>

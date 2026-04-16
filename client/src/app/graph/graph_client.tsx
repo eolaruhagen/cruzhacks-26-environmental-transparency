@@ -2,14 +2,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { kmeans } from 'ml-kmeans';
-
-// Cluster interface
-interface Cluster {
-    centroid: number[];
-    bills: BillWithScores[];
-    x: number;
-    y: number;
-}
+import { RadarBill, BillWithScores, Subcategory, Cluster } from '@/lib/types';
 
 // Polar Scatter Chart Component
 interface PolarScatterChartProps {
@@ -880,32 +873,6 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
     );
 }
 
-// Types for our data
-interface Subcategory {
-    subcategory: string;
-    bill_type: string;  // This is the parent category
-    embedding: number[];
-}
-
-interface Bill {
-    legislation_number: string;
-    category: string;
-    subcategory_scores: Record<string, number> | null;
-    title: string;
-    url: string;
-    date_of_introduction: string | null;  // ISO date string from Supabase
-}
-
-interface BillWithScores {
-    legislation_number: string;
-    category: string;
-    title: string;
-    url: string;
-    subcategoryScores: Record<string, number>;  // subcategory name -> similarity score (0-1)
-    introductionYear: number | null;  // Year the bill was introduced
-}
-
-
 
 // Format category name from snake_case to Title Case
 // e.g., "disaster_and_emergency" -> "Disaster and Emergency"
@@ -935,7 +902,7 @@ export default function GraphClient() {
     };
 
     useEffect(() => {
-        async function fetchData() {
+        const fetchData = async () => {
             try {
                 setLoading(true);
 
@@ -993,10 +960,10 @@ export default function GraphClient() {
 
                 if (initialError) throw initialError;
 
-                const initialBills = initialBillsData as Bill[];
+                const initialBills = initialBillsData as RadarBill[];
 
                 // Process bills - now just use pre-computed scores
-                const processBills = (rawBills: Bill[]) => {
+                const processBills = (rawBills: RadarBill[]) => {
                     return rawBills
                         .filter(bill => bill.category && bill.subcategory_scores)
                         .map((bill) => {
@@ -1041,7 +1008,7 @@ export default function GraphClient() {
 
                     if (!chunkData || chunkData.length === 0) return false;
 
-                    const chunkBills = chunkData as Bill[];
+                    const chunkBills = chunkData as RadarBill[];
                     const processedChunk = processBills(chunkBills);
 
                     setBills(prev => [...prev, ...processedChunk]);
@@ -1066,6 +1033,7 @@ export default function GraphClient() {
                 setIsBackgroundLoading(false);
                 console.log('All data loaded!');
 
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (err: any) {
                 console.error('Fetch error:', err);
                 console.error('Error details:', JSON.stringify(err, null, 2));

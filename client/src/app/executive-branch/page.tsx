@@ -27,9 +27,9 @@ export default function ExecutiveBranchPage() {
             4 million federal employees who implement and enforce legislation daily.
           </p>
           <p className="text-gray-700 leading-relaxed mb-4">
-            The President's power over legislation extends far beyond simply signing or vetoing bills. Through 
-            executive orders, agency appointments, regulatory decisions, and budget proposals, the executive 
-            branch profoundly shapes which laws are prioritized, how they're interpreted, and whether they're 
+            The President&apos;s power over legislation extends far beyond simply signing or vetoing bills. Through
+            executive orders, agency appointments, regulatory decisions, and budget proposals, the executive
+            branch profoundly shapes which laws are prioritized, how they&apos;re interpreted, and whether they&apos;re
             effectively enforced.
           </p>
           <p className="text-gray-700 leading-relaxed">
@@ -42,14 +42,14 @@ export default function ExecutiveBranchPage() {
         {/* President's Legislative Powers */}
         <section className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-6">
-            The President's Role in Legislation
+            The President&apos;s Role in Legislation
           </h2>
           
           <div className="space-y-6">
             <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
               <h3 className="font-semibold text-main text-lg mb-2">Signing Bills into Law</h3>
               <p className="text-main/80 leading-relaxed">
-                When Congress passes a bill, it goes to the President's desk. The President has 10 days 
+                When Congress passes a bill, it goes to the President&apos;s desk. The President has 10 days 
                 (excluding Sundays) to sign it into law, veto it, or take no action. If signed, the bill 
                 becomes law immediately. The President may also issue a <strong>signing statement</strong> 
                 explaining their interpretation of the law.
@@ -60,8 +60,8 @@ export default function ExecutiveBranchPage() {
               <h3 className="font-semibold text-main text-lg mb-2">The Veto Power</h3>
               <p className="text-main/80 leading-relaxed">
                 The President can reject legislation by vetoing it. Congress can override a veto with a 
-                two-thirds vote in both chambers—a high bar that's rarely met. The mere <em>threat</em> of 
-                a veto often shapes legislation before it reaches the President's desk, giving the executive 
+                two-thirds vote in both chambers—a high bar that&apos;s rarely met. The mere <em>threat</em> of
+                a veto often shapes legislation before it reaches the President&apos;s desk, giving the executive 
                 significant influence over the legislative process.
               </p>
             </div>
@@ -71,7 +71,7 @@ export default function ExecutiveBranchPage() {
               <p className="text-main/80 leading-relaxed">
                 Through the <strong>State of the Union</strong> address and other communications, the President 
                 sets the national policy agenda. The administration proposes legislation, lobbies Congress, 
-                and uses the "bully pulpit" to build public support for priorities. The annual <strong>budget 
+                and uses the &quot;bully pulpit&quot; to build public support for priorities. The annual <strong>budget 
                 proposal</strong> is another powerful tool—it signals which programs the executive branch 
                 wants to fund or cut.
               </p>
@@ -80,8 +80,8 @@ export default function ExecutiveBranchPage() {
             <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
               <h3 className="font-semibold text-main text-lg mb-2">Pocket Veto</h3>
               <p className="text-main/80 leading-relaxed">
-                If Congress adjourns before the President's 10-day window expires and the President hasn't 
-                signed the bill, it dies automatically—a "pocket veto." Unlike a regular veto, Congress 
+                If Congress adjourns before the President&apos;s 10-day window expires and the President hasn&apos;t
+                signed the bill, it dies automatically—a &quot;pocket veto.&quot; Unlike a regular veto, Congress 
                 cannot override a pocket veto.
               </p>
             </div>
@@ -96,7 +96,7 @@ export default function ExecutiveBranchPage() {
 
           <p className="text-main/80 leading-relaxed mb-6">
             Presidents can act unilaterally through executive orders—directives that manage operations of the
-            federal government. While they can't create new laws, executive orders can significantly shape
+            federal government. While they can&apos;t create new laws, executive orders can significantly shape
             how existing laws are implemented.
           </p>
 
@@ -115,7 +115,7 @@ export default function ExecutiveBranchPage() {
             <div className="bg-main/10 rounded-xl p-5">
               <h3 className="font-semibold text-main mb-2">What They Cannot Do</h3>
               <ul className="text-main/80 text-sm space-y-2">
-                <li>• Create laws that Congress hasn't authorized</li>
+                <li>• Create laws that Congress hasn&apos;t authorized</li>
                 <li>• Spend money not appropriated by Congress</li>
                 <li>• Override constitutional rights</li>
                 <li>• Prevent judicial review</li>
@@ -141,7 +141,7 @@ export default function ExecutiveBranchPage() {
 
           <p className="text-main/80 leading-relaxed mb-6">
             The President appoints (with Senate confirmation) the heads of 15 executive departments and 
-            numerous agency leaders. These appointees implement the President's vision and have enormous 
+            numerous agency leaders. These appointees implement the President&apos;s vision and have enormous 
             discretion in how laws are enforced.
           </p>
 
@@ -186,7 +186,7 @@ export default function ExecutiveBranchPage() {
           
           <p className="text-gray-700 leading-relaxed mb-6">
             When Congress passes laws, they often delegate the details to agencies. The agency then creates 
-            <strong> regulations</strong> (also called "rules") that have the force of law. This is where much 
+            <strong> regulations</strong> (also called &quot;rules&quot;) that have the force of law. This is where much 
             of the real policy happens.
           </p>
 
@@ -260,7 +260,7 @@ export default function ExecutiveBranchPage() {
             <div className="bg-card rounded-xl p-6 text-center">
               <h3 className="font-bold text-main mb-2">Elections</h3>
               <p className="text-main/70 text-sm">
-                Every four years, voters decide whether to continue or change the executive branch's 
+                Every four years, voters decide whether to continue or change the executive branch&apos;s 
                 direction through presidential elections.
               </p>
             </div>
@@ -273,7 +273,7 @@ export default function ExecutiveBranchPage() {
             Why This Matters for You
           </h2>
           <p className="text-gray-700 leading-relaxed mb-6">
-            The executive branch's decisions affect your daily life—from the air you breathe to the water you 
+            The executive branch&apos;s decisions affect your daily life—from the air you breathe to the water you 
             drink. Understanding how executive power works helps you be a more informed voter and citizen. 
             The President you elect chooses the agency heads who set environmental standards, enforce laws, 
             and determine national priorities.

@@ -2,42 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-
-type Representative = {
-  name: string
-  title: string
-  party: string
-  photoUrl: string
-  state: string
-  district?: string
-  url?: string
-  terms?: number
-}
-
-type Bill = {
-  id: string
-  legislation_number: string
-  title: string
-  url: string
-  latest_action: string
-  category: string
-  date_of_introduction: string
-}
-
-// Types for mini radar
-type RadarBill = {
-  legislation_number: string
-  category: string
-  subcategory_scores: Record<string, number> | null
-  title: string
-  url: string
-}
-
-type Subcategory = {
-  subcategory: string
-  bill_type: string
-  embedding: number[]
-}
+import { RepBill, RadarBill, Subcategory, Representative } from '@/lib/types'
 
 // Mini Policy Radar Component
 interface MiniPolicyRadarProps {
@@ -71,7 +36,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
   // Fetch bills and subcategories when rep name changes
   useEffect(() => {
-    async function fetchData() {
+    const fetchData = async () => {
       setLoading(true)
       const { firstName, lastName } = extractNames(repName)
 
@@ -82,7 +47,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
           .select('subcategory, bill_type, embedding')
 
         if (subcatData) {
-          setSubcategories(subcatData)
+          setSubcategories(subcatData as Subcategory[])
           // Set initial category
           const categories = Array.from(new Set(subcatData.map(s => s.bill_type))).sort()
           if (categories.length > 0) {
@@ -104,7 +69,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
         // Filter to only bills with subcategory_scores and combine
         const cosponsoredFiltered = (cosponsored || []).filter(
-          (b: any) => b.subcategory_scores != null
+          (b) => b.subcategory_scores != null
         )
 
         // Combine and deduplicate by legislation_number
@@ -464,8 +429,8 @@ export default function MyRepClient() {
   const [error, setError] = useState('')
 
   // Bills state
-  const [sponsoredBills, setSponsoredBills] = useState<Bill[]>([])
-  const [cosponsoredBills, setCosponsoredBills] = useState<Bill[]>([])
+  const [sponsoredBills, setSponsoredBills] = useState<RepBill[]>([])
+  const [cosponsoredBills, setCosponsoredBills] = useState<RepBill[]>([])
   const [activeBillsTab, setActiveBillsTab] = useState<'sponsored' | 'cosponsored'>('sponsored')
   const [billsLoading, setBillsLoading] = useState(false)
 
@@ -482,7 +447,7 @@ export default function MyRepClient() {
 
   // Fetch bills when a representative is selected
   useEffect(() => {
-    async function fetchBills() {
+    const fetchBills = async () => {
       if (!selectedRep) {
         setSponsoredBills([])
         setCosponsoredBills([])
@@ -506,7 +471,7 @@ export default function MyRepClient() {
         // Fetch cosponsored bills via RPC - cosponsors are stored as full names
         // like "Rep. Smith, John [R-TX-3]" so we need a text cast + ilike
         const { data: cosponsored } = await supabase
-          .rpc('search_cosponsored_bills', { cosponsor_name: lastName, max_results: 25 })
+          .rpc('search_cosponsored_bills', { cosponsor_name: lastName, max_results: 25 }) // why the max results??
 
         setCosponsoredBills(cosponsored || [])
       } catch (err) {

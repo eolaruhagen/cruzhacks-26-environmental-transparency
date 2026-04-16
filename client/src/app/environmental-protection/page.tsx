@@ -32,7 +32,7 @@ export default function EnvironmentalProtectionPage() {
             the power to hold corporations and governments responsible for environmental harm.
           </p>
           <p className="text-main/80 leading-relaxed">
-            The stakes couldn't be higher: climate change, biodiversity loss, and pollution threaten human health,
+            The stakes couldn&apos;t be higher: climate change, biodiversity loss, and pollution threaten human health,
             economic stability, and the survival of countless species. Effective environmental law is our primary
             tool for addressing these challenges at scale.
           </p>
@@ -48,7 +48,7 @@ export default function EnvironmentalProtectionPage() {
             <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1960s: The Awakening</h3>
               <p className="text-main/80 leading-relaxed">
-                Rachel Carson's "Silent Spring" (1962) exposed the dangers of pesticides like DDT, sparking 
+                Rachel Carson&apos;s &quot;Silent Spring&quot; (1962) exposed the dangers of pesticides like DDT, sparking 
                 public awareness. Rivers caught fire, smog choked cities, and Americans demanded change. 
                 This grassroots movement laid the foundation for modern environmental legislation.
               </p>
@@ -69,7 +69,7 @@ export default function EnvironmentalProtectionPage() {
               <p className="text-main/80 leading-relaxed">
                 The <strong>Clean Water Act</strong> (1972) tackled water pollution. The <strong>Endangered Species Act</strong> (1973) 
                 protected threatened wildlife. <strong>CERCLA/Superfund</strong> (1980) addressed toxic waste cleanup. 
-                These laws established the federal government's role as environmental guardian.
+                These laws established the federal government&apos;s role as environmental guardian.
               </p>
             </div>
 
@@ -79,7 +79,7 @@ export default function EnvironmentalProtectionPage() {
                 The <strong>Clean Air Act Amendments</strong> (1990) addressed acid rain and ozone depletion. 
                 Recent decades have seen growing focus on climate change, renewable energy incentives, and 
                 international agreements like the Paris Climate Accord. Environmental justice—ensuring 
-                pollution doesn't disproportionately harm marginalized communities—has become a key priority.
+                pollution doesn&apos;t disproportionately harm marginalized communities—has become a key priority.
               </p>
             </div>
           </div>
@@ -120,7 +120,7 @@ export default function EnvironmentalProtectionPage() {
               <ul className="text-main/80 text-sm space-y-1">
                 <li>• Lists species as threatened or endangered</li>
                 <li>• Designates critical habitat</li>
-                <li>• Prohibits "take" of listed species</li>
+                <li>• Prohibits &quot;take&quot; of listed species</li>
                 <li>• Requires federal agencies to consult on impacts</li>
               </ul>
             </div>
@@ -149,7 +149,7 @@ export default function EnvironmentalProtectionPage() {
                 <h3 className="font-semibold text-main mb-1">Setting Standards</h3>
                 <p className="text-main/80">
                   Laws establish measurable limits on pollution—how much lead in drinking water, particulate matter in air,
-                  or chemicals in rivers. Without standards, there's no way to define "too much."
+                  or chemicals in rivers. Without standards, there&apos;s no way to define &quot;too much.&quot;
                 </p>
               </div>
             </div>
@@ -195,9 +195,9 @@ export default function EnvironmentalProtectionPage() {
             Your Role in Environmental Protection
           </h2>
           <p className="text-main/80 leading-relaxed mb-6">
-            Environmental laws only work if they're enforced—and enforcement depends on political will.
+            Environmental laws only work if they&apos;re enforced—and enforcement depends on political will.
             Your representatives in Congress vote on environmental legislation, confirm EPA administrators,
-            and control the agency's budget. <strong>Knowing how your representatives vote on environmental
+            and control the agency&apos;s budget. <strong>Knowing how your representatives vote on environmental
             issues is the first step to holding them accountable.</strong>
           </p>
           
@@ -220,7 +220,7 @@ export default function EnvironmentalProtectionPage() {
         {/* Quote */}
         <section className="mb-12 text-center">
           <blockquote className="text-2xl font-medium text-main/80 italic leading-relaxed max-w-2xl mx-auto">
-            "The environment is where we all meet; where we all have a mutual interest; it is the one thing all of us share."
+            &quot;The environment is where we all meet; where we all have a mutual interest; it is the one thing all of us share.&quot;
           </blockquote>
           <cite className="text-accent font-semibold mt-4 block">— Lady Bird Johnson</cite>
         </section>

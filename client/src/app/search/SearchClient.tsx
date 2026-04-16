@@ -3,12 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '@/lib/supabase';
+import { Bill, BillType } from '@/lib/types';
 
 // Filter tab types
 type FilterTab = 'category' | 'status' | 'party';
 
 // The 8 environmental policy categories from the database
-const BILL_TYPES = [
+const BILL_TYPES: { id: BillType; label: string }[] = [
     { id: 'air_and_atmosphere', label: 'Air & Atmosphere' },
     { id: 'water_resources', label: 'Water Resources' },
     { id: 'waste_and_toxics', label: 'Waste & Toxics' },
@@ -33,19 +34,6 @@ const PARTY_OPTIONS = [
     { id: 'Democrat', label: 'Democrat' },
     { id: 'Republican', label: 'Republican' },
 ];
-
-interface Bill {
-    id: string;
-    legislation_number: string;
-    title: string;
-    sponsor: string;
-    party_of_sponsor: string;
-    category: string;
-    url: string;
-    latest_action: string;
-    latest_tracker_stage: string;
-    date_of_introduction: string;
-}
 
 // Individual Bill Card component for better performance
 const BillCard = React.memo(function BillCard({ bill }: { bill: Bill }) {
@@ -126,8 +114,8 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
     const virtualizer = useVirtualizer({
         count: bills.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 160, // Estimated height of each bill card
-        overscan: 5, // Number of items to render outside visible area
+        estimateSize: () => 160,
+        overscan: 5,
     });
 
     return (
@@ -146,6 +134,8 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
                 {virtualizer.getVirtualItems().map((virtualRow) => (
                     <div
                         key={virtualRow.key}
+                        ref={virtualizer.measureElement}
+                        data-index={virtualRow.index}
                         style={{
                             position: 'absolute',
                             top: 0,
@@ -168,7 +158,7 @@ export default function SearchClient() {
     const [isExpanded, setIsExpanded] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<FilterTab>('category');
-    const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+    const [selectedCategories, setSelectedCategories] = useState<Set<BillType>>(new Set());
     const [selectedStatuses, setSelectedStatuses] = useState<Set<string>>(new Set());
     const [selectedParties, setSelectedParties] = useState<Set<string>>(new Set());
     const [bills, setBills] = useState<Bill[]>([]);
@@ -181,11 +171,9 @@ export default function SearchClient() {
 
     // Handle clicking outside to collapse
     useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-                if (totalSelected === 0 && !searchQuery) {
-                    setIsExpanded(false);
-                }
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node) && (totalSelected === 0 && !searchQuery)) {
+                setIsExpanded(false);
             }
         }
 
@@ -195,7 +183,7 @@ export default function SearchClient() {
 
     // Fetch bills when filters change
     useEffect(() => {
-        async function fetchBills() {
+        const fetchBills = async () => {
             if (selectedCategories.size === 0 && selectedStatuses.size === 0 && selectedParties.size === 0 && !searchQuery.trim()) {
                 setBills([]);
                 setHasSearched(false);
@@ -245,7 +233,7 @@ export default function SearchClient() {
     }, [selectedCategories, selectedStatuses, selectedParties, searchQuery]);
 
     // Toggle functions
-    const toggleCategory = (id: string) => {
+    const toggleCategory = (id: BillType) => {
         setSelectedCategories(prev => {
             const newSet = new Set(prev);
             newSet.has(id) ? newSet.delete(id) : newSet.add(id);
