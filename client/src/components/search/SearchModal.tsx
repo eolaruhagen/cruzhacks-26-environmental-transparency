@@ -59,9 +59,18 @@ export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResul
         setActiveFilters((prev) => prev.map((f) => (f.key === key ? value : f)))
     }, [])
 
-    // then create autosubmission for the filters
+    // Debounced autosubmission: waits 300ms after last filter change, discards stale results
     useEffect(() => {
-        queryFn(activeFilters).then(setResults)
+        let stale = false;
+        const timeout = setTimeout(() => {
+            queryFn(activeFilters).then(results => {
+                if (!stale) setResults(results)
+            })
+        }, 300)
+        return () => {
+            stale = true;
+            clearTimeout(timeout);
+        }
     }, [activeFilters, queryFn, setResults])
 
     return (
