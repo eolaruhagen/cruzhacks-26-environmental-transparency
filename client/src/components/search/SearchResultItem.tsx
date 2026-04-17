@@ -208,7 +208,7 @@ export function ArticleSearchResult({ article }: ArticleSearchResultProps) {
                         )}
                     </div>
 
-                    <ArticleSearchResultExpansion article={article} />
+                    {!collapsed && <ArticleSearchResultExpansion article={article} />}
 
                     <a
                         href={article.url}
@@ -240,7 +240,7 @@ function ArticleSearchResultExpansion({ article }: ArticleSearchResultProps) {
         }
         const { data, error } = await supabase
             .from('house_bills')
-            .select('*')
+            .select('id, legislation_number, title, sponsor, party_of_sponsor, category, url, latest_action, latest_tracker_stage, date_of_introduction')
             .in('legislation_number', relatedBillIds)
         if (error) {
             console.error('Error fetching related bills:', error)
@@ -289,7 +289,7 @@ export function ResultItemBadge({ label, className }: ResultItemBadge) {
  * transforms a bill from the database schema to the search result props schema
  * - Doesn't assign `compact` or `expanded` props
   */
-function transformBillToSearchProps(bill: Database['public']['Tables']['house_bills']['Row']): BillSearchResultProps {
+function transformBillToSearchProps(bill: Pick<Database['public']['Tables']['house_bills']['Row'], 'id' | 'legislation_number' | 'title' | 'sponsor' | 'party_of_sponsor' | 'category' | 'url' | 'latest_action' | 'latest_tracker_stage' | 'date_of_introduction'>): BillSearchResultProps {
     return {
         bill: {
             id: bill.id,
