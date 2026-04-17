@@ -3,7 +3,8 @@
 import { supabase } from "@/lib/supabase"
 import { useCallback, useEffect, useState } from "react"
 import { Database } from "../../../../supabase/functions/database.types"
-import { Bill } from "@/lib/types"
+import { Bill, BillType } from "@/lib/types"
+import { formatBillCategory, formatTzDate } from "@/lib/utils"
 
 export type ResultItemBadge = {
     label: string
@@ -39,9 +40,9 @@ export interface BillSearchResultProps {
 export function BillSearchResult({ bill, reason, compact, dropSponsor }: BillSearchResultProps) {
     const alias = bill.legislation_number
     const { title } = bill
-    const date = bill.date_of_introduction
+    const date = formatTzDate(bill.date_of_introduction)
     const badges: ResultItemBadge[] = [
-        { label: bill.category ?? 'Unknown Category', className: 'bg-blue-500/10 text-blue-500' },
+        { label: formatBillCategory(bill.category), className: 'bg-blue-500/10 text-blue-500' },
         { label: bill.latest_tracker_stage ?? 'Unknown Stage', className: 'bg-green-500/10 text-green-500' },
     ]
 
@@ -99,7 +100,7 @@ export interface ArticleSearchResultProps {
         topics: string[] | null
         // From artifact_enrichments table
         summary: string
-        environmental_topic: string
+        environmental_topic: BillType
         impact_level: 'local' | 'state' | 'national' | 'international'
         sentiment: number
         key_quote: string | null
@@ -111,10 +112,10 @@ export interface ArticleSearchResultProps {
 
 export function SearchCardShell({ title, alias, date, badges, metadata, sourceIconUrl, expanded, children }: SearchCardShellProps) {
     return (
-        <div className="block p-5 rounded-xl bg-card hover:bg-card-hover transition-all duration-200 group">
+        <div className="block p-5 border border-border  hover:border-accent transition-colors duration-150 group">
             <div className="flex items-center gap-2">
                 {sourceIconUrl && (
-                    <img src={sourceIconUrl} alt="" className="w-4 h-4 rounded-full shrink-0" />
+                    <img src={sourceIconUrl} alt="" className="w-4 h-4  shrink-0" />
                 )}
                 {alias && (
                     <span className="text-sm font-mono font-semibold text-accent whitespace-nowrap shrink-0">
@@ -127,21 +128,21 @@ export function SearchCardShell({ title, alias, date, badges, metadata, sourceIc
                     ))}
                 </div>
                 {date && (
-                    <span className="text-xs text-light whitespace-nowrap shrink-0 ml-auto">
+                    <span className="text-xs font-mono text-light whitespace-nowrap shrink-0 ml-auto">
                         {date}
                     </span>
                 )}
             </div>
 
-            <h3 title={title} className="font-semibold text-main mt-2 line-clamp-2 group-hover:text-accent transition-colors">
+            <h3 title={title} className="font-semibold text-main mt-3 line-clamp-2 group-hover:text-accent transition-colors">
                 {title}
             </h3>
 
             {metadata.length > 0 && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-3 space-y-1">
                     {metadata.map((meta, index) => (
                         <p key={index} className={`text-sm text-light ${meta.clamp ? 'line-clamp-1' : ''}`}>
-                            <span className="font-medium">{meta.label}:</span>{' '}
+                            <span className="font-mono text-xs uppercase tracking-wide">{meta.label}:</span>{' '}
                             {meta.value}
                         </p>
                     ))}
@@ -152,7 +153,7 @@ export function SearchCardShell({ title, alias, date, badges, metadata, sourceIc
             {children && (
                 <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                     <div className="overflow-hidden">
-                        <div className="pt-3 mt-3 border-t border-border">
+                        <div className="pt-4 mt-4 border-t border-border">
                             {children}
                         </div>
                     </div>
@@ -168,10 +169,10 @@ export function ArticleSearchResult({ article }: ArticleSearchResultProps) {
     const [collapsed, setCollapsed] = useState(true)
 
     const { title, description, source, author, topics, summary, environmental_topic, impact_level, sentiment, key_quote, associated_bills, associated_representatives } = article
-    const date = article.published_at
+    const date = formatTzDate(article.published_at)
     const sourceIconUrl = article.source_icon_url
     let badges: ResultItemBadge[] = [
-        { label: article.environmental_topic ?? 'Unknown Topic', className: 'bg-blue-500/10 text-blue-500' },
+        { label: formatBillCategory(article.environmental_topic), className: 'bg-blue-500/10 text-blue-500' },
         { label: article.impact_level ?? 'Unknown Impact Level', className: 'bg-green-500/10 text-green-500' },
         { label: article.sentiment > 0 ? 'Positive' : 'Negative', className: article.sentiment > 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500' },
     ]
@@ -180,9 +181,8 @@ export function ArticleSearchResult({ article }: ArticleSearchResultProps) {
         badges = [...badges, ...article.topics.map((topic) => ({ label: topic, className: 'bg-blue-500/10 text-blue-500' }))]
     }
     const metadata: ResultMetadataLine[] = [
-        { label: 'Source', value: article.source ?? 'Cannot find source', clamp: true },
-        { label: 'Author', value: article.author?.join(', ') ?? 'Cannot find author', clamp: true },
-        { label: 'Key Quote', value: article.key_quote ?? 'Cannot find key quote', clamp: false },
+        { label: 'Source', value: article.source ?? 'Unknown source', clamp: true },
+        { label: 'Author', value: article.author?.join(', ') ?? 'Unknown author', clamp: true },
     ]
     return (
         <div onClick={() => setCollapsed(!collapsed)} className="cursor-pointer">
@@ -195,15 +195,27 @@ export function ArticleSearchResult({ article }: ArticleSearchResultProps) {
                 expanded={!collapsed}
             >
                 {/* Expanded content — shown when card is clicked */}
-                <div className="space-y-3">
-                    <p className="text-sm text-light">{summary}</p>
+                <div className="space-y-4">
+                    {/* Summary block — visually distinct */}
+                    <div className="bg-main rounded-lg p-3 space-y-3">
+                        <p className="text-xs font-semibold text-light/70 uppercase tracking-wide mb-1">Summary</p>
+                        <p className="text-sm text-main leading-relaxed">{summary}</p>
+
+                        {key_quote && (
+                            <blockquote className="text-sm italic text-light border-l-2 border-accent pl-3">
+                                &ldquo;{key_quote}&rdquo;
+                            </blockquote>
+                        )}
+                    </div>
+
                     <ArticleSearchResultExpansion article={article} />
+
                     <a
                         href={article.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent-dark transition-colors"
+                        className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-accent-dark transition-colors pt-1"
                     >
                         Read full article
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -245,31 +257,26 @@ function ArticleSearchResultExpansion({ article }: ArticleSearchResultProps) {
     }, [fetchRelatedBills])
 
     return (
-        <div className="space-y-3">
-            {/* TODO add inline scroling box for compressed associated search results */}
-            <div className="flex flex-col gap-4 max-h-[30vh] overflow-y-auto">
-                {relatedBills.length !== 0 ? (
-                    <div className="flex flex-col gap-2">
-                        <p className="text-sm font-medium text-light text-left">Associated Bills</p>
+        <div>
+            {relatedBills.length !== 0 ? (
+                <div>
+                    <p className="text-xs font-semibold text-light/70 uppercase tracking-wide mb-2">Associated Bills</p>
+                    <div className="flex bg-main flex-col gap-2 max-h-[30vh] overflow-y-auto scrollbar-hide rounded-lg px-1.5">
                         {relatedBills.map((relatedBill) => (
-                            <div key={relatedBill.bill.bill.id} className="flex flex-col gap-2">
-                                {/* inline append the reason in to the metadata of the bill search results */}
-                                <BillSearchResult bill={{ ...relatedBill.bill.bill }} reason={relatedBill.reason} compact={true} />
-                            </div>
+                            <BillSearchResult key={relatedBill.bill.bill.id} bill={{ ...relatedBill.bill.bill }} reason={relatedBill.reason} compact={true} />
                         ))}
                     </div>
-                ) : (
-                    <p>No associated bills found</p>
-                )}
-            </div>
-
-        </div >
+                </div>
+            ) : (
+                <p className="text-sm text-light/60">No associated bills found</p>
+            )}
+        </div>
     )
 }
 
 export function ResultItemBadge({ label, className }: ResultItemBadge) {
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap shrink-0 ${className ?? ''}`}>
+        <span className={`inline-flex items-center px-2.5 py-0.5  border border-border text-xs font-mono whitespace-nowrap shrink-0 ${className ?? ''}`}>
             {label}
         </span>
     )
