@@ -198,203 +198,203 @@ const waterQualityData = [
 
 export function TemperatureChart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">Global Temperature Anomaly</h3>
-      <p className="text-gray-500 text-sm mb-4">°C above 1951-1980 baseline (NASA GISS)</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">Global Temperature Anomaly</h3>
+      <p className="text-main/60 text-sm mb-4">°C above 1951-1980 baseline (NASA GISS)</p>
       <div className="h-[220px] sm:h-[260px] md:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={temperatureData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <YAxis domain={[0, 2]} tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `${v}°C`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="var(--color-text-light)" />
+            <YAxis domain={[0, 2]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" tickFormatter={(v) => `${v}°C`} />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${(value as number ?? 0).toFixed(2)}°C`,
                 name === 'actual' ? 'Actual' : 'Paris Goal'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="5 5" label={{ value: '1.5°C Goal', fill: '#ef4444', fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name="Actual" stroke="#588157" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: NASA GISS Surface Temperature Analysis</p>
+      <p className="text-xs text-main/60 mt-3">Source: NASA GISS Surface Temperature Analysis</p>
     </div>
   )
 }
 
 export function CO2Chart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">Atmospheric CO₂ Concentration</h3>
-      <p className="text-gray-500 text-sm mb-4">Parts per million (Mauna Loa Observatory)</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">Atmospheric CO₂ Concentration</h3>
+      <p className="text-main/60 text-sm mb-4">Parts per million (Mauna Loa Observatory)</p>
       <div className="h-[220px] sm:h-[260px] md:h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={co2Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="#6b7280" />
-            <YAxis domain={[330, 440]} tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `${v}`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 12 }} stroke="var(--color-text-light)" />
+            <YAxis domain={[330, 440]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" tickFormatter={(v) => `${v}`} />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${(value as number ?? 0).toFixed(1)} ppm`,
                 name === 'actual' ? 'Actual' : 'Safe Level (350 ppm)'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={350} stroke="#3b82f6" strokeDasharray="5 5" label={{ value: '350 ppm Safe Level', fill: '#3b82f6', fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name="Actual" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: NOAA/Scripps Mauna Loa Observatory</p>
+      <p className="text-xs text-main/60 mt-3">Source: NOAA/Scripps Mauna Loa Observatory</p>
     </div>
   )
 }
 
 export function PM25Chart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">PM₂.₅ National Average</h3>
-      <p className="text-gray-500 text-sm mb-4">Annual mean (µg/m³) — EPA Air Trends</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">PM₂.₅ National Average</h3>
+      <p className="text-main/60 text-sm mb-4">Annual mean (µg/m³) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={pm25Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" interval={3} />
-            <YAxis domain={[0, 16]} tick={{ fontSize: 12 }} stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="var(--color-text-light)" interval={3} />
+            <YAxis domain={[0, 16]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${value ?? 0} µg/m³`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={12} stroke="#ef4444" strokeDasharray="5 5" label={{ value: 'Standard: 12', fill: '#ef4444', fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name="US Average" stroke="#588157" strokeWidth={2} dot={{ r: 2 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: EPA Air Quality National Summary</p>
+      <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
     </div>
   )
 }
 
 export function OzoneChart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">Ground-Level Ozone (O₃)</h3>
-      <p className="text-gray-500 text-sm mb-4">4th highest daily max 8-hr average (ppb) — EPA Air Trends</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">Ground-Level Ozone (O₃)</h3>
+      <p className="text-main/60 text-sm mb-4">4th highest daily max 8-hr average (ppb) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={ozoneData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" interval={3} />
-            <YAxis domain={[60, 95]} tick={{ fontSize: 12 }} stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="var(--color-text-light)" interval={3} />
+            <YAxis domain={[60, 95]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${value ?? 0} ppb`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={70} stroke="#ef4444" strokeDasharray="5 5" label={{ value: 'Standard: 70', fill: '#ef4444', fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name="US Average" stroke="#588157" strokeWidth={2} dot={{ r: 2 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: EPA Air Quality National Summary</p>
+      <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
     </div>
   )
 }
 
 export function NO2Chart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">Nitrogen Dioxide (NO₂)</h3>
-      <p className="text-gray-500 text-sm mb-4">Annual mean (ppb) — EPA Air Trends</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">Nitrogen Dioxide (NO₂)</h3>
+      <p className="text-main/60 text-sm mb-4">Annual mean (ppb) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={no2Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" />
-            <YAxis domain={[0, 60]} tick={{ fontSize: 12 }} stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="var(--color-text-light)" />
+            <YAxis domain={[0, 60]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${value ?? 0} ppb`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={53} stroke="#3b82f6" strokeDasharray="5 5" label={{ value: 'Standard: 53', fill: '#3b82f6', fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name="US Average" stroke="#588157" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: EPA Air Quality National Summary</p>
+      <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
     </div>
   )
 }
 
 export function SO2Chart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">Sulfur Dioxide (SO₂)</h3>
-      <p className="text-gray-500 text-sm mb-4">1-hour 99th percentile (ppb) — EPA Air Trends</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">Sulfur Dioxide (SO₂)</h3>
+      <p className="text-main/60 text-sm mb-4">1-hour 99th percentile (ppb) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={so2Data} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" />
-            <YAxis domain={[0, 80]} tick={{ fontSize: 12 }} stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="var(--color-text-light)" />
+            <YAxis domain={[0, 80]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${value ?? 0} ppb`,
                 name === 'actual' ? 'US Average' : 'EPA Standard'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={75} stroke="#3b82f6" strokeDasharray="5 5" label={{ value: 'Standard: 75', fill: '#3b82f6', fontSize: 11 }} />
             <Line type="monotone" dataKey="actual" name="US Average" stroke="#588157" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: EPA Air Quality National Summary</p>
+      <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
     </div>
   )
 }
 
 export function WaterQualityChart() {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
-      <h3 className="font-bold text-gray-900 mb-1">Waters Meeting Quality Standards</h3>
-      <p className="text-gray-500 text-sm mb-4">% of assessed U.S. waters — EPA National Water Quality Inventory</p>
+    <div className="wf-card">
+      <h3 className="font-bold text-main mb-1">Waters Meeting Quality Standards</h3>
+      <p className="text-main/60 text-sm mb-4">% of assessed U.S. waters — EPA National Water Quality Inventory</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={waterQualityData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="#6b7280" />
-            <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#6b7280" tickFormatter={(v) => `${v}%`} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} stroke="var(--color-text-light)" />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="var(--color-text-light)" tickFormatter={(v) => `${v}%`} />
             <Tooltip
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)' }}
               formatter={(value, name) => [
                 `${value ?? 0}%`,
                 name === 'meetingStandards' ? 'Meeting Standards' : 'Goal'
               ]}
             />
-            <Legend />
+            <Legend wrapperStyle={{ color: 'var(--color-text)' }} />
             <ReferenceLine y={100} stroke="#3b82f6" strokeDasharray="5 5" label={{ value: 'Goal: 100%', fill: '#3b82f6', fontSize: 11 }} />
             <Line type="monotone" dataKey="meetingStandards" name="Meeting Standards" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <p className="text-xs text-gray-500 mt-3">Source: EPA Section 305(b) Reports to Congress</p>
+      <p className="text-xs text-main/60 mt-3">Source: EPA Section 305(b) Reports to Congress</p>
     </div>
   )
 }
@@ -402,9 +402,9 @@ export function WaterQualityChart() {
 // Summary component for API requirements
 export function DataSourceNotice() {
   return (
-    <div className="bg-green-50 border border-green-300 rounded-xl p-6 mb-8">
-      <h3 className="font-bold text-green-900 mb-3">Data Sources</h3>
-      <div className="space-y-3 text-sm text-green-800">
+    <div className="wf-section mb-8">
+      <h3 className="font-bold text-main mb-3">Data Sources</h3>
+      <div className="space-y-3 text-sm text-main/80">
         <p>
           <strong>Paris Agreement charts</strong> use verified public data from NASA GISS and NOAA Mauna Loa Observatory.
         </p>
@@ -449,12 +449,12 @@ interface AirNowResponse {
 
 // AQI category colors and labels
 const getAQICategory = (aqi: number) => {
-  if (aqi <= 50) return { color: '#00e400', label: 'Good', bg: 'bg-green-100', text: 'text-green-800' }
-  if (aqi <= 100) return { color: '#ffff00', label: 'Moderate', bg: 'bg-yellow-100', text: 'text-yellow-800' }
-  if (aqi <= 150) return { color: '#ff7e00', label: 'Unhealthy for Sensitive', bg: 'bg-orange-100', text: 'text-orange-800' }
-  if (aqi <= 200) return { color: '#ff0000', label: 'Unhealthy', bg: 'bg-red-100', text: 'text-red-800' }
-  if (aqi <= 300) return { color: '#8f3f97', label: 'Very Unhealthy', bg: 'bg-purple-100', text: 'text-purple-800' }
-  return { color: '#7e0023', label: 'Hazardous', bg: 'bg-rose-200', text: 'text-rose-900' }
+  if (aqi <= 50) return { color: '#00e400', label: 'Good', bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-800 dark:text-green-200' }
+  if (aqi <= 100) return { color: '#ffff00', label: 'Moderate', bg: 'bg-yellow-100 dark:bg-yellow-900', text: 'text-yellow-800 dark:text-yellow-200' }
+  if (aqi <= 150) return { color: '#ff7e00', label: 'Unhealthy for Sensitive', bg: 'bg-orange-100 dark:bg-orange-900', text: 'text-orange-800 dark:text-orange-200' }
+  if (aqi <= 200) return { color: '#ff0000', label: 'Unhealthy', bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-800 dark:text-red-200' }
+  if (aqi <= 300) return { color: '#8f3f97', label: 'Very Unhealthy', bg: 'bg-purple-100 dark:bg-purple-900', text: 'text-purple-800 dark:text-purple-200' }
+  return { color: '#7e0023', label: 'Hazardous', bg: 'bg-rose-200 dark:bg-rose-900', text: 'text-rose-900 dark:text-rose-200' }
 }
 
 export function LiveAirQuality() {
@@ -484,12 +484,12 @@ export function LiveAirQuality() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-bold text-gray-900 mb-4">Current US Air Quality</h3>
+      <div className="wf-card">
+        <h3 className="font-bold text-main mb-4">Current US Air Quality</h3>
         <div className="flex items-center justify-center h-[200px]">
           <div className="animate-pulse flex flex-col items-center">
-            <div className="w-12 h-12 rounded-full bg-gray-200 mb-3"></div>
-            <p className="text-gray-500 text-sm">Loading live data from AirNow API...</p>
+            <div className="w-12 h-12 border border-border mb-3"></div>
+            <p className="text-main/60 text-sm">Loading live data from AirNow API...</p>
           </div>
         </div>
       </div>
@@ -498,10 +498,10 @@ export function LiveAirQuality() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-bold text-gray-900 mb-4">Current US Air Quality</h3>
-        <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-red-800 text-sm">Failed to load air quality data: {error}</p>
+      <div className="wf-card">
+        <h3 className="font-bold text-main mb-4">Current US Air Quality</h3>
+        <div className="p-4 border border-red-300 dark:border-red-700">
+          <p className="text-red-700 dark:text-red-400 text-sm">Failed to load air quality data: {error}</p>
         </div>
       </div>
     )
@@ -509,10 +509,10 @@ export function LiveAirQuality() {
 
   if (!data || !data.nationalAverages || data.nationalAverages.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
-        <h3 className="font-bold text-gray-900 mb-4">Current US Air Quality</h3>
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-amber-800 text-sm">No air quality data available at this time.</p>
+      <div className="wf-card">
+        <h3 className="font-bold text-main mb-4">Current US Air Quality</h3>
+        <div className="p-4 border border-amber-300 dark:border-amber-700">
+          <p className="text-amber-700 dark:text-amber-400 text-sm">No air quality data available at this time.</p>
         </div>
       </div>
     )
@@ -521,17 +521,17 @@ export function LiveAirQuality() {
   const selectedData = data.nationalAverages.find(p => p.pollutant === selectedPollutant)
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6">
+    <div className="wf-card">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
-          <h3 className="font-bold text-gray-900">Current US Air Quality (Live)</h3>
-          <p className="text-gray-500 text-sm">
+          <h3 className="font-bold text-main">Current US Air Quality (Live)</h3>
+          <p className="text-main/60 text-sm">
             Real-time AQI from {data.citiesSampled} major cities • Updated {new Date(data.timestamp).toLocaleTimeString()}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Data from:</span>
-          <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">EPA AirNow API</span>
+          <span className="text-xs text-main/60">Data from:</span>
+          <span className="wf-badge text-green-700">EPA AirNow API</span>
         </div>
       </div>
 
@@ -543,9 +543,9 @@ export function LiveAirQuality() {
             <button
               key={pollutant.pollutant}
               onClick={() => setSelectedPollutant(pollutant.pollutant)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedPollutant === pollutant.pollutant
+              className={`px-4 py-2 text-sm font-medium transition-all ${selectedPollutant === pollutant.pollutant
                 ? `${category.bg} ${category.text} ring-2 ring-offset-1`
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                : 'border border-border text-main/70 hover:border-accent'
                 }`}
               style={selectedPollutant === pollutant.pollutant ? { '--tw-ring-color': category.color } as React.CSSProperties : {}}
             >
@@ -559,31 +559,31 @@ export function LiveAirQuality() {
         <div className="grid gap-4 md:grid-cols-2 md:gap-6">
           {/* Summary card */}
           <div className="space-y-4">
-            <div className={`p-4 rounded-xl ${getAQICategory(selectedData.averageAQI).bg}`}>
+            <div className={`p-4 ${getAQICategory(selectedData.averageAQI).bg}`}>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-gray-700">National Average</span>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${getAQICategory(selectedData.averageAQI).text} ${getAQICategory(selectedData.averageAQI).bg}`}>
+                <span className="text-sm font-medium text-main/80">National Average</span>
+                <span className={`text-xs px-2 py-1 font-medium ${getAQICategory(selectedData.averageAQI).text} ${getAQICategory(selectedData.averageAQI).bg}`}>
                   {getAQICategory(selectedData.averageAQI).label}
                 </span>
               </div>
               <p className="text-4xl font-bold" style={{ color: getAQICategory(selectedData.averageAQI).color === '#ffff00' ? '#ca8a04' : getAQICategory(selectedData.averageAQI).color }}>
                 {selectedData.averageAQI}
               </p>
-              <p className="text-xs text-gray-600 mt-1">AQI (Air Quality Index)</p>
+              <p className="text-xs text-main/60 mt-1">AQI (Air Quality Index)</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500">Best City</p>
+              <div className="p-3 border border-border">
+                <p className="text-xs text-main/60">Best City</p>
                 <p className="text-lg font-bold text-green-600">{selectedData.minAQI}</p>
-                <p className="text-xs text-gray-600 truncate">
+                <p className="text-xs text-main/70 truncate">
                   {selectedData.cityBreakdown[selectedData.cityBreakdown.length - 1]?.city}
                 </p>
               </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-500">Worst City</p>
+              <div className="p-3 border border-border">
+                <p className="text-xs text-main/60">Worst City</p>
                 <p className="text-lg font-bold text-red-600">{selectedData.maxAQI}</p>
-                <p className="text-xs text-gray-600 truncate">
+                <p className="text-xs text-main/70 truncate">
                   {selectedData.cityBreakdown[0]?.city}
                 </p>
               </div>
@@ -598,13 +598,13 @@ export function LiveAirQuality() {
                 layout="vertical"
                 margin={{ top: 0, right: 20, left: 60, bottom: 0 }}
               >
-                <XAxis type="number" domain={[0, 'auto']} tick={{ fontSize: 10 }} stroke="#9ca3af" />
-                <YAxis type="category" dataKey="city" tick={{ fontSize: 10 }} stroke="#9ca3af" width={55} />
+                <XAxis type="number" domain={[0, 'auto']} tick={{ fontSize: 10 }} stroke="var(--color-text-light)" />
+                <YAxis type="category" dataKey="city" tick={{ fontSize: 10 }} stroke="var(--color-text-light)" width={55} />
                 <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '12px' }}
+                  contentStyle={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-module)', color: 'var(--color-text)', fontSize: '12px' }}
                   formatter={(value) => [`${value ?? 0} AQI`, selectedData.pollutant]}
                 />
-                <Bar dataKey="aqi" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="aqi" radius={[0, 0, 0, 0]}>
                   {selectedData.cityBreakdown.slice(0, 8).map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={getAQICategory(entry.aqi).color === '#ffff00' ? '#eab308' : getAQICategory(entry.aqi).color} />
                   ))}
@@ -616,14 +616,14 @@ export function LiveAirQuality() {
       )}
 
       {/* AQI Legend */}
-      <div className="mt-6 pt-4 border-t border-gray-100">
-        <p className="text-xs text-gray-500 mb-2">AQI Scale:</p>
+      <div className="mt-6 pt-4 wf-divider">
+        <p className="text-xs text-main/60 mb-2">AQI Scale:</p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2 py-1 rounded bg-green-100 text-green-800">0-50 Good</span>
-          <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-800">51-100 Moderate</span>
-          <span className="px-2 py-1 rounded bg-orange-100 text-orange-800">101-150 Sensitive</span>
-          <span className="px-2 py-1 rounded bg-red-100 text-red-800">151-200 Unhealthy</span>
-          <span className="px-2 py-1 rounded bg-purple-100 text-purple-800">201-300 Very Unhealthy</span>
+          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">0-50 Good</span>
+          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">51-100 Moderate</span>
+          <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">101-150 Sensitive</span>
+          <span className="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">151-200 Unhealthy</span>
+          <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">201-300 Very Unhealthy</span>
         </div>
       </div>
     </div>

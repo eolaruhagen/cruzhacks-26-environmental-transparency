@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 
 export function PageNavCard({ title, description, href, icon }: {
     title: string
@@ -7,9 +8,9 @@ export function PageNavCard({ title, description, href, icon }: {
     icon: React.ReactNode
 }) {
     return (
-        <a href={href} className="block p-4 rounded-xl bg-card hover:bg-card-hover transition-all duration-200 group">
+        <Link href={href} className="block wf-card group">
             <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center shrink-0 group-hover:bg-accent/30 transition-colors">
+                <div className="w-10 h-10 flex items-center justify-center shrink-0">
                     {icon}
                 </div>
                 <div>
@@ -19,6 +20,6 @@ export function PageNavCard({ title, description, href, icon }: {
                     </p>
                 </div>
             </div>
-        </a>
+        </Link>
     )
 }

@@ -43,7 +43,12 @@ export function BillSearchResult({ bill, reason, compact, dropSponsor }: BillSea
     const date = formatTzDate(bill.date_of_introduction)
     const badges: ResultItemBadge[] = [
         { label: formatBillCategory(bill.category), className: 'bg-blue-500/10 text-blue-500' },
-        { label: bill.latest_tracker_stage ?? 'Unknown Stage', className: 'bg-green-500/10 text-green-500' },
+        {
+            label: bill.latest_tracker_stage ?? 'Unknown Stage',
+            className: bill.latest_tracker_stage
+                ? 'bg-green-500/10 text-green-500'
+                : 'bg-gray-500/10 text-gray-500',
+        },
     ]
 
     const getPartyColor = (party: string) => {
@@ -60,11 +65,10 @@ export function BillSearchResult({ bill, reason, compact, dropSponsor }: BillSea
     let metadata: ResultMetadataLine[] = [
         { label: 'Latest Action', value: bill.latest_action ?? 'Cannot find latest action', clamp: compact },
         { label: 'Sponsor', value: coloredSponsorName, clamp: compact },
-        { label: 'Party of Sponsor', value: bill.party_of_sponsor ?? 'Unknown party', clamp: compact },
     ]
 
     if (dropSponsor) {
-        metadata = metadata.filter(meta => meta.label !== 'Sponsor' && meta.label !== 'Party of Sponsor')
+        metadata = metadata.filter(meta => meta.label !== 'Sponsor')
     }
 
     if (reason) {
@@ -112,7 +116,7 @@ export interface ArticleSearchResultProps {
 
 export function SearchCardShell({ title, alias, date, badges, metadata, sourceIconUrl, expanded, children }: SearchCardShellProps) {
     return (
-        <div className="block p-5 border border-border  hover:border-accent transition-colors duration-150 group">
+        <div className="wf-card block group">
             <div className="flex items-center gap-2">
                 {sourceIconUrl && (
                     <img src={sourceIconUrl} alt="" className="w-4 h-4  shrink-0" />
@@ -142,7 +146,7 @@ export function SearchCardShell({ title, alias, date, badges, metadata, sourceIc
                 <div className="mt-3 space-y-1">
                     {metadata.map((meta, index) => (
                         <p key={index} className={`text-sm text-light ${meta.clamp ? 'line-clamp-1' : ''}`}>
-                            <span className="font-mono text-xs uppercase tracking-wide">{meta.label}:</span>{' '}
+                            <span className="wf-label">{meta.label}:</span>{' '}
                             {meta.value}
                         </p>
                     ))}
@@ -153,7 +157,7 @@ export function SearchCardShell({ title, alias, date, badges, metadata, sourceIc
             {children && (
                 <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
                     <div className="overflow-hidden">
-                        <div className="pt-4 mt-4 border-t border-border">
+                        <div className="wf-divider pt-4 mt-4">
                             {children}
                         </div>
                     </div>
@@ -197,7 +201,7 @@ export function ArticleSearchResult({ article }: ArticleSearchResultProps) {
                 {/* Expanded content — shown when card is clicked */}
                 <div className="space-y-4">
                     {/* Summary block — visually distinct */}
-                    <div className="bg-main rounded-lg p-3 space-y-3">
+                    <div className="space-y-3">
                         <p className="text-xs font-semibold text-light/70 uppercase tracking-wide mb-1">Summary</p>
                         <p className="text-sm text-main leading-relaxed">{summary}</p>
 
@@ -261,7 +265,7 @@ function ArticleSearchResultExpansion({ article }: ArticleSearchResultProps) {
             {relatedBills.length !== 0 ? (
                 <div>
                     <p className="text-xs font-semibold text-light/70 uppercase tracking-wide mb-2">Associated Bills</p>
-                    <div className="flex bg-main flex-col gap-2 max-h-[30vh] overflow-y-auto scrollbar-hide rounded-lg px-1.5">
+                    <div className="flex flex-col gap-2 max-h-[30vh] overflow-y-auto scrollbar-hide px-1.5">
                         {relatedBills.map((relatedBill) => (
                             <BillSearchResult key={relatedBill.bill.bill.id} bill={{ ...relatedBill.bill.bill }} reason={relatedBill.reason} compact={true} />
                         ))}
@@ -276,7 +280,7 @@ function ArticleSearchResultExpansion({ article }: ArticleSearchResultProps) {
 
 export function ResultItemBadge({ label, className }: ResultItemBadge) {
     return (
-        <span className={`inline-flex items-center px-2.5 py-0.5  border border-border text-xs font-mono whitespace-nowrap shrink-0 ${className ?? ''}`}>
+        <span className={`wf-badge shrink-0 ${className ?? ''}`}>
             {label}
         </span>
     )

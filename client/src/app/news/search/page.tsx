@@ -45,9 +45,10 @@ const testArticleSearchProps: ArticleSearchResultProps = {
 export default function SearchPage() {
     return (
         <div className="w-full flex flex-col items-center pt-4 px-4">
-            <h1 className="text-3xl font-bold mb-6">Card Shell Tests</h1>
+            <p className="wf-label mb-2">Component Test</p>
+            <h1 className="text-3xl font-bold mb-6 text-main">Card Shell Tests</h1>
 
-            <div className="w-full max-w-3xl flex flex-col gap-8">
+            <div className="w-full max-w-3xl flex flex-col gap-4">
                 {/* Test 1: Bill-style card (mimics existing SearchClient BillCard) */}
                 <SearchCardShell
                     alias="H.R. 1234"

@@ -73,17 +73,25 @@ export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResul
         }
     }, [activeFilters, queryFn, setResults])
 
+    // Track whether we've seen the first non-text filter to default it open
+    let firstNonTextSeen = false
+
     return (
-        <div className="border border-border  p-6 space-y-6">
-            {activeFilters.map((filter) => (
-                <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={updateFilter} />
-            ))}
+        <div className="wf-section space-y-6">
+            {activeFilters.map((filter) => {
+                let defaultOpen = false
+                if (filter.type !== 'text' && !firstNonTextSeen) {
+                    defaultOpen = true
+                    firstNonTextSeen = true
+                }
+                return <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={updateFilter} defaultOpen={defaultOpen} />
+            })}
         </div>
     )
 }
 
 
-function SearchModalFilterOption<K extends React.Key>({ filter, updateFilter }: { filter: SearchModalFilter<K>, updateFilter: (key: string, value: SearchModalFilter<K>) => void }) {
+function SearchModalFilterOption<K extends React.Key>({ filter, updateFilter, defaultOpen }: { filter: SearchModalFilter<K>, updateFilter: (key: string, value: SearchModalFilter<K>) => void, defaultOpen?: boolean }) {
     // Narrow the callback for each filter type — the child only sees its own value shape
     if (filter.type === 'text') {
         const onTextChange = (value: string) => updateFilter(filter.key, { ...filter, value })
@@ -112,7 +120,7 @@ function SearchModalFilterOption<K extends React.Key>({ filter, updateFilter }: 
     })()
 
     return (
-        <FilterBox label={filter.label}>
+        <FilterBox label={filter.label} defaultOpen={defaultOpen}>
             {content}
         </FilterBox>
     )
@@ -130,8 +138,7 @@ function DateRangeFilterUI({ filter, onChange }: { filter: DateRangeFilter, onCh
                     type="date"
                     value={filter.value[0].toISOString().split('T')[0]}
                     onChange={(e) => onChange([new Date(e.target.value), filter.value[1]])}
-                    className="px-4 py-2.5 bg-transparent text-main border border-border
-                    focus:outline-none focus:border-accent transition-colors font-mono text-sm"
+                    className="wf-input"
                 />
                 <span className="text-sm font-mono text-main whitespace-nowrap px-3 py-1">
                     to
@@ -140,8 +147,7 @@ function DateRangeFilterUI({ filter, onChange }: { filter: DateRangeFilter, onCh
                     type="date"
                     value={filter.value[1].toISOString().split('T')[0]}
                     onChange={(e) => onChange([filter.value[0], new Date(e.target.value)])}
-                    className="px-4 py-2.5 bg-transparent text-main border border-border
-                    focus:outline-none focus:border-accent transition-colors font-mono text-sm"
+                    className="wf-input"
                 />
             </div>
         </div>
@@ -156,11 +162,7 @@ function DiscreteFilterUI<K extends React.Key>({ filter, onToggle }: { filter: D
                     <button
                         key={option.id}
                         onClick={() => onToggle(option.id)}
-                        className={`px-4 py-2 text-sm font-medium transition-all duration-150 border
-                            ${filter.selected.has(option.id)
-                                ? 'border-accent bg-accent text-white'
-                                : 'border-border text-main hover:border-accent hover:text-accent'
-                            }`}
+                        className={filter.selected.has(option.id) ? 'wf-btn-active' : 'wf-btn'}
                     >
                         {option.label}
                     </button>
@@ -193,7 +195,7 @@ function RangeFilterUI({ filter, onChange }: { filter: RangeFilter, onChange: (v
                     onChange={handleMinChange}
                     className="flex-1 accent-[var(--color-accent)]"
                 />
-                <span className="text-sm font-mono text-main whitespace-nowrap border border-border  px-3 py-1">
+                <span className="text-sm font-mono text-main whitespace-nowrap px-3 py-1">
                     {filter.value[0]} – {filter.value[1]}
                 </span>
                 <input
@@ -212,22 +214,21 @@ function RangeFilterUI({ filter, onChange }: { filter: RangeFilter, onChange: (v
 function TextFilterUI({ filter, onChange }: { filter: TextFilter, onChange: (value: string) => void }) {
     return (
         <div>
-            <p className="text-xs font-mono uppercase tracking-widest text-light mb-3">{filter.label}</p>
+            <p className="wf-label mb-3">{filter.label}</p>
             <input
                 type="text"
                 value={filter.value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={filter.placeholder ?? `Filter by ${filter.label.toLowerCase()}...`}
-                className="w-full px-4 py-2.5 bg-transparent text-main border border-border
-                    placeholder:text-light focus:outline-none focus:border-accent transition-colors font-mono text-sm"
+                className="wf-input"
             />
         </div>
     )
 }
 
 /** Collapsible wrapper for a filter section. Animates open/close with CSS Grid. */
-function FilterBox({ label, children }: { label: string; children: React.ReactNode }) {
-    const [open, setOpen] = useState(false)
+function FilterBox({ label, defaultOpen, children }: { label: string; defaultOpen?: boolean; children: React.ReactNode }) {
+    const [open, setOpen] = useState(defaultOpen ?? false)
 
     return (
         <div>

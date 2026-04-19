@@ -1,4 +1,5 @@
 import React from 'react'
+import Link from 'next/link'
 import LandingImages from '@/components/landing/LandingImages'
 import { PageNavCard } from '@/components/landing/LandingPage'
 
@@ -26,25 +27,25 @@ export default function Home() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 mb-10">
-              <a
+              <Link
                 href="/my_rep"
-                className="px-6 py-3 bg-accent text-white rounded-xl font-semibold hover:bg-accent-dark transition-all duration-200 shadow-lg hover:shadow-xl text-center"
+                className="wf-btn-active px-6 py-3 font-semibold text-center"
               >
                 Find My Representatives
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/legislative-process"
-                className="px-6 py-3 bg-card text-main rounded-xl font-semibold hover:bg-card-hover transition-all duration-200 text-center"
+                className="wf-btn px-6 py-3 font-semibold text-center"
               >
                 How It Works
-              </a>
+              </Link>
             </div>
 
             {/* Divider */}
-            <div className="border-t border-border mb-8"></div>
+            <div className="wf-divider mb-8"></div>
 
             {/* Features Section */}
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-accent mb-5">
+            <h2 className="wf-label mb-5 text-accent">
               What You Can Do
             </h2>
 

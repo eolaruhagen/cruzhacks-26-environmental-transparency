@@ -1,12 +1,11 @@
 'use client';
 
-import { useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '@/lib/supabase';
 import { Bill, BillType } from '@/lib/types';
 import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter } from '@/components/search/SearchModal';
 import { BillSearchResult } from '@/components/search/SearchResultItem';
-import { useState } from 'react';
 
 // Filter option definitions
 const BILL_TYPES: { id: BillType; label: string }[] = [
@@ -41,7 +40,7 @@ const billFilters: SearchModalFilter<string>[] = [
         label: 'Search',
         value: '',
         placeholder: 'Search by title, bill number, or sponsor...',
-        onChange: () => {},
+        onChange: () => { },
     },
     {
         type: 'discrete',
@@ -49,7 +48,7 @@ const billFilters: SearchModalFilter<string>[] = [
         label: 'Category',
         options: BILL_TYPES,
         selected: new Set<string>(),
-        toggle: () => {},
+        toggle: () => { },
     },
     {
         type: 'discrete',
@@ -57,7 +56,7 @@ const billFilters: SearchModalFilter<string>[] = [
         label: 'Status',
         options: BILL_STATUSES,
         selected: new Set<string>(),
-        toggle: () => {},
+        toggle: () => { },
     },
     {
         type: 'discrete',
@@ -65,14 +64,14 @@ const billFilters: SearchModalFilter<string>[] = [
         label: 'Party Affiliation',
         options: PARTY_OPTIONS,
         selected: new Set<string>(),
-        toggle: () => {},
+        toggle: () => { },
     },
     {
         type: 'date-range',
         key: 'date_of_introduction',
         label: 'Date of Introduction',
         value: [new Date('2023-01-01'), new Date()],
-        onChange: () => {},
+        onChange: () => { },
     },
     {
         type: 'range',
@@ -81,7 +80,7 @@ const billFilters: SearchModalFilter<string>[] = [
         min: 0,
         max: 200,
         value: [0, 200],
-        onChange: () => {},
+        onChange: () => { },
     },
 ];
 
@@ -206,24 +205,64 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
 
 export default function SearchClient() {
     const [bills, setBills] = useState<Bill[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
+
+    const wrappedQueryFn = useCallback(async (filters: SearchModalFilter<string>[]) => {
+        // Check if any filters are actually active
+        const hasActiveFilters = filters.some(f =>
+            (f.type === 'discrete' && f.selected.size > 0) ||
+            (f.type === 'text' && f.value.trim() !== '')
+        );
+
+        if (!hasActiveFilters) {
+            setHasSearched(false);
+            setIsLoading(false);
+            return [];
+        }
+
+        setIsLoading(true);
+        setHasSearched(true);
+        const results = await queryBills(filters);
+        setIsLoading(false);
+        return results;
+    }, []);
+
+    const handleResults = useCallback((results: Bill[]) => {
+        setBills(results);
+    }, []);
 
     return (
         <>
             <SearchModal
                 filters={billFilters}
-                queryFn={queryBills}
-                setResults={setBills}
+                queryFn={wrappedQueryFn}
+                setResults={handleResults}
             />
 
             {/* Results */}
             <div className="mt-6">
-                {bills.length > 0 && (
+                {isLoading && (
+                    <p className="text-xs font-mono uppercase tracking-widest text-light mb-3">
+                        Searching...
+                    </p>
+                )}
+
+                {!isLoading && bills.length > 0 && (
                     <>
                         <p className="text-xs font-mono uppercase tracking-widest text-light mb-3">
                             Showing {bills.length} bills
                         </p>
                         <VirtualizedBillList bills={bills} />
                     </>
+                )}
+
+                {!isLoading && bills.length === 0 && (
+                    <p className="text-sm text-light">
+                        {hasSearched
+                            ? 'No bills match your current filters.'
+                            : 'Select a category or enter a search term to find bills.'}
+                    </p>
                 )}
             </div>
         </>

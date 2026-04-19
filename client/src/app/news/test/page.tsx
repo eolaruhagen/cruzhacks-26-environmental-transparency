@@ -131,10 +131,10 @@ export default function TestPage() {
 
     return (
         <div className="w-full flex flex-col items-center pt-8 px-4">
-            <div className="w-full max-w-3xl space-y-8">
+            <div className="w-full max-w-3xl space-y-6">
                 {/* Header */}
                 <div>
-                    <p className="text-xs font-mono uppercase tracking-widest text-light mb-2">Component Test</p>
+                    <p className="wf-label mb-2">Component Test</p>
                     <h1 className="text-3xl font-bold">Search Modal &amp; Cards</h1>
                     <p className="text-light mt-1">Testing the restyled search components.</p>
                 </div>
@@ -147,11 +147,11 @@ export default function TestPage() {
                 />
 
                 {/* Divider */}
-                <div className="border-t border-border" />
+                <div className="wf-divider" />
 
                 {/* Result Cards */}
                 <div>
-                    <p className="text-xs font-mono uppercase tracking-widest text-light mb-4">Result Cards</p>
+                    <p className="wf-label mb-4">Result Cards</p>
                     <div className="flex flex-col gap-3">
                         <BillSearchResult {...testBill} />
 
