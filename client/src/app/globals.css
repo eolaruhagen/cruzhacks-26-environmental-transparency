@@ -3,18 +3,29 @@
 @tailwind utilities;
 
 :root {
-  /* Color Palette - Light Mode (Nature-inspired, readable) */
-  --color-bg: #FAFAF8;              /* Warm off-white background */
-  --color-nav: #588157;             /* Forest green navbar */
-  --color-card: #DAD7CD;            /* Warm sage/beige cards */
-  --color-card-hover: #C9C5B8;      /* Darker sage for hover */
-  --color-text: #344E41;            /* Dark forest green text */
-  --color-text-light: #3A5A40;      /* Slightly lighter text */
-  --color-accent: #588157;          /* Forest green accent */
-  --color-accent-dark: #3A5A40;     /* Darker green hover */
-  --color-border: #A3B18A;          /* Sage border */
-  --color-module: #ffffff;          /* White modules/panels */
-  --color-module-hover: #f5f5f5;    /* Hover state for modules */
+  /* Color Palette - Light Mode: clean, glassy, minimal — green as accent only */
+  --color-bg: #FAFAFA;
+  /* Neutral off-white */
+  --color-nav: #1a1a1a;
+  /* Near-black navbar */
+  --color-card: #F5F5F3;
+  /* Very light warm gray */
+  --color-card-hover: #EBEBEA;
+  /* Slightly darker on hover */
+  --color-text: #1a1a1a;
+  /* Near-black text */
+  --color-text-light: #6b6b6b;
+  /* Medium gray for secondary text */
+  --color-accent: #3A5A40;
+  /* Deep forest green — accent only */
+  --color-accent-dark: #2d4a34;
+  /* Darker green hover */
+  --color-border: #d4d4d4;
+  /* Light neutral gray border */
+  --color-module: #ffffff;
+  /* White panels */
+  --color-module-hover: #f5f5f5;
+  /* Hover state for modules */
 
   /* Font */
   --font-inter: 'Inter', sans-serif;
@@ -22,17 +33,28 @@
 
 /* Dark Mode Color Palette */
 .dark {
-  --color-bg: #1a1f1a;              /* Very dark green-black background */
-  --color-nav: #2d3a2d;             /* Dark forest green navbar */
-  --color-card: #252d25;            /* Dark green-gray cards */
-  --color-card-hover: #313b31;      /* Slightly lighter on hover */
-  --color-text: #e8efe8;            /* Light green-white text */
-  --color-text-light: #b8c9b8;      /* Muted sage text */
-  --color-accent: #6b9b6b;          /* Muted forest green accent */
-  --color-accent-dark: #8ab88a;     /* Lighter green hover */
-  --color-border: #3d4a3d;          /* Dark sage border */
-  --color-module: #e8e8e0;          /* Softer off-white for dark mode modules */
-  --color-module-hover: #deded6;    /* Hover state for dark mode modules */
+  --color-bg: #0f0f0f;
+  /* Near-black background */
+  --color-nav: #1a1a1a;
+  /* Slightly lighter navbar */
+  --color-card: #1a1a1a;
+  /* Dark card surface */
+  --color-card-hover: #252525;
+  /* Lighter on hover */
+  --color-text: #e5e5e5;
+  /* Light gray text */
+  --color-text-light: #999999;
+  /* Muted gray secondary text */
+  --color-accent: #6b9b6b;
+  /* Muted forest green */
+  --color-accent-dark: #8ab88a;
+  /* Lighter green hover */
+  --color-border: #333333;
+  /* Dark border */
+  --color-module: #1a1a1a;
+  /* Dark module */
+  --color-module-hover: #252525;
+  /* Hover state */
 }
 
 html {
@@ -40,30 +62,181 @@ html {
 }
 
 body {
-  font-family: var(--font-quicksand);
+  font-family: var(--font-inter);
   min-height: 100vh;
   background-color: var(--color-bg);
   color: var(--color-text);
 }
 
-/* Utility classes for the color palette */
+/* ─── Utility classes ───────────────────────────────── */
 @layer utilities {
-  .bg-main { background-color: var(--color-bg) !important; }
-  .bg-nav { background-color: var(--color-nav) !important; }
-  .bg-card { background-color: var(--color-card) !important; }
-  .bg-card-hover:hover { background-color: var(--color-card-hover) !important; }
-  .bg-accent { background-color: var(--color-accent) !important; }
-  .hover\:bg-accent-dark:hover { background-color: var(--color-accent-dark) !important; }
-  .bg-module { background-color: var(--color-module) !important; }
-  .hover\:bg-module-hover:hover { background-color: var(--color-module-hover) !important; }
-  .text-main { color: var(--color-text); }
-  .text-light { color: var(--color-text-light); }
-  .text-accent { color: var(--color-accent); }
-  .text-accent-dark { color: var(--color-accent-dark); }
-  .border-border { border-color: var(--color-border); }
+
+  /* Background */
+  .bg-main {
+    background-color: var(--color-bg);
+  }
+
+  .bg-nav {
+    background-color: var(--color-nav);
+  }
+
+  .bg-card {
+    background-color: var(--color-card);
+  }
+
+  .bg-card-hover:hover {
+    background-color: var(--color-card-hover);
+  }
+
+  .bg-accent {
+    background-color: var(--color-accent);
+  }
+
+  .hover\:bg-accent-dark:hover {
+    background-color: var(--color-accent-dark);
+  }
+
+  .bg-module {
+    background-color: var(--color-module);
+  }
+
+  .hover\:bg-module-hover:hover {
+    background-color: var(--color-module-hover);
+  }
+
+  /* Text */
+  .text-main {
+    color: var(--color-text);
+  }
+
+  .text-light {
+    color: var(--color-text-light);
+  }
+
+  .text-accent {
+    color: var(--color-accent);
+  }
+
+  .text-accent-dark {
+    color: var(--color-accent-dark);
+  }
+
+  /* Border */
+  .border-border {
+    border-color: var(--color-border);
+  }
+
+  /* ─── Wireframe theme utilities ─────────────────── */
+
+  /* Standard wireframe card — outlined, no fill */
+  .wf-card {
+    @apply border border-border p-5;
+    transition: border-color 150ms;
+  }
+
+  .wf-card:hover {
+    border-color: var(--color-accent);
+  }
+
+  /* Wireframe section — heavier border, more padding */
+  .wf-section {
+    @apply border border-border p-6;
+  }
+
+  /* Wireframe button — outlined, no fill */
+  .wf-btn {
+    @apply border border-border px-4 py-2 text-sm font-medium transition-all duration-150;
+    color: var(--color-text);
+  }
+
+  .wf-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  /* Wireframe button — active/selected state */
+  .wf-btn-active {
+    @apply border px-4 py-2 text-sm font-medium;
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: white;
+  }
+
+  .wf-btn-active-transparent {
+    @apply border px-4 py-2 text-sm font-medium;
+    border-color: var(--color-accent);
+    background-color: transparent;
+    color: var(--color-accent);
+  }
+
+  /* Wireframe badge/pill */
+  .wf-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 border border-border text-xs font-mono whitespace-nowrap;
+  }
+
+  /* Wireframe input */
+  .wf-input {
+    @apply w-full px-4 py-2.5 bg-transparent border border-border text-sm font-mono;
+    color: var(--color-text);
+    transition: border-color 150ms;
+  }
+
+  .wf-input::placeholder {
+    color: var(--color-text-light);
+  }
+
+  .wf-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  /* Wireframe label — small caps mono */
+  .wf-label {
+    @apply text-xs font-mono uppercase tracking-widest;
+    color: var(--color-text-light);
+  }
+
+  /* Wireframe divider */
+  .wf-divider {
+    @apply border-t border-border;
+  }
+
+  /* Wireframe nav link */
+  .wf-nav-link {
+    @apply px-4 py-2 text-sm font-medium border border-transparent transition-all duration-150;
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .wf-nav-link:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+  }
+
+  /* Wireframe nav link — active state */
+  .wf-nav-link-active {
+    @apply px-4 py-2 text-sm font-medium border transition-all duration-150;
+    border-color: rgba(255, 255, 255, 0.5);
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  /* Touch targets */
+  .touch-friendly {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Override white backgrounds in dark mode to be softer */
+/* Override white backgrounds in dark mode */
 .dark .bg-white {
   background-color: var(--color-module) !important;
 }
@@ -72,26 +245,19 @@ body {
   background-color: var(--color-module-hover) !important;
 }
 
-/* Text card component */
-.text-card {
-  background-color: var(--color-card);
-  color: var(--color-text);
-  padding: 1rem 1.5rem;
-  border-radius: 0.75rem;
-  display: inline-block;
-}
-
+/* ─── Legacy component classes (for gradual migration) ─── */
 .text-card-block {
   background-color: var(--color-card);
   color: var(--color-text);
   padding: 1.5rem;
-  border-radius: 1rem;
+  border-radius: 0;
+  border: 1px solid var(--color-border);
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -100,7 +266,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 5px;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -109,34 +275,18 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(88, 129, 87, 0.3);
+  background: rgba(58, 90, 64, 0.2);
   color: var(--color-text);
 }
 
 .dark ::selection {
-  background: rgba(107, 155, 107, 0.4);
+  background: rgba(107, 155, 107, 0.3);
   color: var(--color-text);
 }
 
 /* Smooth transition for theme changes */
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* Mobile-specific utilities */
-@layer utilities {
-  .touch-friendly {
-    @apply min-h-[44px] min-w-[44px];
-  }
-
-  /* Hide scrollbar but keep scroll functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;       /* IE/Edge */
-    scrollbar-width: none;          /* Firefox */
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;                  /* Chrome/Safari/Opera */
-  }
 }
 
 /* Narrower scrollbar on mobile */
