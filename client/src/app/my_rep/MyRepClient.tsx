@@ -667,7 +667,7 @@ export default function MyRepClient() {
               <p className="mt-3 text-light">Loading bills...</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="flex flex-col gap-4 px-4 max-h-96 overflow-y-auto">
               {(activeBillsTab === 'sponsored' ? sponsoredBills : cosponsoredBills).length === 0 ? (
                 <div className="text-center py-8 text-light">
                   <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -834,7 +834,7 @@ export default function MyRepClient() {
     <div className="max-w-lg mx-auto">
       {/* Selection Card */}
       <div className="wf-section text-center">
-        <div className="w-16 h-16 mx-auto mb-5 border border-accent/40 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center">
           <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />

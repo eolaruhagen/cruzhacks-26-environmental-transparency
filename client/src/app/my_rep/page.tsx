@@ -29,7 +29,7 @@ export default function MyRepPage() {
 
           <div className="grid md:grid-cols-3 gap-6">
             <div className="flex gap-3">
-              <div className="w-8 h-8 border border-accent/40 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -43,7 +43,7 @@ export default function MyRepPage() {
             </div>
 
             <div className="flex gap-3">
-              <div className="w-8 h-8 border border-accent/40 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
@@ -57,7 +57,7 @@ export default function MyRepPage() {
             </div>
 
             <div className="flex gap-3">
-              <div className="w-8 h-8 border border-accent/40 flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 flex items-center justify-center shrink-0">
                 <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
@@ -74,7 +74,7 @@ export default function MyRepPage() {
 
         {/* Interactive Client Component */}
         <MyRepClient />
-      </div>
-    </main>
+      </div >
+    </main >
   )
 }
