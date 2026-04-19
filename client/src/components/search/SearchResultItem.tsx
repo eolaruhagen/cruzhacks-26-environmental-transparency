@@ -77,7 +77,7 @@ export function BillSearchResult({ bill, reason, compact, dropSponsor }: BillSea
 
 
     return (
-        <a href={bill.url} target="_blank" rel="noopener noreferrer">
+        <a href={bill.url} target="_blank" rel="noopener noreferrer" className="block">
             <SearchCardShell
                 title={title}
                 alias={alias}
