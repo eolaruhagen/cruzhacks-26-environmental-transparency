@@ -170,7 +170,7 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
     return (
         <div
             ref={parentRef}
-            className="h-[600px] overflow-auto"
+            className="h-[600px] overflow-auto px-4"
             style={{ contain: 'strict' }}
         >
             <div
