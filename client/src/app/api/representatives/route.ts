@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     // Fetch current members from Congress.gov API
     // Use /v3/member/{stateCode} endpoint for state filtering
     const response = await fetch(
-      `https://api.congress.gov/v3/member/?format=json&${state}?currentMember=true&limit=100&api_key=${apiKey}`,
+      `https://api.congress.gov/v3/member/${state}/?format=json&currentMember=true&limit=100&api_key=${apiKey}`,
       {
         headers: {
           'Accept': 'application/json',
