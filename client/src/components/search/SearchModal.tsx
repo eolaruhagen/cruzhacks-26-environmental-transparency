@@ -79,7 +79,7 @@ export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResul
     return (
         <div className="wf-section space-y-6">
             {activeFilters.map((filter) => {
-                let defaultOpen = false
+                let defaultOpen = true
                 if (filter.type !== 'text' && !firstNonTextSeen) {
                     defaultOpen = true
                     firstNonTextSeen = true

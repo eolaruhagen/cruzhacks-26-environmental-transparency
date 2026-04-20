@@ -450,7 +450,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 y={labelY}
                 textAnchor={textAnchor}
                 dominantBaseline="middle"
-                fill="var(--color-bg)"
+                fill="var(--color-text)"
                 style={{ fontSize }}
             >
                 {formattedName}

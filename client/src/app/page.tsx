@@ -87,7 +87,7 @@ export default function Home() {
                     <div className="wf-glass max-w-2xl w-full">
                         <p className="wf-label text-accent mb-3">Environmental Transparency</p>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-main mb-4 leading-tight">
-                            Track every environmental bill in <span className="text-accent">Congress</span>.
+                            Track  <span className="text-accent underline">every</span> environmental bill in Congress
                         </h1>
                         <p className="text-base md:text-lg text-light leading-relaxed mb-8 max-w-xl">
                             EcoGlass follows environmental legislation moving through the U.S. Congress,
@@ -112,12 +112,12 @@ export default function Home() {
                     </div>
                 </section>
 
-                <div className="max-w-5xl mx-auto px-4" id="tools">
+                {/* <div className="max-w-5xl mx-auto px-4" id="tools">
                     <div className="flex items-center gap-4 mb-6">
-                        <span className="wf-label text-accent">01 / Explore</span>
+                        <span className="wf-label">01 / Explore</span>
                         <span className="flex-1 wf-divider" />
                     </div>
-                </div>
+                </div> */}
 
                 <section className="px-4 pb-16">
                     <div className="max-w-5xl mx-auto">
@@ -154,17 +154,9 @@ export default function Home() {
                     </div>
                 </section>
 
-                <div className="max-w-5xl mx-auto px-4" id="start">
-                    <div className="flex items-center gap-4 mb-6">
-                        <span className="wf-label text-accent">02 / Start</span>
-                        <span className="flex-1 wf-divider" />
-                    </div>
-                </div>
-
                 <section className="px-4 pb-24">
                     <div className="max-w-5xl mx-auto">
                         <div className="wf-glass text-center">
-                            <p className="wf-label text-accent mb-3">Ready?</p>
                             <h2 className="text-2xl md:text-3xl font-bold text-main mb-3">
                                 See what your representatives have been up to.
                             </h2>
