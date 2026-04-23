@@ -266,7 +266,7 @@ async function processOneBill(
     // 4. Build BillData
     const billData: BillData = {
       legislation_number: legislationNumber,
-      url: `https://www.congress.gov/bill/${congress}th-congress/${billType.toLowerCase()}-bill/${billNumber}`,
+      url: bill.legislationUrl,
       congress: `${congress}th Congress`,
       title: bill?.title || "",
       sponsor: bill?.sponsors?.[0]?.fullName || "",
