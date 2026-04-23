@@ -10,7 +10,7 @@ BEGIN;
 ALTER TABLE IF EXISTS public.house_bills
     ADD COLUMN created_at timestamptz NOT NULL DEFAULT now(),
     ADD COLUMN updated_at timestamptz NOT NULL DEFAULT now(),
-    ADD COLUMN bill_text text NOT NULL DEFAULT '',
+    ADD COLUMN bill_text text NOT NULL DEFAULT 'SENTINEL',
     ADD COLUMN congress_number INTEGER NOT NULL DEFAULT 0,
     ADD COLUMN congress_years INTEGER[] NOT NULL DEFAULT '{}';
 
