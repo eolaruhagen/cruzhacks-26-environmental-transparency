@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
-import { RepBill, RadarBill, Subcategory, Representative } from '@/lib/types'
+import { Bill, RepBill, RadarBill, Subcategory, Representative } from '@/lib/types'
+import { BillSearchResult } from '@/components/search/SearchResultItem'
 
 // Mini Policy Radar Component
 interface MiniPolicyRadarProps {
@@ -182,10 +183,10 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+      <div className="wf-section">
         <div className="flex flex-col items-center justify-center h-64">
-          <div className="inline-block animate-spin rounded-full h-10 w-10 border-4 border-accent border-r-transparent"></div>
-          <p className="mt-4 text-gray-600">Loading policy radar...</p>
+          <div className="inline-block animate-spin h-10 w-10 border-4 border-accent border-r-transparent"></div>
+          <p className="mt-4 text-light">Loading policy radar...</p>
         </div>
       </div>
     )
@@ -288,8 +289,8 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
   })
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--color-border)' }}>
+    <div className="wf-section">
+      <h3 className="text-xl font-bold mb-4 text-light">
         Policy Radar
       </h3>
 
@@ -302,17 +303,12 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`p-3 rounded-lg border text-left transition-all duration-200 ${isSelected
-                ? 'bg-accent text-white border-accent shadow-md'
-                : count > 0
-                  ? 'bg-gray-50 border-gray-200 hover:border-accent hover:bg-accent/5'
-                  : 'bg-gray-50 border-gray-200 opacity-50'
-                }`}
+              className={isSelected ? 'wf-btn-active-transparent text-left p-3' : `wf-btn text-left p-3 ${count === 0 ? 'opacity-50' : ''}`}
             >
-              <p className={`text-sm font-medium truncate ${isSelected ? 'text-white' : 'text-gray-800'}`}>
+              <p className={`text-sm font-medium truncate ${isSelected ? 'text-accent' : 'text-main'}`}>
                 {formatCategoryName(cat)}
               </p>
-              <p className={`text-lg font-bold ${isSelected ? 'text-white' : count > 0 ? 'text-accent' : 'text-gray-400'}`}>
+              <p className={`text-lg font-bold ${isSelected ? 'text-accent' : count > 0 ? 'text-accent' : 'text-light'}`}>
                 {count} {count === 1 ? 'bill' : 'bills'}
               </p>
             </button>
@@ -321,16 +317,16 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
       </div>
 
       {/* Total Stats */}
-      <div className="bg-gray-50 rounded-lg p-3 mb-4 text-center">
+      <div className="mb-4 text-center">
         <p className="text-2xl font-bold text-accent">{bills.length}</p>
-        <p className="text-xs text-gray-600">Total Environmental Bills</p>
+        <p className="wf-label">Total Environmental Bills</p>
       </div>
 
       {/* Radar Chart */}
       <div className="relative" style={{ minHeight: size + 60 }}>
         {isEmpty && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <div className="bg-gray-900/70 text-white px-6 py-3 rounded-xl font-semibold text-center">
+            <div className="bg-main/90 border border-border text-main px-6 py-3 font-semibold text-center">
               Representative is not active<br />with any environmental bills
             </div>
           </div>
@@ -353,40 +349,40 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
       {/* Hovered Bill Tooltip */}
       {hoveredBill && !selectedBill && (
-        <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mt-4 p-3 border border-border">
           <p className="text-sm font-mono font-semibold text-accent">{hoveredBill.legislation_number}</p>
-          <p className="text-sm text-gray-700 line-clamp-2">{hoveredBill.title}</p>
-          <p className="text-xs text-gray-500 mt-1">Click for details</p>
+          <p className="text-sm text-main line-clamp-2">{hoveredBill.title}</p>
+          <p className="text-xs text-light mt-1">Click for details</p>
         </div>
       )}
 
       {/* Selected Bill Detail Panel */}
       {selectedBill && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+        <div className="mt-4 p-4 border border-accent">
           <div className="flex items-start justify-between gap-3 mb-3">
             <div>
               <span className="text-sm font-mono font-bold text-accent">{selectedBill.legislation_number}</span>
               {selectedBill.category && (
-                <span className="ml-2 text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
+                <span className="wf-badge ml-2 text-accent border-accent">
                   {formatCategoryName(selectedBill.category)}
                 </span>
               )}
             </div>
             <button
               onClick={() => setSelectedBill(null)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-light hover:text-main transition-colors"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
-          <h4 className="font-semibold text-gray-900 mb-3">{selectedBill.title}</h4>
+          <h4 className="font-semibold text-main mb-3">{selectedBill.title}</h4>
           <a
             href={selectedBill.url || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-accent text-white rounded-lg font-medium text-sm hover:bg-accent/90 transition-colors"
+            className="wf-btn-active inline-flex items-center gap-2"
           >
             View on Congress.gov
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -553,7 +549,7 @@ export default function MyRepClient() {
         </button>
 
         {/* Representative Card */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8 mb-6">
+        <div className="wf-section mb-6">
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 md:gap-8">
             {/* Photo */}
             <div className="shrink-0 mx-auto sm:mx-0">
@@ -561,11 +557,11 @@ export default function MyRepClient() {
                 <img
                   src={selectedRep.photoUrl}
                   alt={selectedRep.name}
-                  className="w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-60 rounded-xl object-cover shadow-md"
+                  className="w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-60 object-cover border border-border"
                 />
               ) : (
-                <div className="w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-60 rounded-xl bg-gray-100 flex items-center justify-center">
-                  <svg className="w-20 h-20 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-60 border border-border flex items-center justify-center">
+                  <svg className="w-20 h-20 text-light" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                 </div>
@@ -574,51 +570,30 @@ export default function MyRepClient() {
 
             {/* Info */}
             <div className="flex-1">
-              <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-3 sm:mb-4 ${getPartyBadge(selectedRep.party)}`}>
+              <span className={`wf-badge text-sm font-semibold mb-3 sm:mb-4 ${getPartyBadge(selectedRep.party)}`}>
                 {selectedRep.party}
               </span>
-              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-2">{selectedRep.name}</h2>
-              <p className="text-lg md:text-xl text-gray-700 mb-2">{selectedRep.title}</p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-main mb-2">{selectedRep.name}</h2>
+              <p className="text-lg md:text-xl text-main mb-2">{selectedRep.title}</p>
               {selectedRep.district && (
-                <p className="text-gray-600 mb-4">District {selectedRep.district}, {selectedRep.state}</p>
+                <p className="text-light mb-4">District {selectedRep.district}, {selectedRep.state}</p>
               )}
               {!selectedRep.district && (
-                <p className="text-gray-600 mb-4">{selectedRep.state}</p>
+                <p className="text-light mb-4">{selectedRep.state}</p>
               )}
 
               {/* Details */}
-              <div className="space-y-4 mt-6 pt-6 border-t border-gray-200">
+              <div className="space-y-4 mt-6 pt-6 wf-divider">
                 {selectedRep.terms && (
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
+                    <div className="w-10 h-10 border border-accent/40 flex items-center justify-center">
                       <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-500">Terms Served</p>
-                      <p className="text-gray-900 font-semibold">{selectedRep.terms} term{selectedRep.terms > 1 ? 's' : ''}</p>
-                    </div>
-                  </div>
-                )}
-
-                {selectedRep.url && (
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Official Website</p>
-                      <a
-                        href={selectedRep.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:text-accent-dark font-semibold"
-                      >
-                        Visit Website →
-                      </a>
+                      <p className="wf-label">Terms Served</p>
+                      <p className="text-main font-semibold">{selectedRep.terms} term{selectedRep.terms > 1 ? 's' : ''}</p>
                     </div>
                   </div>
                 )}
@@ -633,8 +608,8 @@ export default function MyRepClient() {
         </div>
 
         {/* Environmental Bills Section */}
-        <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+        <div className="mt-6 wf-section">
+          <h3 className="text-xl font-bold text-main mb-4 flex items-center gap-2">
             Environmental Legislation
           </h3>
 
@@ -642,30 +617,22 @@ export default function MyRepClient() {
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setActiveBillsTab('sponsored')}
-              className={`flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${activeBillsTab === 'sponsored'
-                ? 'bg-accent text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+              className={activeBillsTab === 'sponsored' ? 'wf-btn-active-transparent flex-1' : 'wf-btn flex-1'}
             >
               Sponsored
               {sponsoredBills.length > 0 && (
-                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeBillsTab === 'sponsored' ? 'bg-white/20' : 'bg-accent/20 text-accent'
-                  }`}>
+                <span className="wf-badge ml-2">
                   {sponsoredBills.length}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveBillsTab('cosponsored')}
-              className={`flex-1 px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200 ${activeBillsTab === 'cosponsored'
-                ? 'bg-accent text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+              className={activeBillsTab === 'cosponsored' ? 'wf-btn-active-transparent flex-1' : 'wf-btn flex-1'}
             >
               Cosponsored
               {cosponsoredBills.length > 0 && (
-                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${activeBillsTab === 'cosponsored' ? 'bg-white/20' : 'bg-accent/20 text-accent'
-                  }`}>
+                <span className="wf-badge ml-2">
                   {cosponsoredBills.length}
                 </span>
               )}
@@ -675,59 +642,41 @@ export default function MyRepClient() {
           {/* Bills List */}
           {billsLoading ? (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-accent border-r-transparent"></div>
-              <p className="mt-3 text-gray-600">Loading bills...</p>
+              <div className="inline-block animate-spin h-8 w-8 border-4 border-accent border-r-transparent"></div>
+              <p className="mt-3 text-light">Loading bills...</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="flex flex-col gap-4 px-4 max-h-96 overflow-y-auto">
               {(activeBillsTab === 'sponsored' ? sponsoredBills : cosponsoredBills).length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-light">
                   <svg className="w-12 h-12 mx-auto mb-3 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   <p>No {activeBillsTab} environmental bills found</p>
                 </div>
               ) : (
-                (activeBillsTab === 'sponsored' ? sponsoredBills : cosponsoredBills).map((bill) => (
-                  <a
-                    key={bill.id}
-                    href={bill.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-200 group"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-sm font-mono font-semibold text-accent">
-                            {bill.legislation_number}
-                          </span>
-                          {bill.category && (
-                            <span className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                              {bill.category.replace(/_/g, ' ')}
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="font-medium text-gray-900 line-clamp-2 group-hover:text-accent transition-colors">
-                          {bill.title || 'Untitled Bill'}
-                        </h4>
-                        {bill.latest_action && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">
-                            <span className="font-medium">Latest:</span> {bill.latest_action}
-                          </p>
-                        )}
-                      </div>
-                      <svg
-                        className="w-5 h-5 text-gray-400 group-hover:text-accent group-hover:translate-x-1 transition-all shrink-0 mt-1"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </div>
-                  </a>
-                ))
+                (activeBillsTab === 'sponsored' ? sponsoredBills : cosponsoredBills).map((bill) => {
+                  const asBill: Bill = {
+                    id: bill.id,
+                    legislation_number: bill.legislation_number,
+                    title: bill.title,
+                    url: bill.url,
+                    latest_action: bill.latest_action,
+                    category: bill.category,
+                    date_of_introduction: bill.date_of_introduction,
+                    sponsor: '',
+                    party_of_sponsor: '',
+                    latest_tracker_stage: '',
+                  }
+                  return (
+                    <BillSearchResult
+                      key={bill.id}
+                      bill={asBill}
+                      dropSponsor={true}
+                      compact={true}
+                    />
+                  )
+                })
               )}
             </div>
           )}
@@ -744,13 +693,13 @@ export default function MyRepClient() {
     return (
       <div>
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 p-4 bg-card rounded-xl border border-border">
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 wf-section">
           <div>
-            <p className="text-white font-medium">
+            <p className="text-main font-medium">
               Congress members for <span className="font-bold text-accent">{stateName}</span>
             </p>
-            <p className="text-sm text-gray-400">
-              {senators.length} Senator{senators.length !== 1 ? 's' : ''} • {reps.length} Representative{reps.length !== 1 ? 's' : ''}
+            <p className="text-sm text-light">
+              {senators.length} Senator{senators.length !== 1 ? 's' : ''} -- {reps.length} Representative{reps.length !== 1 ? 's' : ''}
             </p>
           </div>
           <button
@@ -760,7 +709,7 @@ export default function MyRepClient() {
               setSelectedState('')
               setStateName('')
             }}
-            className="px-4 py-2 text-accent hover:bg-accent/10 rounded-lg font-medium text-sm transition-colors"
+            className="wf-btn"
           >
             ← Change State
           </button>
@@ -769,37 +718,36 @@ export default function MyRepClient() {
         {/* Senators Section */}
         {senators.length > 0 && (
           <div className="mb-10">
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">🏛️</span>
-              U.S. Senators
+            <h3 className="text-xl font-bold text-main mb-4 flex items-center gap-2">
+              <span className="wf-label">Senators</span>
             </h3>
             <div className="grid md:grid-cols-2 gap-4">
               {senators.map((rep, index) => (
                 <button
                   key={index}
                   onClick={() => handleRepClick(rep)}
-                  className={`bg-card rounded-xl border border-border border-l-4 ${getPartyBorder(rep.party)} p-5 text-left hover:shadow-lg hover:border-gray-300 transition-all duration-200 group`}
+                  className={`border border-border border-l-4 ${getPartyBorder(rep.party)} p-5 text-left hover:border-accent transition-all duration-200 group`}
                 >
                   <div className="flex gap-4">
                     {/* Photo */}
-                    <div className="shrink-0 w-20 h-24 rounded-lg bg-card flex items-center justify-center overflow-hidden">
+                    <div className="shrink-0 w-20 h-24 border border-border flex items-center justify-center overflow-hidden">
                       {rep.photoUrl ? (
                         <img src={rep.photoUrl} alt={rep.name} className="w-full h-full object-cover" />
                       ) : (
-                        <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-10 h-10 text-light" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       )}
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mb-2 ${getPartyBadge(rep.party)}`}>
+                      <span className={`wf-badge text-xs font-semibold mb-2 ${getPartyBadge(rep.party)}`}>
                         {rep.party}
                       </span>
-                      <h4 className="text-lg font-bold text-white group-hover:text-accent transition-colors">
+                      <h4 className="text-lg font-bold text-main group-hover:text-accent transition-colors">
                         {rep.name}
                       </h4>
-                      <p className="text-sm text-gray-400">{rep.title}</p>
+                      <p className="text-sm text-light">{rep.title}</p>
                       <div className="flex items-center gap-1 mt-3 text-accent text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                         View Details
                         <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -817,37 +765,36 @@ export default function MyRepClient() {
         {/* Representatives Section */}
         {reps.length > 0 && (
           <div>
-            <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center text-sm">🏠</span>
-              U.S. Representatives
+            <h3 className="text-xl font-bold text-main mb-4 flex items-center gap-2">
+              <span className="wf-label">Representatives</span>
             </h3>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {reps.map((rep, index) => (
                 <button
                   key={index}
                   onClick={() => handleRepClick(rep)}
-                  className={`bg-card rounded-xl border border-border border-l-4 ${getPartyBorder(rep.party)} p-4 text-left hover:shadow-lg hover:border-gray-300 transition-all duration-200 group`}
+                  className={`border border-border border-l-4 ${getPartyBorder(rep.party)} p-4 text-left hover:border-accent transition-all duration-200 group`}
                 >
                   <div className="flex gap-3">
                     {/* Photo */}
-                    <div className="shrink-0 w-14 h-16 rounded-lg bg-card flex items-center justify-center overflow-hidden">
+                    <div className="shrink-0 w-14 h-16 border border-border flex items-center justify-center overflow-hidden">
                       {rep.photoUrl ? (
                         <img src={rep.photoUrl} alt={rep.name} className="w-full h-full object-cover" />
                       ) : (
-                        <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-7 h-7 text-light" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       )}
                     </div>
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold mb-1 ${getPartyBadge(rep.party)}`}>
+                      <span className={`wf-badge text-xs font-semibold mb-1 ${getPartyBadge(rep.party)}`}>
                         {rep.party}
                       </span>
-                      <h4 className="text-sm font-bold text-white group-hover:text-accent transition-colors truncate">
+                      <h4 className="text-sm font-bold text-main group-hover:text-accent transition-colors truncate">
                         {rep.name}
                       </h4>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-light">
                         {rep.district ? `District ${rep.district}` : rep.title}
                       </p>
                     </div>
@@ -865,8 +812,8 @@ export default function MyRepClient() {
   return (
     <div className="max-w-lg mx-auto">
       {/* Selection Card */}
-      <div className="bg-card rounded-2xl border border-border p-8 text-center">
-        <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-accent/10 flex items-center justify-center">
+      <div className="wf-section text-center">
+        <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center">
           <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -874,7 +821,7 @@ export default function MyRepClient() {
         </div>
 
         <h2 className="text-2xl font-bold text-main mb-2">Select Your State</h2>
-        <p className="text-main/80 mb-6">
+        <p className="text-light mb-6">
           Choose your state to see your U.S. Senators and House Representatives.
         </p>
 
@@ -883,32 +830,32 @@ export default function MyRepClient() {
             <select
               value={selectedState}
               onChange={(e) => setSelectedState(e.target.value)}
-              className="w-full px-5 py-4 text-lg bg-gray-800 text-gray-100 border-2 border-border rounded-xl focus:outline-none focus:border-accent transition-all duration-200 appearance-none cursor-pointer"
+              className="wf-input text-lg py-4 appearance-none cursor-pointer"
             >
-              <option value="" className="bg-gray-800 text-gray-100">Select your state...</option>
+              <option value="">Select your state...</option>
               {states.map((state) => (
-                <option key={state.code} value={state.code} className="bg-gray-800 text-gray-100">
+                <option key={state.code} value={state.code}>
                   {state.name}
                 </option>
               ))}
             </select>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 text-light" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="p-3 border border-red-500/50">
+              <p className="text-red-500 text-sm">{error}</p>
             </div>
           )}
 
           <button
             type="submit"
             disabled={!selectedState || isLoading}
-            className="w-full px-6 py-4 bg-accent text-white text-lg font-semibold rounded-xl hover:bg-accent-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+            className="wf-btn-active w-full py-4 text-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -926,8 +873,8 @@ export default function MyRepClient() {
       </div>
 
       {/* Data Source */}
-      <p className="mt-6 text-center text-sm text-main/70">
-        Data from <a href="https://congress.gov" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Congress.gov</a> — the official U.S. legislative database
+      <p className="mt-6 text-center text-sm text-light">
+        Data from <a href="https://congress.gov" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Congress.gov</a> -- the official U.S. legislative database
       </p>
     </div>
   )

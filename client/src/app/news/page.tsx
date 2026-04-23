@@ -5,8 +5,8 @@ export default function NewsPage() {
         <div className="w-full flex flex-col items-center pt-4">
             {/* step one center div, text at top of screen*/}
             <div className="text-center">
-                <h1 className="text-3xl font-bold">U.S. Environmental News</h1>
-                <p className="text-light font-extralight">Stay updated on the latest environmental news and legislation.</p>
+                <h1 className="text-3xl font-bold text-main">U.S. Environmental News</h1>
+                <p className="text-light font-mono text-sm">Stay updated on the latest environmental news and legislation.</p>
             </div>
             {/* News Nav Cards to subsections (search, visualizations, etc.) */}
             <div className="space-y-4 py-4">

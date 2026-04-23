@@ -1,7 +1,6 @@
 # Dependencies
-/node_modules
-client/node_modules
-/.pnp
+node_modules/
+
 .pnp.js
 
 # Testing
@@ -44,9 +43,9 @@ next-env.d.ts
 .vscode
 
 # Supabase local dev
-supabase/seed.sql
+supabase/seeds/resets
+supabase/seeds/refresh
 *.claude
-supabase/seed.sql
 supabase/.temp
 .mcp.json
 

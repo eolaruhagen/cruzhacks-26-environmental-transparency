@@ -47,7 +47,12 @@ interface BillData {
   category?: string | null;
   embedding?: string | null;
   subcategory_scores?: any | null;
+  bill_text: string;
 }
+
+
+// API returns ISO date convert so callers see a Date.
+type TextVersion = { date: Date; formats: { type: string; url: string }[] };
 
 type SupabaseClient = ReturnType<typeof createClient<Database>>;
 
@@ -169,6 +174,13 @@ function cleanHtml(text: string): string {
     .replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
 }
 
+
+function getMostRecentUrl(textVersions: TextVersion[]): string | undefined {
+  if (!textVersions?.length) return undefined;
+  const sorted = [...textVersions].sort((a, b) => b.date.getTime() - a.date.getTime());
+  return sorted[0].formats?.find(f => f.type.trim().toLowerCase() === "formatted text")?.url;
+}
+
 async function congressApiRequest<T>(endpoint: string, apiKey: string): Promise<T> {
   const url = `${CONGRESS_API_BASE}${endpoint}${endpoint.includes("?") ? "&" : "?"}api_key=${apiKey}&format=json`;
   const response = await fetch(url);
@@ -176,6 +188,11 @@ async function congressApiRequest<T>(endpoint: string, apiKey: string): Promise<
   return response.json();
 }
 
+async function fetchText(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Congress API error: ${response.status}`);
+  return response.text();
+}
 
 async function processOneBill(
   supabase: SupabaseClient,
@@ -214,25 +231,42 @@ async function processOneBill(
     }
 
     // 3. Fetch full details (4 more requests)
-    const [detailsData, committeesData, cosponsorsData, summariesData] = await Promise.all([
+    const [detailsData, committeesData, cosponsorsData, summariesData, textData] = await Promise.all([
       congressApiRequest<{ bill: any }>(`/bill/${congress}/${typePath}/${billNumber}`, apiKey),
       congressApiRequest<{ committees?: { name: string }[] }>(`/bill/${congress}/${typePath}/${billNumber}/committees`, apiKey),
       congressApiRequest<{ cosponsors?: { fullName: string }[] }>(`/bill/${congress}/${typePath}/${billNumber}/cosponsors`, apiKey),
       congressApiRequest<{ summaries?: { text: string }[] }>(`/bill/${congress}/${typePath}/${billNumber}/summaries`, apiKey),
+      congressApiRequest<{ textVersions: { date: string; formats: { type: string; url: string }[] }[] }>(`/bill/${congress}/${typePath}/${billNumber}/text`, apiKey),
     ]);
-    requestCount += 4;
+    requestCount += 5;
 
-    const bill = detailsData.bill;
+    const {bill} = detailsData;
     const committees = committeesData.committees?.map(c => c.name) || [];
     const cosponsors = cosponsorsData.cosponsors?.map(c => c.fullName) || [];
     const summary = summariesData.summaries?.length
       ? cleanHtml(summariesData.summaries[summariesData.summaries.length - 1].text)
       : null;
+    // Convert API string dates → Date at the boundary so getMostRecentUrl sees Dates.
+    const textVersions: TextVersion[] = (textData.textVersions ?? []).map(v => ({
+      date: new Date(v.date),
+      formats: v.formats,
+    }));
+    const textUrl = getMostRecentUrl(textVersions);
+    let billText = "";
+    if (textUrl) {
+      try {
+        billText = cleanHtml(await fetchText(textUrl));
+      } catch (error) {
+        console.warn(`Could not fetch text for ${legislationNumber}, storing empty: ${error}`);
+      }
+    } else {
+      console.warn(`No text URL found for ${legislationNumber}, storing empty`);
+    }
 
     // 4. Build BillData
     const billData: BillData = {
       legislation_number: legislationNumber,
-      url: `https://www.congress.gov/bill/${congress}th-congress/${billType.toLowerCase()}-bill/${billNumber}`,
+      url: bill.legislationUrl,
       congress: `${congress}th Congress`,
       title: bill?.title || "",
       sponsor: bill?.sponsors?.[0]?.fullName || "",
@@ -247,6 +281,7 @@ async function processOneBill(
       subject_terms: subjects,
       bill_policy_area: bill?.policyArea?.name || null,
       latest_summary: summary,
+      bill_text: billText,
     };
 
     // 4b. Validate data integrity before inserting
@@ -455,6 +490,7 @@ Deno.serve(async (req: Request) => {
       congress: number;
       bill_type: string;
       bill_number: number;
+      msg_id: number;
       msg_ids: number[];
       max_read_ct: number;
     }>();
@@ -473,7 +509,8 @@ Deno.serve(async (req: Request) => {
           congress,
           bill_type,
           bill_number,
-          msg_ids: [msg.msg_id],
+          msg_id: msg.msg_id,
+          msg_ids: [],
           max_read_ct: msg.read_ct,
         });
       }
@@ -489,7 +526,7 @@ Deno.serve(async (req: Request) => {
     const failedBills: { msg_ids: number[]; legislation: string; error: string }[] = [];
 
     for (const bill of uniqueBills) {
-      const { congress, bill_type, bill_number, msg_ids, max_read_ct } = bill;
+      const { congress, bill_type, bill_number, msg_id, msg_ids, max_read_ct } = bill;
       const formattedLegislation = `${mapBillType(bill_type)} ${bill_number} (${congress})`;
       currentBill = formattedLegislation;
       currentStage = `process_bill:${currentBill}`;
@@ -499,25 +536,25 @@ Deno.serve(async (req: Request) => {
       totalRequests += result.requests;
       dailyCount += result.requests;
 
-      if (result.error) {
-        if (max_read_ct >= MAX_RETRIES) {
-          currentStage = `archive_failed_bill:${currentBill}`;
-          console.error(`[FAILED] Bill ${formattedLegislation} failed after ${max_read_ct} retries: ${result.error}`);
 
-          // Archive ALL duplicate messages for this bill
-          for (const msgId of msg_ids) {
-            await supabase.rpc("pgmq_archive", { queue_name: "raw_bills_queue", msg_id: msgId });
-          }
-          failedBills.push({ msg_ids, legislation: formattedLegislation, error: result.error });
+      // regardless of what we always archive all duplicates
+      for (const msgId of msg_ids) {
+        await supabase.rpc("pgmq_archive", { queue_name: "raw_bills_queue", msg_id: msgId });
+      }
+
+      if (!result.error || max_read_ct >= MAX_RETRIES) {
+        await supabase.rpc("pgmq_archive", { queue_name: "raw_bills_queue", msg_id: msg_id });
+        console.debug(`[Bill Archived] with status ${result.error ? "failure" : "success"}`)
+
+        if (result.error) {
+          failedBills.push({
+            msg_ids: [...msg_ids, msg_id],
+            legislation: formattedLegislation,
+            error: result.error,
+          });
+        } else {
+          totalInserted++;
         }
-        // If not max retries, messages will become visible again after timeout
-      } else {
-        currentStage = `archive_success_bill:${currentBill}`;
-        // Archive ALL duplicate messages for this bill
-        for (const msgId of msg_ids) {
-          await supabase.rpc("pgmq_archive", { queue_name: "raw_bills_queue", msg_id: msgId });
-        }
-        if (result.inserted) totalInserted++;
       }
 
       if (dailyCount >= DAILY_REQUEST_LIMIT) {
@@ -528,6 +565,7 @@ Deno.serve(async (req: Request) => {
         break;
       }
     }
+
 
     currentBill = ""; // Clear after loop
 

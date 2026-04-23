@@ -22,11 +22,10 @@ export default function ImageCard({
 
   return (
     <div
-      className={`relative overflow-hidden transition-all duration-300 ease-out bg-card ${className}`}
+      className={`relative overflow-hidden transition-all duration-300 ease-out ${className}`}
       style={{
         transform: isHovered ? 'scale(1.02)' : 'scale(1)',
         zIndex: isHovered ? 10 : 1,
-        boxShadow: isHovered ? '0 20px 40px rgba(0,0,0,0.15)' : 'none',
         ...style,
       }}
       onMouseEnter={() => setIsHovered(true)}
@@ -46,8 +45,7 @@ export default function ImageCard({
         <Link
           href={buttonLink}
           className={`
-            px-6 py-3 bg-accent text-white rounded-xl font-semibold
-            shadow-lg hover:bg-accent-dark hover:shadow-xl
+            wf-btn-active px-6 py-3 font-semibold
             transition-all duration-200
             transform ${isHovered ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}
           `}

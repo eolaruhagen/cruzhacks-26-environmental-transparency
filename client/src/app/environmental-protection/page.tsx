@@ -4,12 +4,12 @@ export default function EnvironmentalProtectionPage() {
   return (
     <main className="min-h-screen pt-24 p-8 bg-main">
       <div className="max-w-4xl mx-auto">
-        
+
         {/* Header */}
         <header className="mb-12">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-accent/10 rounded-full text-accent text-sm font-medium mb-4">
+          <span className="wf-badge text-accent mb-4">
             Environmental Policy
-          </div>
+          </span>
           <h1 className="text-4xl lg:text-5xl font-bold text-main mb-4">
             Environmental Protection & The Law
           </h1>
@@ -19,7 +19,7 @@ export default function EnvironmentalProtectionPage() {
         </header>
 
         {/* Introduction */}
-        <section className="mb-12 bg-card rounded-2xl border border-border p-8">
+        <section className="mb-12 wf-section">
           <h2 className="text-2xl font-bold text-main mb-4">Why Environmental Law Matters</h2>
           <p className="text-main/80 leading-relaxed mb-4">
             Environmental law is the collection of regulations, statutes, and common law that governs how humans interact
@@ -43,42 +43,42 @@ export default function EnvironmentalProtectionPage() {
           <h2 className="text-2xl font-bold text-main mb-6">
             A Brief History of U.S. Environmental Law
           </h2>
-          
+
           <div className="space-y-6">
-            <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
+            <div className="wf-card border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1960s: The Awakening</h3>
               <p className="text-main/80 leading-relaxed">
-                Rachel Carson&apos;s &quot;Silent Spring&quot; (1962) exposed the dangers of pesticides like DDT, sparking 
-                public awareness. Rivers caught fire, smog choked cities, and Americans demanded change. 
+                Rachel Carson&apos;s &quot;Silent Spring&quot; (1962) exposed the dangers of pesticides like DDT, sparking
+                public awareness. Rivers caught fire, smog choked cities, and Americans demanded change.
                 This grassroots movement laid the foundation for modern environmental legislation.
               </p>
             </div>
 
-            <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
+            <div className="wf-card border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1970: The Environmental Decade Begins</h3>
               <p className="text-main/80 leading-relaxed">
-                The first Earth Day mobilized 20 million Americans. President Nixon created the 
-                <strong> Environmental Protection Agency (EPA)</strong> and signed the <strong>National Environmental 
-                Policy Act (NEPA)</strong>, requiring environmental impact assessments for federal projects. 
+                The first Earth Day mobilized 20 million Americans. President Nixon created the
+                <strong> Environmental Protection Agency (EPA)</strong> and signed the <strong>National Environmental
+                Policy Act (NEPA)</strong>, requiring environmental impact assessments for federal projects.
                 The <strong>Clean Air Act</strong> followed, setting air quality standards.
               </p>
             </div>
 
-            <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
+            <div className="wf-card border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1972-1980: Landmark Legislation</h3>
               <p className="text-main/80 leading-relaxed">
-                The <strong>Clean Water Act</strong> (1972) tackled water pollution. The <strong>Endangered Species Act</strong> (1973) 
-                protected threatened wildlife. <strong>CERCLA/Superfund</strong> (1980) addressed toxic waste cleanup. 
+                The <strong>Clean Water Act</strong> (1972) tackled water pollution. The <strong>Endangered Species Act</strong> (1973)
+                protected threatened wildlife. <strong>CERCLA/Superfund</strong> (1980) addressed toxic waste cleanup.
                 These laws established the federal government&apos;s role as environmental guardian.
               </p>
             </div>
 
-            <div className="bg-card rounded-xl p-6 border-l-4 border-accent">
+            <div className="wf-card border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1990s-Present: Climate Focus</h3>
               <p className="text-main/80 leading-relaxed">
-                The <strong>Clean Air Act Amendments</strong> (1990) addressed acid rain and ozone depletion. 
-                Recent decades have seen growing focus on climate change, renewable energy incentives, and 
-                international agreements like the Paris Climate Accord. Environmental justice—ensuring 
+                The <strong>Clean Air Act Amendments</strong> (1990) addressed acid rain and ozone depletion.
+                Recent decades have seen growing focus on climate change, renewable energy incentives, and
+                international agreements like the Paris Climate Accord. Environmental justice—ensuring
                 pollution doesn&apos;t disproportionately harm marginalized communities—has become a key priority.
               </p>
             </div>
@@ -92,7 +92,7 @@ export default function EnvironmentalProtectionPage() {
           </h2>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-card rounded-xl border border-border p-6">
+            <div className="wf-card">
               <h3 className="font-bold text-main text-lg mb-2">Clean Air Act (1970)</h3>
               <p className="text-main/60 text-sm mb-3">Regulates air emissions from stationary and mobile sources</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -103,7 +103,7 @@ export default function EnvironmentalProtectionPage() {
               </ul>
             </div>
 
-            <div className="bg-card rounded-xl border border-border p-6">
+            <div className="wf-card">
               <h3 className="font-bold text-main text-lg mb-2">Clean Water Act (1972)</h3>
               <p className="text-main/60 text-sm mb-3">Establishes structure for regulating pollutant discharges</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -114,7 +114,7 @@ export default function EnvironmentalProtectionPage() {
               </ul>
             </div>
 
-            <div className="bg-card rounded-xl border border-border p-6">
+            <div className="wf-card">
               <h3 className="font-bold text-main text-lg mb-2">Endangered Species Act (1973)</h3>
               <p className="text-main/60 text-sm mb-3">Protects critically imperiled species and their habitats</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -125,7 +125,7 @@ export default function EnvironmentalProtectionPage() {
               </ul>
             </div>
 
-            <div className="bg-card rounded-xl border border-border p-6">
+            <div className="wf-card">
               <h3 className="font-bold text-main text-lg mb-2">NEPA (1970)</h3>
               <p className="text-main/60 text-sm mb-3">National Environmental Policy Act</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -139,12 +139,12 @@ export default function EnvironmentalProtectionPage() {
         </section>
 
         {/* How Laws Protect */}
-        <section className="mb-12 bg-card border border-border rounded-2xl p-8">
+        <section className="mb-12 wf-section">
           <h2 className="text-2xl font-bold text-main mb-6">How Environmental Laws Actually Protect Us</h2>
 
           <div className="space-y-6">
             <div className="flex gap-4">
-              <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">1</div>
+              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">1</div>
               <div>
                 <h3 className="font-semibold text-main mb-1">Setting Standards</h3>
                 <p className="text-main/80">
@@ -155,7 +155,7 @@ export default function EnvironmentalProtectionPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">2</div>
+              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">2</div>
               <div>
                 <h3 className="font-semibold text-main mb-1">Requiring Permits</h3>
                 <p className="text-main/80">
@@ -166,7 +166,7 @@ export default function EnvironmentalProtectionPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">3</div>
+              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">3</div>
               <div>
                 <h3 className="font-semibold text-main mb-1">Enforcement & Penalties</h3>
                 <p className="text-main/80">
@@ -177,7 +177,7 @@ export default function EnvironmentalProtectionPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-12 h-12 rounded-full bg-accent text-white flex items-center justify-center font-bold text-lg shrink-0">4</div>
+              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">4</div>
               <div>
                 <h3 className="font-semibold text-main mb-1">Citizen Suits</h3>
                 <p className="text-main/80">
@@ -190,7 +190,7 @@ export default function EnvironmentalProtectionPage() {
         </section>
 
         {/* Your Role Section */}
-        <section className="mb-12 bg-card rounded-2xl border border-border p-8">
+        <section className="mb-12 wf-section">
           <h2 className="text-2xl font-bold text-main mb-4">
             Your Role in Environmental Protection
           </h2>
@@ -200,17 +200,17 @@ export default function EnvironmentalProtectionPage() {
             and control the agency&apos;s budget. <strong>Knowing how your representatives vote on environmental
             issues is the first step to holding them accountable.</strong>
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4">
-            <a 
+            <a
               href="/my_rep"
-              className="px-6 py-3 bg-accent text-white rounded-xl font-semibold hover:bg-accent-dark transition-all duration-200 shadow-lg hover:shadow-xl text-center"
+              className="wf-btn-active px-6 py-3 font-semibold text-center"
             >
               Find Your Representatives
             </a>
-            <a 
+            <a
               href="/legislative-process"
-              className="px-6 py-3 bg-card text-main rounded-xl font-semibold hover:bg-card-hover transition-all duration-200 text-center"
+              className="wf-btn px-6 py-3 font-semibold text-center"
             >
               Learn the Legislative Process
             </a>
@@ -227,7 +227,7 @@ export default function EnvironmentalProtectionPage() {
 
         {/* Back Link */}
         <div className="mt-8">
-          <a 
+          <a
             href="/"
             className="text-accent hover:text-accent-dark font-medium transition-colors"
           >

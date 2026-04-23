@@ -8,6 +8,7 @@ const navItems = [
   { name: 'Home', href: '/' },
   { name: 'My Representatives', href: '/my_rep' },
   { name: 'Policy Radar', href: '/graph' },
+  { name: 'News', href: '/news' },
   { name: 'Search', href: '/search' },
 ]
 
@@ -60,10 +61,10 @@ export default function Navbar() {
 
   return (
     <nav className="w-full bg-nav shadow-sm sticky top-0 z-50" ref={menuRef}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-white font-semibold text-xl" style={{ marginLeft: '-150px' }}>
-            <img src="/EcoGlass.png" alt="EcoGlass" className="w-24 h-24" />
+      <div className="max-w-screen overflow-x-hidden mx-auto px-4 md:px-6 py-3 md:py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-2 text-nav-text font-semibold text-xl hover:opacity-80 transition-opacity">
+            <img src="/EcoGlass.png" alt="EcoGlass" className="w-10 h-10" />
             EcoGlass
           </Link>
 
@@ -75,14 +76,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`
-                    px-5 py-2.5 rounded-xl font-medium text-sm
-                    transition-all duration-200 ease-out
-                    ${isActive
-                      ? 'bg-white text-accent shadow-[inset_0_2px_4px_rgba(0,0,0,0.15),inset_0_-2px_4px_rgba(255,255,255,0.9)]'
-                      : 'text-white/90 hover:bg-white/20 hover:text-white shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2),inset_0_2px_4px_rgba(255,255,255,0.1)]'
-                    }
-                  `}
+                  className={isActive ? 'wf-nav-link-active' : 'wf-nav-link'}
                 >
                   {item.name}
                 </Link>
@@ -92,7 +86,7 @@ export default function Navbar() {
             {/* Dark Mode Toggle - Desktop */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl text-white/90 hover:bg-white/20 hover:text-white transition-all duration-200 ease-out shadow-[inset_0_-2px_4px_rgba(0,0,0,0.2),inset_0_2px_4px_rgba(255,255,255,0.1)]"
+              className="wf-nav-link p-2.5"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {mounted && theme === 'dark' ? (
@@ -112,7 +106,7 @@ export default function Navbar() {
             {/* Dark Mode Toggle - Mobile */}
             <button
               onClick={toggleTheme}
-              className="p-2.5 rounded-xl text-white/90 hover:bg-white/20 hover:text-white transition-all duration-200"
+              className="wf-nav-link p-2.5"
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {mounted && theme === 'dark' ? (
@@ -129,7 +123,7 @@ export default function Navbar() {
             {/* Hamburger Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2.5 rounded-xl text-white/90 hover:bg-white/20 hover:text-white transition-all duration-200"
+              className="wf-nav-link p-2.5"
               aria-label="Toggle menu"
               aria-expanded={isMenuOpen}
             >
@@ -160,14 +154,7 @@ export default function Navbar() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`
-                    px-4 py-3 rounded-xl font-medium text-sm
-                    transition-all duration-200 ease-out
-                    ${isActive
-                      ? 'bg-white text-accent'
-                      : 'text-white/90 hover:bg-white/20 hover:text-white'
-                    }
-                  `}
+                  className={isActive ? 'wf-nav-link-active py-3' : 'wf-nav-link py-3'}
                 >
                   {item.name}
                 </Link>

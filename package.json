@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "shadcn": "^3.7.0"
   },
   "dependencies": {

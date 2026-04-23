@@ -50,29 +50,6 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
     const [isDraggingMin, setIsDraggingMin] = useState(false);
     const [isDraggingMax, setIsDraggingMax] = useState(false);
 
-    // Animation effect - moves range 1 year per second
-    useEffect(() => {
-        if (playbackState === 'paused') return;
-
-        const interval = setInterval(() => {
-            const rangeWidth = selectedYearRange[1] - selectedYearRange[0];
-            const direction = playbackState === 'playing' ? 1 : -1;
-
-            let newMin = selectedYearRange[0] + direction;
-            let newMax = selectedYearRange[1] + direction;
-
-            // Stop at boundaries
-            if (newMin < minYear || newMax > maxYear) {
-                setPlaybackState('paused');
-                return;
-            }
-
-            onYearRangeChange([newMin, newMax]);
-        }, 500);
-
-        return () => clearInterval(interval);
-    }, [playbackState, selectedYearRange, minYear, maxYear, onYearRangeChange]);
-
     // Constants must be defined before hooks that use them
     // Responsive chart size - fit within container on mobile
     const getChartSize = () => {
@@ -160,8 +137,6 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
         // Low spread (compact data) = fewer clusters (2-4)
         // High spread (spread out data) = more clusters (6-12)
         const dynamicClusters = Math.max(2, Math.min(12, Math.round(2 + spreadRatio * 20)));
-
-        console.log(`Spread ratio: ${spreadRatio.toFixed(3)}, Clusters: ${dynamicClusters}`);
 
         try {
             const result = kmeans(scoreVectors, dynamicClusters, {
@@ -439,7 +414,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 y1={center}
                 x2={endX}
                 y2={endY}
-                stroke="#e2e8f0"
+                stroke="var(--color-border)"
                 strokeWidth={1}
             />
         );
@@ -475,7 +450,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 y={labelY}
                 textAnchor={textAnchor}
                 dominantBaseline="middle"
-                fill="white"
+                fill="var(--color-text)"
                 style={{ fontSize }}
             >
                 {formattedName}
@@ -491,7 +466,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
             cy={center}
             r={radius * r}
             fill="none"
-            stroke="#e2e8f0"
+            stroke="var(--color-border)"
             strokeWidth={1}
             strokeDasharray={r === 1 ? "0" : "4,4"}
         />
@@ -514,14 +489,14 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
             <div className="px-2 md:px-20">
                 {/* Year Range Slider */}
                 <div className="flex justify-center mb-3 px-2">
-                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-main px-3 sm:px-4 py-2 rounded-lg w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 wf-card w-full sm:w-auto">
                         <span className="text-sm font-medium text-main w-10">{selectedYearRange[0]}</span>
                         <div className="relative w-48 h-6">
                             {/* Track background */}
-                            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200 rounded-full" />
+                            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200" />
                             {/* Selected range highlight */}
                             <div
-                                className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-blue-500 rounded-full"
+                                className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-accent"
                                 style={{
                                     left: `${((selectedYearRange[0] - minYear) / (maxYear - minYear)) * 100}%`,
                                     right: `${100 - ((selectedYearRange[1] - minYear) / (maxYear - minYear)) * 100}%`
@@ -590,7 +565,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                         onYearRangeChange([val, selectedYearRange[1]]);
                                     }
                                 }}
-                                className="absolute w-full h-6 bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                                className="absolute w-full h-6 bg-transparent cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
                                 style={{ zIndex: 3, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
                             />
                             {/* Max thumb - positioned on top but with pointer-events:none, thumb has pointer-events:auto */}
@@ -605,7 +580,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                         onYearRangeChange([selectedYearRange[0], val]);
                                     }
                                 }}
-                                className="absolute w-full h-6 bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-blue-600 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-blue-600 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
+                                className="absolute w-full h-6 bg-transparent cursor-pointer pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white"
                                 style={{ zIndex: 4, appearance: 'none', WebkitAppearance: 'none', background: 'transparent' }}
                             />
                         </div>
@@ -617,9 +592,9 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 <div className="flex justify-center mb-3 gap-2 flex-wrap">
                     <button
                         onClick={() => setPlaybackState(playbackState === 'reverse' ? 'paused' : 'reverse')}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'reverse'
-                            ? 'bg-blue-500 border-blue-500 text-white'
-                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                        className={`w-10 h-10 flex items-center justify-center border transition-colors ${playbackState === 'reverse'
+                            ? 'wf-btn-active'
+                            : 'wf-btn'
                             }`}
                         title="Reverse"
                     >
@@ -629,9 +604,9 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                     </button>
                     <button
                         onClick={() => setPlaybackState('paused')}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'paused'
-                            ? 'bg-gray-500 border-gray-500 text-white'
-                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                        className={`w-10 h-10 flex items-center justify-center border transition-colors ${playbackState === 'paused'
+                            ? 'wf-btn-active'
+                            : 'wf-btn'
                             }`}
                         title="Pause"
                     >
@@ -642,9 +617,9 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                     </button>
                     <button
                         onClick={() => setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-colors ${playbackState === 'playing'
-                            ? 'bg-blue-500 border-blue-500 text-white'
-                            : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
+                        className={`w-10 h-10 flex items-center justify-center border transition-colors ${playbackState === 'playing'
+                            ? 'wf-btn-active'
+                            : 'wf-btn'
                             }`}
                         title="Play"
                     >
@@ -658,7 +633,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 <div className="flex justify-center mb-4">
                     <button
                         onClick={() => setShowClusters(!showClusters)}
-                        className="px-4 py-2 bg-card text-main rounded-lg border border-border hover:bg-card-hover transition font-medium shadow-sm"
+                        className="wf-btn"
                     >
                         {showClusters ? 'Show Individual Bills' : 'Show Clusters'}
                     </button>
@@ -768,7 +743,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 {/* Side panel for hovered cluster bills - becomes bottom sheet on mobile */}
                 {showClusters && hoveredCluster !== null && finalClusters[hoveredCluster] && (
                     <div
-                        className="fixed md:right-[10px] md:top-[84px] left-0 right-0 bottom-0 md:left-auto md:bottom-auto md:w-80 w-full bg-card border border-border shadow-xl overflow-hidden z-50 rounded-t-xl md:rounded-lg max-h-[50vh] md:max-h-[600px]"
+                        className="fixed md:right-[10px] md:top-[84px] left-0 right-0 bottom-0 md:left-auto md:bottom-auto md:w-80 w-full bg-card border border-border overflow-hidden z-50 max-h-[50vh] md:max-h-[600px]"
                     >
                         <div
                             className="bg-nav px-4 py-2.5 flex justify-between items-center"
@@ -793,7 +768,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                     href={bill.url || '#'}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="block px-3 py-2 text-sm hover:bg-accent/20 rounded-lg transition-colors"
+                                    className="block px-3 py-2 text-sm hover:bg-accent/20 transition-colors"
                                     onClick={(e) => !bill.url && e.preventDefault()}
                                 >
                                     <div className="font-medium text-main truncate">
@@ -824,7 +799,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                 document.addEventListener('mouseup', onMouseUp);
                             }}
                         >
-                            <div className="w-10 h-1 bg-border rounded-full"></div>
+                            <div className="w-10 h-1 bg-border"></div>
                         </div>
                     </div>
                 )}
@@ -832,7 +807,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                 {/* Side panel for selected individual bill */}
                 {!showClusters && selectedBill && (
                     <div
-                        className="fixed w-80 bg-card border border-border shadow-xl overflow-hidden z-50 rounded-lg"
+                        className="fixed w-80 bg-card border border-border overflow-hidden z-50"
                         style={{ top: '84px', right: '10px' }}
                     >
                         <div
@@ -860,7 +835,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                     href={selectedBill.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center px-4 py-2 bg-accent text-white text-sm font-medium rounded-lg hover:bg-accent-dark transition-colors"
+                                    className="inline-flex items-center wf-btn-active"
                                 >
                                     View Full Bill →
                                 </a>
@@ -948,8 +923,6 @@ export default function GraphClient() {
                 // Set initial selection to first category
                 setSelectedCategory(firstCategory);
 
-                console.log(`Initial load: Fetching bills for category '${firstCategory}'...`);
-
                 // 3. Fetch ONLY first category bills immediately
                 const { data: initialBillsData, error: initialError } = await supabase
                     .from('house_bills')
@@ -992,8 +965,6 @@ export default function GraphClient() {
                 setIsBackgroundLoading(true);
 
                 const fetchChunk = async (from: number, to: number) => {
-                    console.log(`Background fetch: rows ${from}-${to} (excluding ${firstCategory})`);
-
                     const { data: chunkData, error: chunkError } = await supabase
                         .from('house_bills')
                         .select('legislation_number, category, subcategory_scores, title, url, date_of_introduction')
@@ -1031,7 +1002,6 @@ export default function GraphClient() {
                 }
 
                 setIsBackgroundLoading(false);
-                console.log('All data loaded!');
 
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (err: any) {
@@ -1094,11 +1064,11 @@ export default function GraphClient() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 md:mb-6">
                 <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-white">Policy Radar</h1>
-                    <p className="text-gray-500 text-sm md:text-base mt-1">Visualize environmental legislation by policy area</p>
+                    <h1 className="text-2xl md:text-3xl font-bold text-main">Policy Radar</h1>
+                    <p className="text-light text-sm md:text-base mt-1 font-mono">Visualize environmental legislation by policy area</p>
                 </div>
                 {isBackgroundLoading && (
-                    <div className="text-sm text-blue-600 animate-pulse bg-blue-50 px-3 py-1.5 rounded-full">
+                    <div className="text-sm text-accent animate-pulse wf-badge">
                         Loading more bills... ({bills.length} loaded)
                     </div>
                 )}
@@ -1107,14 +1077,14 @@ export default function GraphClient() {
             <div className="flex flex-col md:flex-row gap-4 md:gap-6">
                 {/* Sidebar - Full width on mobile, fixed width on desktop */}
                 <div className="w-full md:w-72 md:flex-shrink-0">
-                    <div className="bg-card rounded-xl border border-border p-4 space-y-4 md:space-y-5">
+                    <div className="wf-section space-y-4 md:space-y-5">
                         {/* Category Selector */}
                         <div>
-                            <label className="block text-sm font-semibold text-white mb-2">Category</label>
+                            <label className="wf-label block mb-2">Category</label>
                             <select
                                 value={selectedCategory || ''}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="w-full border bg-gray-300 border-gray-800 rounded-lg px-3 py-2 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="wf-input"
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{formatCategoryName(cat)}</option>
@@ -1122,33 +1092,33 @@ export default function GraphClient() {
                             </select>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <div className="wf-divider" />
 
                         {/* Statistics */}
                         <div>
-                            <h3 className="text-sm font-semibold text-white mb-3">Statistics</h3>
+                            <h3 className="wf-label mb-3">Statistics</h3>
                             <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-400">Bills in Category</span>
-                                    <span className="text-lg font-bold text-gray-400">{filteredBills.length}</span>
+                                    <span className="text-sm text-light">Bills in Category</span>
+                                    <span className="text-lg font-bold font-mono text-main">{filteredBills.length}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-sm text-gray-400">Subcategories</span>
-                                    <span className="text-lg font-bold text-gray-400">{categorySubcats.length}</span>
+                                    <span className="text-sm text-light">Subcategories</span>
+                                    <span className="text-lg font-bold font-mono text-main">{categorySubcats.length}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <div className="wf-divider" />
 
                         {/* Policy Areas */}
                         <div>
-                            <h3 className="text-sm font-semibold text-white mb-3">Policy Areas</h3>
+                            <h3 className="wf-label mb-3">Policy Areas</h3>
                             <div className="flex flex-wrap gap-1.5">
                                 {categorySubcats.map(s => (
                                     <span
                                         key={s.subcategory}
-                                        className="px-2 py-1 text-gray-400 text-xs rounded-md font-medium"
+                                        className="wf-badge"
                                     >
                                         {formatCategoryName(s.subcategory)}
                                     </span>
@@ -1156,26 +1126,26 @@ export default function GraphClient() {
                             </div>
                         </div>
 
-                        <hr className="border-gray-100" />
+                        <div className="wf-divider" />
 
                         {/* How It Works - Hidden on mobile, shown on desktop */}
                         <div className="hidden md:block">
-                            <h3 className="text-sm font-semibold text-white mb-3">How It Works</h3>
-                            <div className="space-y-3 text-xs text-gray-400">
+                            <h3 className="wf-label mb-3">How It Works</h3>
+                            <div className="space-y-3 text-xs text-light">
                                 <div>
-                                    <h4 className="font-semibold text-gray-400 mb-0.5">Policy Areas (Axes)</h4>
+                                    <h4 className="font-semibold text-main mb-0.5">Policy Areas (Axes)</h4>
                                     <p>Each axis represents a subcategory. Bills are positioned based on their relevance to each policy area.</p>
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-400 mb-0.5">Similarity Scores</h4>
+                                    <h4 className="font-semibold text-main mb-0.5">Similarity Scores</h4>
                                     <p>Bills are compared using <strong>cosine similarity</strong> between text embeddings. Higher scores mean stronger relevance.</p>
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-400 mb-0.5">Clustering</h4>
+                                    <h4 className="font-semibold text-main mb-0.5">Clustering</h4>
                                     <p>Similar bills are grouped using <strong>K-means clustering</strong>, analyzing similarity patterns to create related groups.</p>
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-400 mb-0.5">Position</h4>
+                                    <h4 className="font-semibold text-main mb-0.5">Position</h4>
                                     <p>Bills closer to an axis have higher relevance to that topic. Bills near the center have balanced scores across areas.</p>
                                 </div>
                             </div>
@@ -1186,28 +1156,28 @@ export default function GraphClient() {
                 {/* Main Chart Area */}
                 <div className="flex-1 relative min-w-0">
                     {showInstructions && (
-                        <div className="absolute top-0 left-0 z-20 w-56 md:w-64 bg-card backdrop-blur-sm p-3 md:p-4 rounded-lg shadow-xl border border-border">
+                        <div className="absolute top-0 left-0 z-20 w-56 md:w-64 wf-card">
                             <div className="flex justify-between items-start mb-2">
-                                <h3 className="font-semibold text-white">Quick Tips</h3>
+                                <h3 className="font-semibold text-main">Quick Tips</h3>
                                 <button
                                     onClick={dismissInstructions}
-                                    className="text-gray-800 hover:text-gray-600"
+                                    className="text-light hover:text-main"
                                 >
                                     ✕
                                 </button>
                             </div>
-                            <ul className="text-sm text-gray-600 space-y-2">
+                            <ul className="text-sm text-light space-y-2">
                                 <li className="flex items-start">
-                                    <span className="mr-2 text-white">•</span>
-                                    <span className="text-gray-400">Click clusters to view grouped bills</span>
+                                    <span className="mr-2 text-accent">•</span>
+                                    <span>Click clusters to view grouped bills</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <span className="mr-2 text-white">•</span>
-                                    <span className="text-gray-400">Toggle to see individual bill distribution</span>
+                                    <span className="mr-2 text-accent">•</span>
+                                    <span>Toggle to see individual bill distribution</span>
                                 </li>
                                 <li className="flex items-start">
-                                    <span className="mr-2 text-white">•</span>
-                                    <span className="text-gray-400">Click bills in the side panel to view details</span>
+                                    <span className="mr-2 text-accent">•</span>
+                                    <span>Click bills in the side panel to view details</span>
                                 </li>
                             </ul>
                         </div>

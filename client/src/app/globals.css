@@ -3,18 +3,35 @@
 @tailwind utilities;
 
 :root {
-  /* Color Palette - Light Mode (Nature-inspired, readable) */
-  --color-bg: #FAFAF8;              /* Warm off-white background */
-  --color-nav: #588157;             /* Forest green navbar */
-  --color-card: #DAD7CD;            /* Warm sage/beige cards */
-  --color-card-hover: #C9C5B8;      /* Darker sage for hover */
-  --color-text: #344E41;            /* Dark forest green text */
-  --color-text-light: #3A5A40;      /* Slightly lighter text */
-  --color-accent: #588157;          /* Forest green accent */
-  --color-accent-dark: #3A5A40;     /* Darker green hover */
-  --color-border: #A3B18A;          /* Sage border */
-  --color-module: #ffffff;          /* White modules/panels */
-  --color-module-hover: #f5f5f5;    /* Hover state for modules */
+  /* Color Palette - Light Mode: warm paper tone, cards pop via offset accent shadow */
+  --color-bg: #EDEBE4;
+  /* Warm off-white paper tone — more saturated than cards so offset shadow reads */
+  --color-nav: #FAF8F2;
+  /* Light near-white navbar in light mode */
+  --color-nav-text: #1a1a1a;
+  /* Dark nav text in light mode */
+  --color-nav-border: #1a1a1a;
+  /* Nav link hover/active border in light mode */
+  --color-card: #FAF8F2;
+  /* Near-white card surface, lighter than bg */
+  --color-card-hover: #F0EEE8;
+  /* Slightly darker on hover */
+  --color-text: #1a1a1a;
+  /* Near-black text */
+  --color-text-light: #6b6b6b;
+  /* Medium gray for secondary text */
+  --color-accent: #3A5A40;
+  /* Deep forest green — accent + shadow color */
+  --color-accent-dark: #2d4a34;
+  /* Darker green hover */
+  --color-border: #1a1a1a;
+  /* Near-black border — heavier so offset shadow reads like a neobrutalist box */
+  --color-shadow: #3A5A40;
+  /* Offset card shadow — solid accent green */
+  --color-module: #ffffff;
+  /* White panels */
+  --color-module-hover: #f5f5f5;
+  /* Hover state for modules */
 
   /* Font */
   --font-inter: 'Inter', sans-serif;
@@ -22,48 +39,293 @@
 
 /* Dark Mode Color Palette */
 .dark {
-  --color-bg: #1a1f1a;              /* Very dark green-black background */
-  --color-nav: #2d3a2d;             /* Dark forest green navbar */
-  --color-card: #252d25;            /* Dark green-gray cards */
-  --color-card-hover: #313b31;      /* Slightly lighter on hover */
-  --color-text: #e8efe8;            /* Light green-white text */
-  --color-text-light: #b8c9b8;      /* Muted sage text */
-  --color-accent: #6b9b6b;          /* Muted forest green accent */
-  --color-accent-dark: #8ab88a;     /* Lighter green hover */
-  --color-border: #3d4a3d;          /* Dark sage border */
-  --color-module: #e8e8e0;          /* Softer off-white for dark mode modules */
-  --color-module-hover: #deded6;    /* Hover state for dark mode modules */
+  --color-bg: #242424;
+  /* Lifted dark bg — shadow/border contrast actually reads at this level */
+  --color-nav: #1a1a1a;
+  /* Darker navbar — anchors the top of the page */
+  --color-nav-text: #e5e5e5;
+  /* Light nav text in dark mode */
+  --color-nav-border: #e5e5e5;
+  /* Nav link hover/active border in dark mode */
+  --color-card: #2f2f2f;
+  /* Card surface lifted above bg so offset shadow reads behind */
+  --color-card-hover: #3a3a3a;
+  /* Lighter on hover */
+  --color-text: #e5e5e5;
+  /* Light gray text */
+  --color-text-light: #999999;
+  /* Muted gray secondary text */
+  --color-accent: #8ab88a;
+  /* Brighter forest green — pops more against lifted bg */
+  --color-accent-dark: #a5c9a5;
+  /* Even lighter green hover */
+  --color-border: #6a6a6a;
+  /* Lifted dark border — reads clearly */
+  --color-shadow: #8ab88a;
+  /* Offset card shadow — bright green, pops against lifted dark bg */
+  --color-module: #1a1a1a;
+  /* Dark module */
+  --color-module-hover: #252525;
+  /* Hover state */
 }
 
 html {
   scroll-behavior: smooth;
+  /* Background color lives on <html> so the body can be transparent. This
+     lets the fixed Three.js canvas (which is a child of <body>) show through
+     across the entire scroll region. If we kept the bg on <body>, the body
+     would paint its color over every pixel of the document scroll area,
+     covering the canvas anywhere the canvas happens to render transparent
+     pixels — and making `bg-main` on <body> opaque would hide the canvas
+     entirely below the first viewport. */
+  background-color: var(--color-bg);
 }
 
 body {
-  font-family: var(--font-quicksand);
+  font-family: var(--font-inter);
   min-height: 100vh;
-  background-color: var(--color-bg);
+  /* Transparent so the fixed isometric canvas behind <main> shows through
+     for the full document height, not just the first viewport. */
+  background-color: transparent;
   color: var(--color-text);
 }
 
-/* Utility classes for the color palette */
+/* ─── Utility classes ───────────────────────────────── */
 @layer utilities {
-  .bg-main { background-color: var(--color-bg) !important; }
-  .bg-nav { background-color: var(--color-nav) !important; }
-  .bg-card { background-color: var(--color-card) !important; }
-  .bg-card-hover:hover { background-color: var(--color-card-hover) !important; }
-  .bg-accent { background-color: var(--color-accent) !important; }
-  .hover\:bg-accent-dark:hover { background-color: var(--color-accent-dark) !important; }
-  .bg-module { background-color: var(--color-module) !important; }
-  .hover\:bg-module-hover:hover { background-color: var(--color-module-hover) !important; }
-  .text-main { color: var(--color-text); }
-  .text-light { color: var(--color-text-light); }
-  .text-accent { color: var(--color-accent); }
-  .text-accent-dark { color: var(--color-accent-dark); }
-  .border-border { border-color: var(--color-border); }
+
+  /* Background */
+  .bg-main {
+    background-color: var(--color-bg);
+  }
+
+  .bg-nav {
+    background-color: var(--color-nav);
+  }
+
+  .bg-card {
+    background-color: var(--color-card);
+  }
+
+  .bg-card-hover:hover {
+    background-color: var(--color-card-hover);
+  }
+
+  .bg-accent {
+    background-color: var(--color-accent);
+  }
+
+  .hover\:bg-accent-dark:hover {
+    background-color: var(--color-accent-dark);
+  }
+
+  .bg-module {
+    background-color: var(--color-module);
+  }
+
+  .hover\:bg-module-hover:hover {
+    background-color: var(--color-module-hover);
+  }
+
+  /* Text */
+  .text-main {
+    color: var(--color-text);
+  }
+
+  .text-light {
+    color: var(--color-text-light);
+  }
+
+  .text-accent {
+    color: var(--color-accent);
+  }
+
+  .text-accent-dark {
+    color: var(--color-accent-dark);
+  }
+
+  /* Border */
+  .border-border {
+    border-color: var(--color-border);
+  }
+
+  /* ─── Wireframe theme utilities ─────────────────── */
+
+  /* Offset solid-color shadow — neobrutalist card lift. Apply to any wf-*
+     box you want to pop. Baked into .wf-card and .wf-section by default.
+     Includes a matching press-in on :hover so it's a drop-in utility. */
+  .wf-shadow {
+    box-shadow: 5px 5px 0 0 var(--color-shadow);
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out;
+  }
+
+  .wf-shadow:hover {
+    box-shadow: 2px 2px 0 0 var(--color-shadow);
+    transform: translate(3px, 3px);
+  }
+
+  /* Escape hatch: opt out of the shadow when a card sits flush against
+     a container edge, inside another card, or in a tight grid where the
+     offset would clip. */
+  .wf-shadow-none {
+    box-shadow: none !important;
+  }
+
+  /* Standard wireframe card — outlined, no fill, offset accent shadow */
+  .wf-card {
+    @apply border border-border p-5;
+    box-shadow: 5px 5px 0 0 var(--color-shadow);
+    transition: border-color 150ms, box-shadow 150ms ease-out, transform 150ms ease-out;
+  }
+
+  .wf-card:hover {
+    border-color: var(--color-accent);
+    /* Press-in effect: shrink shadow + translate card so it meets the ground */
+    box-shadow: 2px 2px 0 0 var(--color-shadow);
+    transform: translate(3px, 3px);
+  }
+
+  /* Wireframe section — heavier border, more padding, same offset shadow */
+  .wf-section {
+    @apply border border-border p-6;
+    box-shadow: 6px 6px 0 0 var(--color-shadow);
+  }
+
+  /* Wireframe button — outlined, no fill */
+  .wf-btn {
+    @apply border border-border px-4 py-2 text-sm font-medium transition-all duration-150;
+    color: var(--color-text);
+  }
+
+  .wf-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  /* Wireframe button — active/selected state */
+  .wf-btn-active {
+    @apply border px-4 py-2 text-sm font-medium;
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: white;
+  }
+
+  .wf-btn-active-transparent {
+    @apply border px-4 py-2 text-sm font-medium;
+    border-color: var(--color-accent);
+    background-color: transparent;
+    color: var(--color-accent);
+  }
+
+  /* Wireframe badge/pill */
+  .wf-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-mono whitespace-nowrap;
+  }
+
+  /* Wireframe input */
+  .wf-input {
+    @apply w-full px-4 py-2.5 bg-transparent border border-border text-sm font-mono;
+    color: var(--color-text);
+    transition: border-color 150ms;
+  }
+
+  .wf-input::placeholder {
+    color: var(--color-text-light);
+  }
+
+  .wf-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  /* Wireframe label — small caps mono */
+  .wf-label {
+    @apply text-xs font-mono uppercase tracking-widest;
+    color: var(--color-text-light);
+  }
+
+  /* Wireframe divider */
+  .wf-divider {
+    @apply border-t border-border;
+  }
+
+  /* Glass panel — frosted background for content floating over the animated
+     isometric background. Semi-transparent + blur lets the grid show through
+     subtly while keeping text readable. */
+  .wf-glass {
+    @apply border border-border p-6;
+    background-color: rgba(250, 250, 250, 0.9);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .dark .wf-glass {
+    background-color: rgba(15, 15, 15, 0.86);
+  }
+
+  /* Glass card — smaller variant for nav cards over the background */
+  .wf-glass-card {
+    @apply border border-border p-5;
+    background-color: rgba(250, 250, 250, 0.9);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: border-color 150ms, background-color 150ms;
+  }
+
+  .wf-glass-card:hover {
+    border-color: var(--color-accent);
+    background-color: rgba(250, 250, 250, 0.85);
+  }
+
+  .dark .wf-glass-card {
+    background-color: rgba(15, 15, 15, 0.9);
+  }
+
+  .dark .wf-glass-card:hover {
+    background-color: rgba(15, 15, 15, 0.8);
+  }
+
+  /* Nav text color — responsive to light/dark mode */
+  .text-nav-text {
+    color: var(--color-nav-text);
+  }
+
+  /* Wireframe nav link — uses nav-text token so it flips with theme */
+  .wf-nav-link {
+    @apply px-4 py-2 text-sm font-medium border border-transparent transition-all duration-150;
+    color: var(--color-nav-text);
+    opacity: 0.8;
+  }
+
+  .wf-nav-link:hover {
+    border-color: var(--color-nav-border);
+    opacity: 1;
+  }
+
+  /* Wireframe nav link — active state */
+  .wf-nav-link-active {
+    @apply px-4 py-2 text-sm font-medium border transition-all duration-150;
+    border-color: var(--color-nav-border);
+    color: var(--color-nav-text);
+    background-color: color-mix(in srgb, var(--color-nav-text) 10%, transparent);
+  }
+
+  /* Touch targets */
+  .touch-friendly {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Hide scrollbar but keep scroll functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* Override white backgrounds in dark mode to be softer */
+/* Override white backgrounds in dark mode */
 .dark .bg-white {
   background-color: var(--color-module) !important;
 }
@@ -72,26 +334,19 @@ body {
   background-color: var(--color-module-hover) !important;
 }
 
-/* Text card component */
-.text-card {
-  background-color: var(--color-card);
-  color: var(--color-text);
-  padding: 1rem 1.5rem;
-  border-radius: 0.75rem;
-  display: inline-block;
-}
-
+/* ─── Legacy component classes (for gradual migration) ─── */
 .text-card-block {
   background-color: var(--color-card);
   color: var(--color-text);
   padding: 1.5rem;
-  border-radius: 1rem;
+  border-radius: 0;
+  border: 1px solid var(--color-border);
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -100,7 +355,7 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 5px;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -109,12 +364,12 @@ body {
 
 /* Selection */
 ::selection {
-  background: rgba(88, 129, 87, 0.3);
+  background: rgba(58, 90, 64, 0.2);
   color: var(--color-text);
 }
 
 .dark ::selection {
-  background: rgba(107, 155, 107, 0.4);
+  background: rgba(107, 155, 107, 0.3);
   color: var(--color-text);
 }
 
@@ -123,26 +378,63 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Mobile-specific utilities */
-@layer utilities {
-  .touch-friendly {
-    @apply min-h-[44px] min-w-[44px];
-  }
-
-  /* Hide scrollbar but keep scroll functionality */
-  .scrollbar-hide {
-    -ms-overflow-style: none;       /* IE/Edge */
-    scrollbar-width: none;          /* Firefox */
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;                  /* Chrome/Safari/Opera */
-  }
-}
-
 /* Narrower scrollbar on mobile */
 @media (max-width: 768px) {
   ::-webkit-scrollbar {
     width: 4px;
     height: 4px;
   }
+}
+
+/* ─── Isometric background component ────────────────── */
+
+.iso-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: -10;
+  background-color: var(--color-bg);
+  perspective: 2400px;
+  perspective-origin: 50% 50%;
+}
+
+.iso-grid {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+  transform: rotateX(35deg) rotateZ(-18deg);
+  /* No will-change — the grid's rotation is static, so the browser
+     has nothing to prepare for. `will-change` on a never-changing
+     property is wasted memory. */
+}
+
+.iso-cell {
+  position: absolute;
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  /* Transitions need to be on the base class so the cell animates both UP
+     (when gaining .iso-cell-lifted) and DOWN (when losing it).
+     Transitions themselves are cheap — they only do work when a property
+     actually changes. The real layer-explosion culprits are below. */
+  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    background-color 500ms ease-out,
+    box-shadow 500ms ease-out;
+
+  /* DO NOT put `will-change` or `transform-style: preserve-3d` here.
+     Both promote every cell to its own GPU layer = 8,100 layers = death. */
+}
+
+.iso-cell-lifted {
+  transform: translateZ(22px);
+  background-color: var(--color-accent);
+  box-shadow:
+    0 0 0 1px var(--color-accent-dark),
+    5px 8px 12px rgba(0, 0, 0, 0.22);
+}
+
+.dark .iso-cell-lifted {
+  box-shadow:
+    0 0 0 1px var(--color-accent-dark),
+    5px 8px 14px rgba(0, 0, 0, 0.55);
 }
