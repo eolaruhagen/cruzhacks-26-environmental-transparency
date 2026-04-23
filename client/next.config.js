@@ -4,15 +4,15 @@ const nextConfig = {
   images: {
     remotePatterns: [],
   },
-  // async redirects() {
-  //   return [
-  //     {
-  //       source: '/news/:path*',
-  //       destination: '/',
-  //       permanent: false,
-  //     },
-  //   ]
-  // },
+  async redirects() {
+    return [
+      {
+        source: '/news/:path*',
+        destination: '/',
+        permanent: false,
+      },
+    ]
+  },
 }
 
 module.exports = nextConfig
