@@ -14,6 +14,141 @@ export type Database = {
   }
   public: {
     Tables: {
+      article_details: {
+        Row: {
+          artifact_id: string
+          author: string[] | null
+          description: string | null
+          people: string[] | null
+          source: string | null
+          title: string
+          topics: string[] | null
+        }
+        Insert: {
+          artifact_id: string
+          author?: string[] | null
+          description?: string | null
+          people?: string[] | null
+          source?: string | null
+          title: string
+          topics?: string[] | null
+        }
+        Update: {
+          artifact_id?: string
+          author?: string[] | null
+          description?: string | null
+          people?: string[] | null
+          source?: string | null
+          title?: string
+          topics?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "article_details_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: true
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifact_enrichments: {
+        Row: {
+          artifact_id: string
+          associated_bills:
+            | Database["public"]["CompositeTypes"]["bill_reference"][]
+            | null
+          associated_representatives: string[] | null
+          environmental_topic: Database["public"]["Enums"]["bill_type"]
+          impact_level: Database["public"]["Enums"]["impact_level"]
+          key_quote: string | null
+          sentiment: number
+          stakeholders: string[] | null
+          state: string | null
+          summary: string
+        }
+        Insert: {
+          artifact_id: string
+          associated_bills?:
+            | Database["public"]["CompositeTypes"]["bill_reference"][]
+            | null
+          associated_representatives?: string[] | null
+          environmental_topic: Database["public"]["Enums"]["bill_type"]
+          impact_level: Database["public"]["Enums"]["impact_level"]
+          key_quote?: string | null
+          sentiment: number
+          stakeholders?: string[] | null
+          state?: string | null
+          summary: string
+        }
+        Update: {
+          artifact_id?: string
+          associated_bills?:
+            | Database["public"]["CompositeTypes"]["bill_reference"][]
+            | null
+          associated_representatives?: string[] | null
+          environmental_topic?: Database["public"]["Enums"]["bill_type"]
+          impact_level?: Database["public"]["Enums"]["impact_level"]
+          key_quote?: string | null
+          sentiment?: number
+          stakeholders?: string[] | null
+          state?: string | null
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifact_enrichments_artifact_id_fkey"
+            columns: ["artifact_id"]
+            isOneToOne: true
+            referencedRelation: "artifacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      artifacts: {
+        Row: {
+          created_at: string | null
+          embedding: unknown
+          id: string
+          published_at: string | null
+          source_icon_url: string | null
+          story_id: string | null
+          type: Database["public"]["Enums"]["artifact_type"]
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          embedding?: unknown
+          id?: string
+          published_at?: string | null
+          source_icon_url?: string | null
+          story_id?: string | null
+          type: Database["public"]["Enums"]["artifact_type"]
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          embedding?: unknown
+          id?: string
+          published_at?: string | null
+          source_icon_url?: string | null
+          story_id?: string | null
+          type?: Database["public"]["Enums"]["artifact_type"]
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artifacts_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories_embeddings: {
         Row: {
           bill_type: Database["public"]["Enums"]["bill_type"]
@@ -95,10 +230,14 @@ export type Database = {
       house_bills: {
         Row: {
           bill_policy_area: string | null
+          bill_text: string
           category: Database["public"]["Enums"]["bill_type"] | null
           committees: string | null
           congress: string
+          congress_number: number
+          congress_years: number[]
           cosponsors: string[] | null
+          created_at: string
           date_of_introduction: string | null
           embedding: unknown
           id: string
@@ -113,15 +252,20 @@ export type Database = {
           subcategory_scores: Json | null
           subject_terms: string[] | null
           title: string
+          updated_at: string
           updated_category: Database["public"]["Enums"]["bill_type"] | null
           url: string
         }
         Insert: {
           bill_policy_area?: string | null
+          bill_text?: string
           category?: Database["public"]["Enums"]["bill_type"] | null
           committees?: string | null
           congress: string
+          congress_number?: number
+          congress_years?: number[]
           cosponsors?: string[] | null
+          created_at?: string
           date_of_introduction?: string | null
           embedding?: unknown
           id?: string
@@ -136,15 +280,20 @@ export type Database = {
           subcategory_scores?: Json | null
           subject_terms?: string[] | null
           title: string
+          updated_at?: string
           updated_category?: Database["public"]["Enums"]["bill_type"] | null
           url: string
         }
         Update: {
           bill_policy_area?: string | null
+          bill_text?: string
           category?: Database["public"]["Enums"]["bill_type"] | null
           committees?: string | null
           congress?: string
+          congress_number?: number
+          congress_years?: number[]
           cosponsors?: string[] | null
+          created_at?: string
           date_of_introduction?: string | null
           embedding?: unknown
           id?: string
@@ -159,6 +308,7 @@ export type Database = {
           subcategory_scores?: Json | null
           subject_terms?: string[] | null
           title?: string
+          updated_at?: string
           updated_category?: Database["public"]["Enums"]["bill_type"] | null
           url?: string
         }
@@ -227,6 +377,30 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           url?: string | null
+        }
+        Relationships: []
+      }
+      stories: {
+        Row: {
+          centroid: unknown
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          centroid?: unknown
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          centroid?: unknown
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -301,10 +475,14 @@ export type Database = {
         Args: { cosponsor_name: string; max_results?: number }
         Returns: {
           bill_policy_area: string | null
+          bill_text: string
           category: Database["public"]["Enums"]["bill_type"] | null
           committees: string | null
           congress: string
+          congress_number: number
+          congress_years: number[]
           cosponsors: string[] | null
+          created_at: string
           date_of_introduction: string | null
           embedding: unknown
           id: string
@@ -319,6 +497,7 @@ export type Database = {
           subcategory_scores: Json | null
           subject_terms: string[] | null
           title: string
+          updated_at: string
           updated_category: Database["public"]["Enums"]["bill_type"] | null
           url: string
         }[]
@@ -350,6 +529,7 @@ export type Database = {
       }
     }
     Enums: {
+      artifact_type: "article" | "social_post"
       bill_type:
         | "air_and_atmosphere"
         | "water_resources"
@@ -359,9 +539,13 @@ export type Database = {
         | "disaster_and_emergency"
         | "climate_and_emissions"
         | "justice_and_environment"
+      impact_level: "local" | "state" | "national" | "international"
     }
     CompositeTypes: {
-      [_ in never]: never
+      bill_reference: {
+        legislation_number: string | null
+        reason: string | null
+      }
     }
   }
 }
@@ -486,6 +670,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      artifact_type: ["article", "social_post"],
       bill_type: [
         "air_and_atmosphere",
         "water_resources",
@@ -496,6 +681,7 @@ export const Constants = {
         "climate_and_emissions",
         "justice_and_environment",
       ],
+      impact_level: ["local", "state", "national", "international"],
     },
   },
 } as const
