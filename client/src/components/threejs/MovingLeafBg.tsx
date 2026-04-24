@@ -61,6 +61,7 @@ class ThreeScene {
         const h = this.windowSize.height;
         this.camera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 1000)
         this.camera.position.z = 5
+        this.camera.position.x = 20
         return this
     }
 
@@ -114,6 +115,15 @@ class ThreeScene {
         this.scene.add(child)
     }
 
+    /** Apply's rotation to the camera using degrees */
+    public applyCameraRotation(x: number | undefined, y: number | undefined, z: number | undefined) {
+        if (!this.camera) return
+        // apply rotation with x,y,z as degrees values
+        if (x) this.camera.rotation.x = x * Math.PI / 180
+        if (y) this.camera.rotation.y = y * Math.PI / 180
+        if (z) this.camera.rotation.z = z * Math.PI / 180
+    }
+
     /**
      * Dismounts the ThreeScene instance
      */
@@ -130,40 +140,36 @@ function feedObserver(canvas: ThreeScene) {
 
 
 /** Creates the Base roundedBoxGeometry to be used by Mesh or InstancedMesh */
-function createCube(window: Window): {geometry: RoundedBoxGeometry, material: THREE.Material[]} {
+function createCube(window: Window): {geometry: RoundedBoxGeometry, material: THREE.Material} {
     const cellWidth = window.getCellDims()
     return {
-        geometry: new RoundedBoxGeometry(cellWidth, cellWidth, cellWidth, 4, 5),
-        material: [
-            new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-            new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
-            new THREE.MeshBasicMaterial({ color: 0x000000 }),
-            new THREE.MeshBasicMaterial({ color: 0x000000 }),
-            new THREE.MeshBasicMaterial({ color: 0x0fc0200 }),
-            new THREE.MeshBasicMaterial({ color: 0x0fc0200 })
-        ]
+        geometry: new RoundedBoxGeometry(cellWidth, cellWidth, cellWidth, 4, 3),
+        material: new THREE.MeshLambertMaterial({ color: 0x7a93b8 })
     }
 }
 
-/** Creates an instanced mesh of cubes to fill the scene. App */
+/** Creates an instanced mesh of cubes to fill the scene. */
 function createCubesInstancedMesh(scene: ThreeScene) {
     const cellWidth = scene.windowSize.getCellDims()
     const cellCount = scene.windowSize.getCellCount()
-    const instancedMesh = new THREE.InstancedMesh(createCube(scene.windowSize).geometry, createCube(scene.windowSize).material, cellCount)
+    const { geometry, material } = createCube(scene.windowSize)
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, cellCount)
 
-    // before rendering first use Object3D to actually set positions of each cube
-    const m = new THREE.Matrix4();
-    let i = 0;
-    for (let x = 0; x < scene.windowSize.width; x += cellWidth) {
-        for (let y = 0; y < scene.windowSize.height; y += cellWidth) {
-            m.setPosition(x, y, 0)
+    const halfW = scene.windowSize.width / 2
+    const halfH = scene.windowSize.height / 2
+
+    const m = new THREE.Matrix4()
+    let i = 0
+    for (let x = 0; x < scene.windowSize.width; x += cellWidth + 2) {
+        for (let y = 0; y < scene.windowSize.height; y += cellWidth + 2) {
+            m.setPosition(x - halfW, y - halfH, -200)
             instancedMesh.setMatrixAt(i, m)
-            i++;
+            i++
         }
     }
 
-    instancedMesh.instanceMatrix.needsUpdate = true;
-    scene.renderChild(instancedMesh);
+    instancedMesh.instanceMatrix.needsUpdate = true
+    scene.renderChild(instancedMesh)
 }
 
 export default function MovingLeafBg() {
@@ -171,13 +177,14 @@ export default function MovingLeafBg() {
 
     useEffect(() => {
         if (!mountRef.current) return
+        const mount = mountRef.current
         const currentWindow = window
         const windowSize = new Window(currentWindow)
 
         const canvas = new ThreeScene(windowSize)
             .withOrthographicCamera()
             .withRenderer(true)
-            .withHelper()
+            //.withHelper()
             .build()
         
         if (!canvas.camera || !canvas.renderer) {
@@ -187,9 +194,14 @@ export default function MovingLeafBg() {
         canvas.setBgColor(pickSceneBackground)
         const observer = new MutationObserver(() => feedObserver(canvas))
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-        
         createCubesInstancedMesh(canvas)
 
+        const sun = new THREE.DirectionalLight(0xffffff, 1)
+        sun.position.set(1, 2, 3)
+        canvas.scene.add(sun)
+        canvas.scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+
+        canvas.applyCameraRotation(10, 5, 0)
 
         canvas.renderer.setSize(windowSize.width, windowSize.height)
         mountRef.current.appendChild(canvas.renderer.domElement)
@@ -203,7 +215,7 @@ export default function MovingLeafBg() {
         animate()
 
         return () => {
-            mountRef.current?.removeChild(canvas.renderer?.domElement!) // not sure how im feeling about this NN assertion
+            mount?.removeChild(canvas.renderer?.domElement!) // not sure how im feeling about this NN assertion
             canvas.dismount()
         }
 
