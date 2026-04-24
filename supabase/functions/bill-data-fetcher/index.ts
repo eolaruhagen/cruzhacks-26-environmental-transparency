@@ -65,6 +65,8 @@ async function sendDiscordNotification(
   data: {
     processed?: number;
     inserted?: number;
+    updated?: number;
+    skipped?: number;
     remaining?: number;
     dailyRequests?: number;
     error?: string;
@@ -81,7 +83,9 @@ async function sendDiscordNotification(
         color: 3447003, // Blue
         fields: [
           { name: "Processed", value: `${data.processed} bills`, inline: true },
-          { name: "Inserted", value: `${data.inserted} environmental`, inline: true },
+          { name: "Inserted", value: `${data.inserted} new`, inline: true },
+          { name: "Updated", value: `${data.updated} existing`, inline: true },
+          { name: "Skipped", value: `${data.skipped} no-op`, inline: true },
           { name: "Remaining", value: `${data.remaining} in queue`, inline: true },
           { name: "Daily Requests", value: `${data.dailyRequests}/4500`, inline: true },
         ],
@@ -200,7 +204,7 @@ async function processOneBill(
   billType: string,
   billNumber: number,
   apiKey: string
-): Promise<{ inserted: boolean; requests: number; error?: string }> {
+): Promise<{ status: "inserted" | "updated" | "skipped"; requests: number; error?: string }> {
   let requestCount = 0;
   const typePath = mapBillTypeToPath(billType);
   const legislationNumber = `${mapBillType(billType)} ${billNumber} (${congress})`;
@@ -227,7 +231,7 @@ async function processOneBill(
 
     if (!isEnvironmental) {
       console.log(`Bill ${legislationNumber} not environmental, skipping.`);
-      return { inserted: false, requests: requestCount };
+      return { status: "skipped", requests: requestCount };
     }
 
     // 3. Fetch full details (4 more requests)
@@ -288,14 +292,14 @@ async function processOneBill(
     const validLegislationFormat = /^(H\.R\.|S\.|H\.Res\.|S\.Res\.|H\.J\.Res\.|S\.J\.Res\.|H\.Con\.Res\.|S\.Con\.Res\.) \d+ \(\d+\)$/;
     if (!validLegislationFormat.test(legislationNumber)) {
       console.error(`[SKIP] Invalid legislation_number format: "${legislationNumber}"`);
-      return { inserted: false, requests: requestCount, error: `Invalid legislation_number format: ${legislationNumber}` };
+      return { status: "skipped", requests: requestCount, error: `Invalid legislation_number format: ${legislationNumber}` };
     }
 
     // Check if title looks like corrupted sponsor data
     const corruptedTitlePattern = /\[Sen\.|Rep\.\-[A-Z]{1,2}\-[A-Z]{2}\]/;
     if (corruptedTitlePattern.test(billData.title)) {
       console.error(`[SKIP] Title looks like corrupted sponsor data: "${billData.title}"`);
-      return { inserted: false, requests: requestCount, error: `Corrupted title (sponsor pattern): ${billData.title}` };
+      return { status: "skipped", requests: requestCount, error: `Corrupted title (sponsor pattern): ${billData.title}` };
     }
 
     // 4c. Check against incomplete_bills FIRST
@@ -319,7 +323,7 @@ async function processOneBill(
 
       if (!isDifferent) {
         console.log(`[SKIP] Bill ${legislationNumber} in incomplete_bills and unchanged.`);
-        return { inserted: false, requests: requestCount };
+        return { status: "skipped", requests: requestCount };
       }
 
       console.log(`[UPDATE] Bill ${legislationNumber} in incomplete_bills has CHANGED. Moving to house_bills for re-categorization.`);
@@ -364,16 +368,18 @@ async function processOneBill(
 
     if (existingBill && !shouldForceRecategorization) {
       console.log(`[UPDATE] Updated bill ${legislationNumber} (preserved category/embedding)`);
+      return { status: "updated", requests: requestCount };
     } else if (shouldForceRecategorization) {
       console.log(`[INSERT] Inserted bill ${legislationNumber} from incomplete_bills (ready for categorization)`);
+      return { status: "inserted", requests: requestCount };
     } else {
       console.log(`[INSERT] Inserted new bill ${legislationNumber}`);
+      return { status: "inserted", requests: requestCount };
     }
-    return { inserted: true, requests: requestCount };
 
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    return { inserted: false, requests: requestCount, error: errorMsg };
+    return { status: "skipped", requests: requestCount, error: errorMsg };
   }
 }
 
@@ -522,6 +528,8 @@ Deno.serve(async (req: Request) => {
     // Stage: Process each unique bill
     currentStage = "process_bills_loop";
     let totalInserted = 0;
+    let totalUpdated = 0;
+    let totalSkipped = 0;
     let totalRequests = 0;
     const failedBills: { msg_ids: number[]; legislation: string; error: string }[] = [];
 
@@ -552,8 +560,12 @@ Deno.serve(async (req: Request) => {
             legislation: formattedLegislation,
             error: result.error,
           });
-        } else {
+        } else if (result.status === "inserted") {
           totalInserted++;
+        } else if (result.status === "updated") {
+          totalUpdated++;
+        } else {
+          totalSkipped++;
         }
       }
 
@@ -593,6 +605,8 @@ Deno.serve(async (req: Request) => {
         await sendDiscordNotification(discordUrl, "progress", {
           processed: uniqueBills.length,
           inserted: totalInserted,
+          updated: totalUpdated,
+          skipped: totalSkipped,
           remaining: remainingMessages,
           dailyRequests: dailyCount,
         });
@@ -614,6 +628,8 @@ Deno.serve(async (req: Request) => {
       queue_messages: messages.length,
       unique_bills_processed: uniqueBills.length,
       inserted: totalInserted,
+      updated: totalUpdated,
+      skipped: totalSkipped,
       requests_made: totalRequests,
       daily_total: dailyCount,
       remaining_in_queue: remainingMessages,
