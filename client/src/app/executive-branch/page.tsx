@@ -281,7 +281,7 @@ export default function ExecutiveBranchPage() {
 
           <div className="flex flex-col sm:flex-row gap-4">
             <a
-              href="/my_rep"
+              href="/representatives"
               className="wf-btn-active px-6 py-3 font-semibold text-center"
             >
               Find Your Representatives

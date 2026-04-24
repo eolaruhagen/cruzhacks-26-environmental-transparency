@@ -6,11 +6,12 @@ import {
     type BentoFeatureItem,
     type BentoImageItem,
 } from '@/components/landing/LandingPage'
+import MovingLeafBg from '@/components/threejs/MovingLeafBg'
 
 
 const FEATURES: BentoFeatureItem[] = [
     {
-        href: '/my_rep',
+        href: '/representatives',
         title: 'Find Your Representatives',
         description: 'Look up your Senators and House members by state. See photos, party, and bills they sponsor.',
         iconPath: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
@@ -79,7 +80,7 @@ export default function Home() {
     return (
         <>
             {/* Background: fills the entire scroll region, sits at z-index -10 */}
-            <IsometricThreeBackground />
+            <MovingLeafBg />
 
             <main className="relative">
                 {/* ─── Hero ──────────────────────────────────────── */}
@@ -95,7 +96,7 @@ export default function Home() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-3 mb-10">
-                            <Link href="/my_rep" className="wf-btn-active text-center">
+                            <Link href="/representatives" className="wf-btn-active text-center">
                                 Find My Representatives
                             </Link>
                             <Link href="/search" className="wf-btn text-center">
@@ -165,7 +166,7 @@ export default function Home() {
                                 and browse the environmental bills they have sponsored or cosponsored.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                <Link href="/my_rep" className="wf-btn-active text-center">
+                                <Link href="/representatives" className="wf-btn-active text-center">
                                     Find My Representatives
                                 </Link>
                                 <Link href="/news" className="wf-btn text-center">
