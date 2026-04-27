@@ -3,6 +3,7 @@
 import {useEffect, useRef} from 'react'
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { ThreeScene } from './ThreeScene'
 
 
 // DONT FORGET: X: +x = right, -x = left, Y: +y = up, -y = down, Z: +z = forward, -z = backward (into screen)
@@ -36,15 +37,6 @@ class Window {
     /** returns the width of a square cell */
     public getCellDims(): number {
         return this.width * CONFIG.columnsRelativeSize
-    }
-
-    /** returns the total amount of square cells that should be rendered
-     * - pads the internal window height by 1.2x to ensure window is fully covered under rotation
-     */
-    public getCellCount(cellGap: number = CONFIG.cellGap): number {
-        const columns = Math.floor(this.paddedWidth / (this.getCellDims() + cellGap))
-        const rows = Math.floor(this.paddedHeight / (this.getCellDims() + cellGap))
-        return columns * rows
     }
 }
 
@@ -156,110 +148,6 @@ class LeafPatternInstance {
     }
 }
 
-/** Builder Pattern Class For Setting up the Three Scene */
-class ThreeScene {
-    readonly scene: THREE.Scene
-    camera: THREE.PerspectiveCamera | THREE.OrthographicCamera | null = null
-    renderer: THREE.WebGLRenderer | null = null
-    readonly windowSize: Window
-    constructor(windowSize: Window) {
-        this.windowSize = windowSize
-        this.scene = new THREE.Scene()
-
-    }
-
-    /**
-     * Sets the camera to an orthographic camera: Uses Default hardcoded values as of now
-     * @returns The ThreeScene instance
-     */
-    public withOrthographicCamera(): ThreeScene {
-        const w = this.windowSize.width;
-        const h = this.windowSize.height;
-        this.camera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 1000)
-        this.camera.position.z = 5
-        // this.camera.position.x = 25
-        // this.camera.position.y = -20
-
-        return this
-    }
-
-    /**
-     * Sets the camera to a perspective camera: Uses Default hardcoded values as of now
-     * @returns The ThreeScene instance
-     */
-    public withPerspectiveCamera(): ThreeScene {
-        this.camera = new THREE.PerspectiveCamera(75, this.windowSize.width / this.windowSize.height, 0.1, 1000)
-        this.camera.position.z = 5
-        return this
-    }
-
-    /**
-     * Sets the renderer to a default WebGL renderer
-     * @returns The ThreeScene instance
-     */
-    public withRenderer(useAntialiasing: boolean = false): ThreeScene {
-        this.renderer = new THREE.WebGLRenderer({ antialias: useAntialiasing })
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-        this.renderer.setSize(this.windowSize.width, this.windowSize.height)
-        return this
-    }
-
-
-    public withHelper(): ThreeScene {
-        this.scene.add(new THREE.AxesHelper(15))
-        return this
-    }
-
-    /**
-     * Builds the ThreeScene instance
-     * @returns The ThreeScene instance
-     */
-    public build(): ThreeScene {
-        return this
-    }
-
-    /**
-     * Sets the background color of the scene
-     * @param color The color to set the background to set
-     * @param colorFn A function that returns the color to set the background to
-     */
-    public setBgColor(color: string | (() => string)) {
-        if (typeof color === 'function') {
-            this.scene.background = new THREE.Color(color())
-        } else {
-            this.scene.background = new THREE.Color(color)
-        }
-    }
-
-    public renderChild(child: THREE.Object3D) {
-        this.scene.add(child)
-    }
-
-    /** Apply's rotation to the camera using degrees */
-    public applyCameraRotation(x: number | undefined, y: number | undefined, z: number | undefined) {
-        if (!this.camera) return
-        // apply rotation with x,y,z as degrees values
-        if (x) this.camera.rotation.x = x * Math.PI / 180
-        if (y) this.camera.rotation.y = y * Math.PI / 180
-        if (z) this.camera.rotation.z = z * Math.PI / 180
-    }
-
-    public applyCameraPosition(x: number | undefined, y: number | undefined, z: number | undefined) {
-        if (!this.camera) return
-        if (x) this.camera.position.x = x
-        if (y) this.camera.position.y = y
-        if (z) this.camera.position.z = z
-    }
-
-    /**
-     * Dismounts the ThreeScene instance
-     */
-    public dismount() {
-        this.renderer?.dispose()
-        this.scene.clear()
-    }
-}
-
 const BASE_Z = -200
 const BASE_COLOR = new THREE.Color(0xb5bdb6)
 
@@ -270,11 +158,11 @@ class TileGrid {
     private readonly _matrix = new THREE.Matrix4()
     private readonly _leafPatternInstances: LeafPatternInstance[] = []
 
-    constructor(threeScene: ThreeScene) {
-        const { cols, rows } = this._getDims(threeScene.windowSize)
+    constructor(scene: THREE.Scene, windowSize: Window) {
+        const { cols, rows } = this._getDims(windowSize)
         this.cols = cols
         this.rows = rows
-        this.mesh = createCubesInstancedMesh(threeScene, rows, cols)
+        this.mesh = createCubesInstancedMesh(scene, windowSize, rows, cols)
 
         // initialize per-instance color buffer so setColorAt works
         for (let i = 0; i < this.mesh.count; i++) {
@@ -283,8 +171,13 @@ class TileGrid {
         if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
     }
 
+
     public addLeafPatternInstance(leafPatternInstance: LeafPatternInstance) {
         this._leafPatternInstances.push(leafPatternInstance)
+    }
+
+    public getLeafPatternInstances(): LeafPatternInstance[] {
+        return this._leafPatternInstances
     }
 
     /** instantly snap the tile to the lifted z and given color */
@@ -325,15 +218,15 @@ class TileGrid {
      * @returns The dimensions of the tile grid
      */
     private _getDims(window: Window) {
-        const cellWidth = window.getCellDims() + CONFIG.cellGap
-        const cols = Math.ceil(window.paddedWidth / cellWidth)
-        const rows = Math.ceil(window.paddedHeight / cellWidth)
+        const step = window.getCellDims() + CONFIG.cellGap
+        const cols = Math.ceil(window.paddedWidth / step)
+        const rows = Math.ceil(window.paddedHeight / step)
         return { cols, rows }
     }
 }
 
 
-function feedObserver(canvas: ThreeScene) {
+function feedThemeObserver(canvas: ThreeScene) {
     canvas.setBgColor(pickSceneBackground)
 }
 
@@ -348,27 +241,27 @@ function createCube(window: Window): {geometry: RoundedBoxGeometry, material: TH
 }
 
 /** Creates an instanced mesh of cubes to fill the scene. */
-function createCubesInstancedMesh(scene: ThreeScene, rows: number, cols: number): THREE.InstancedMesh {
-    const cellWidth = scene.windowSize.getCellDims()
+function createCubesInstancedMesh(scene: THREE.Scene, windowSize: Window, rows: number, cols: number): THREE.InstancedMesh {
+    const step = windowSize.getCellDims() + CONFIG.cellGap
     const cellCount = rows * cols
-    const { geometry, material } = createCube(scene.windowSize)
+    const { geometry, material } = createCube(windowSize)
     const instancedMesh = new THREE.InstancedMesh(geometry, material, cellCount)
 
-    const halfW = scene.windowSize.paddedWidth / 2
-    const halfH = scene.windowSize.paddedHeight / 2
+    const halfW = windowSize.paddedWidth / 2
+    const halfH = windowSize.paddedHeight / 2
 
     const m = new THREE.Matrix4()
     let i = 0
-    for (let x = 0; x < scene.windowSize.paddedWidth; x += cellWidth + CONFIG.cellGap) {
-        for (let y = 0; y < scene.windowSize.paddedHeight; y += cellWidth + CONFIG.cellGap) {
-            m.setPosition(x - halfW, y - halfH, -200)
+    for (let col = 0; col < cols; col++) {
+        for (let row = 0; row < rows; row++) {
+            m.setPosition(col * step - halfW, row * step - halfH, -200)
             instancedMesh.setMatrixAt(i, m)
             i++
         }
     }
 
     instancedMesh.instanceMatrix.needsUpdate = true
-    scene.renderChild(instancedMesh)
+    scene.add(instancedMesh)
     return instancedMesh
 }
 
@@ -381,10 +274,10 @@ export default function MovingLeafBg() {
         const currentWindow = window
         const windowSize = new Window(currentWindow)
 
-        const canvas = new ThreeScene(windowSize)
-            .withOrthographicCamera()
-            .withRenderer(true)
-            //.withHelper()
+        const canvas = new ThreeScene()
+            .withOrthographicCamera(windowSize.width, windowSize.height)
+            .withRenderer(windowSize.width, windowSize.height, true)
+            //.withAxesHelper()
             .build()
         
         if (!canvas.camera || !canvas.renderer) {
@@ -392,14 +285,13 @@ export default function MovingLeafBg() {
         }
 
         canvas.setBgColor(pickSceneBackground)
-        const observer = new MutationObserver(() => feedObserver(canvas))
+        const observer = new MutationObserver(() => feedThemeObserver(canvas))
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-        const tileGrid = new TileGrid(canvas)
-        const testPatternInstances: LeafPatternInstance[] = []
+        const tileGrid = new TileGrid(canvas.scene, windowSize)
         for (let i = 0; i < 25; i++) {
             const leafPatternInstance = new LeafPatternInstance(testLeaf, 3)
             leafPatternInstance.initCenterCell(tileGrid.rows, tileGrid.cols)
-            testPatternInstances.push(leafPatternInstance)
+            tileGrid.addLeafPatternInstance(leafPatternInstance)
         }
 
 
@@ -427,7 +319,7 @@ export default function MovingLeafBg() {
             timeSinceMove += dt
             if (timeSinceMove > MOVE_INTERVAL) {
                 timeSinceMove = 0
-                for (const leaf of testPatternInstances) {
+                for (const leaf of tileGrid.getLeafPatternInstances()) {
                     const oldCells = leaf.getActivePatternCells() ?? []
                     for (const cell of oldCells) {
                         tileGrid.deactivateTile(cell.dx, cell.dy)
