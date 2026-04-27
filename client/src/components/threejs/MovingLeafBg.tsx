@@ -8,9 +8,12 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 // DONT FORGET: X: +x = right, -x = left, Y: +y = up, -y = down, Z: +z = forward, -z = backward (into screen)
 
 const CONFIG = {
-    columnsRelativeSize: 0.015, // relative to the width of the screen ~ 1.5% -> row relative size calculated on the fly s.t its even
+    columnsRelativeSize: 0.0095, // relative to the width of the screen ~ 1.5% -> row relative size calculated on the fly s.t its even
     sceneBackgroundLight: '#595959',
     sceneBackgroundDark: '#000000',
+    padHeight: 2,
+    padWidth: 1.2,
+    cellGap: 2,
 }
 
 function pickSceneBackground(): string {
@@ -21,9 +24,13 @@ function pickSceneBackground(): string {
 class Window {
     readonly width: number
     readonly height: number
+    readonly paddedWidth: number
+    readonly paddedHeight: number
     constructor(window: globalThis.Window) {
         this.width = window.innerWidth
         this.height = window.innerHeight
+        this.paddedWidth = window.innerWidth * CONFIG.padWidth
+        this.paddedHeight = window.innerHeight * CONFIG.padHeight
     }
 
     /** returns the width of a square cell */
@@ -31,14 +38,123 @@ class Window {
         return this.width * CONFIG.columnsRelativeSize
     }
 
-    /** returns the total amount of square cells that should be rendered */
-    public getCellCount(): number {
-        const columns = Math.floor(this.width / this.getCellDims())
-        const rows = Math.floor(this.height / this.getCellDims())
+    /** returns the total amount of square cells that should be rendered
+     * - pads the internal window height by 1.2x to ensure window is fully covered under rotation
+     */
+    public getCellCount(cellGap: number = CONFIG.cellGap): number {
+        const columns = Math.floor(this.paddedWidth / (this.getCellDims() + cellGap))
+        const rows = Math.floor(this.paddedHeight / (this.getCellDims() + cellGap))
         return columns * rows
     }
 }
 
+type LeafCell = {
+    dx: number
+    dy: number
+    color: THREE.Color
+}
+
+type MovementDirection = 'up' | 'down' | 'left' | 'right'
+
+/** A test leaf pattern, just a simple cross shape with a light green color on the tiles */
+const testLeaf: LeafCell[] = [
+    {dx: 0, dy: 0, color: new THREE.Color('#00ff00')},
+    {dx: 1, dy: 0, color: new THREE.Color('#00ff00')},
+    {dx: -1, dy: 0, color: new THREE.Color('#00ff00')},
+    {dx: 0, dy: 1, color: new THREE.Color('#00ff00')},
+    {dx: 0, dy: -1, color: new THREE.Color('#00ff00')},
+]
+
+
+class LeafPatternInstance {
+    readonly pattern: LeafCell[]
+    readonly size: number
+    private centerCell: {x: number, y: number} | null = null
+    private lastMovement: MovementDirection | null = null
+    private activePatternCells: LeafCell[] | null = null
+    constructor(pattern: LeafCell[], size: number) {
+        this.pattern = pattern
+        this.size = size
+    }
+
+    public getPattern(): LeafCell[] {
+        return this.pattern
+    }
+    
+    /** Initializes the center cell of the pattern
+     * - Random location on the board based on the rows and cols
+     * - Initialized centercell cannot be closer than `this.size` cells from the edge of the board
+     */
+    public initCenterCell(rows: number, cols: number) {
+        const minX = this.size
+        const maxX = cols - this.size
+        const minY = this.size
+        const maxY = rows - this.size
+        this.centerCell = {x: Math.floor(Math.random() * (maxX - minX + 1)) + minX, y: Math.floor(Math.random() * (maxY - minY + 1)) + minY}
+    }
+
+    public getCenterCell(): {x: number, y: number} | null {
+        return this.centerCell
+    }
+
+    private _getCellsInPattern(): LeafCell[] {
+        if (!this.centerCell) return []
+        return this.pattern.map(cell => {
+            return {
+                dx: cell.dx + this.centerCell!.x,
+                dy: cell.dy + this.centerCell!.y,
+                color: cell.color,
+            }
+        })
+    }
+
+    private _getValidMovements(rows: number, cols: number): MovementDirection[] {
+        if (!this.centerCell) return []
+        const validMovements: MovementDirection[] = []
+        if (this.centerCell.x > this.size) validMovements.push('left')
+        if (this.centerCell.x < cols - this.size) validMovements.push('right')
+        // NOT SURE ON THESE: dont actually know whether up means +y or -y yet
+        if (this.centerCell.y > this.size) validMovements.push('up')
+        if (this.centerCell.y < rows - this.size) validMovements.push('down')
+        return validMovements
+    }
+
+    /** Move the cell over one unit in a random direction preferes, but does not guarantee movement in the last taken direction
+     * - When the last movement is still allowed, it is 2x more likely to be chosen
+     * - Applies the movement when finished. 
+     * - If no movement is allowed, nothing happens
+     */
+
+    public move(rows: number, cols: number) {
+        const validMovements = this._getValidMovements(rows, cols)
+        if (validMovements.length === 0) return
+        let chosenMovement: MovementDirection
+        if (this.lastMovement && validMovements.includes(this.lastMovement)) {
+            validMovements.push(this.lastMovement) // second instance of lastMovement makes it 2x more likely
+        }
+        chosenMovement = validMovements[Math.floor(Math.random() * validMovements.length)]
+        this.lastMovement = chosenMovement
+        switch (chosenMovement) {
+            case 'left':
+                this.centerCell!.x--
+                break
+            case 'right':
+                this.centerCell!.x++
+                break
+            case 'up':
+                this.centerCell!.y++
+                break
+            case 'down':
+                this.centerCell!.y--
+                break
+        }
+        this.activePatternCells = this._getCellsInPattern()
+    }
+
+    public getActivePatternCells(): LeafCell[] | null {
+        return this.activePatternCells
+    }
+}
 
 /** Builder Pattern Class For Setting up the Three Scene */
 class ThreeScene {
@@ -61,7 +177,9 @@ class ThreeScene {
         const h = this.windowSize.height;
         this.camera = new THREE.OrthographicCamera(-w / 2, w / 2, h / 2, -h / 2, 0.1, 1000)
         this.camera.position.z = 5
-        this.camera.position.x = 20
+        // this.camera.position.x = 25
+        // this.camera.position.y = -20
+
         return this
     }
 
@@ -81,6 +199,8 @@ class ThreeScene {
      */
     public withRenderer(useAntialiasing: boolean = false): ThreeScene {
         this.renderer = new THREE.WebGLRenderer({ antialias: useAntialiasing })
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+        this.renderer.setSize(this.windowSize.width, this.windowSize.height)
         return this
     }
 
@@ -124,12 +244,91 @@ class ThreeScene {
         if (z) this.camera.rotation.z = z * Math.PI / 180
     }
 
+    public applyCameraPosition(x: number | undefined, y: number | undefined, z: number | undefined) {
+        if (!this.camera) return
+        if (x) this.camera.position.x = x
+        if (y) this.camera.position.y = y
+        if (z) this.camera.position.z = z
+    }
+
     /**
      * Dismounts the ThreeScene instance
      */
     public dismount() {
         this.renderer?.dispose()
         this.scene.clear()
+    }
+}
+
+const BASE_Z = -200
+const BASE_COLOR = new THREE.Color(0xb5bdb6)
+
+class TileGrid {
+    readonly mesh: THREE.InstancedMesh
+    readonly cols: number
+    readonly rows: number
+    private readonly _matrix = new THREE.Matrix4()
+    private readonly _leafPatternInstances: LeafPatternInstance[] = []
+
+    constructor(threeScene: ThreeScene) {
+        const { cols, rows } = this._getDims(threeScene.windowSize)
+        this.cols = cols
+        this.rows = rows
+        this.mesh = createCubesInstancedMesh(threeScene, rows, cols)
+
+        // initialize per-instance color buffer so setColorAt works
+        for (let i = 0; i < this.mesh.count; i++) {
+            this.mesh.setColorAt(i, BASE_COLOR)
+        }
+        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
+    }
+
+    public addLeafPatternInstance(leafPatternInstance: LeafPatternInstance) {
+        this._leafPatternInstances.push(leafPatternInstance)
+    }
+
+    /** instantly snap the tile to the lifted z and given color */
+    public activateTile(row: number, col: number, lift: number, color: THREE.Color) {
+        const idx = this._indexOf(col, row)
+        if (idx < 0 || idx >= this.mesh.count) return
+        this._setTileZ(idx, BASE_Z + lift)
+        this.mesh.setColorAt(idx, color)
+        this.mesh.instanceMatrix.needsUpdate = true
+        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
+    }
+
+    /** instantly snap the tile back to base z and base color */
+    public deactivateTile(row: number, col: number) {
+        const idx = this._indexOf(col, row)
+        if (idx < 0 || idx >= this.mesh.count) return
+        this._setTileZ(idx, BASE_Z)
+        this.mesh.setColorAt(idx, BASE_COLOR)
+        this.mesh.instanceMatrix.needsUpdate = true
+        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
+    }
+
+    private _setTileZ(idx: number, z: number) {
+        this.mesh.getMatrixAt(idx, this._matrix)
+        const e = this._matrix.elements
+        this._matrix.setPosition(e[12], e[13], z)
+        this.mesh.setMatrixAt(idx, this._matrix)
+    }
+
+    private _indexOf(col: number, row: number): number {
+        return col * this.rows + row
+    }
+
+    /**
+     * Gets the dimensions of the tile grid in terms of rows and columns for cells
+     * - 
+     * @param window The window to get the dimensions from
+     * @returns The dimensions of the tile grid
+     */
+    private _getDims(window: Window) {
+        const cellWidth = window.getCellDims() + CONFIG.cellGap
+        const cols = Math.ceil(window.paddedWidth / cellWidth)
+        const rows = Math.ceil(window.paddedHeight / cellWidth)
+        return { cols, rows }
     }
 }
 
@@ -143,25 +342,25 @@ function feedObserver(canvas: ThreeScene) {
 function createCube(window: Window): {geometry: RoundedBoxGeometry, material: THREE.Material} {
     const cellWidth = window.getCellDims()
     return {
-        geometry: new RoundedBoxGeometry(cellWidth, cellWidth, cellWidth, 4, 3),
-        material: new THREE.MeshLambertMaterial({ color: 0x7a93b8 })
+        geometry: new THREE.BoxGeometry(cellWidth, cellWidth, 9),
+        material: new THREE.MeshLambertMaterial({ color: 0xb5bdb6 })
     }
 }
 
 /** Creates an instanced mesh of cubes to fill the scene. */
-function createCubesInstancedMesh(scene: ThreeScene) {
+function createCubesInstancedMesh(scene: ThreeScene, rows: number, cols: number): THREE.InstancedMesh {
     const cellWidth = scene.windowSize.getCellDims()
-    const cellCount = scene.windowSize.getCellCount()
+    const cellCount = rows * cols
     const { geometry, material } = createCube(scene.windowSize)
     const instancedMesh = new THREE.InstancedMesh(geometry, material, cellCount)
 
-    const halfW = scene.windowSize.width / 2
-    const halfH = scene.windowSize.height / 2
+    const halfW = scene.windowSize.paddedWidth / 2
+    const halfH = scene.windowSize.paddedHeight / 2
 
     const m = new THREE.Matrix4()
     let i = 0
-    for (let x = 0; x < scene.windowSize.width; x += cellWidth + 2) {
-        for (let y = 0; y < scene.windowSize.height; y += cellWidth + 2) {
+    for (let x = 0; x < scene.windowSize.paddedWidth; x += cellWidth + CONFIG.cellGap) {
+        for (let y = 0; y < scene.windowSize.paddedHeight; y += cellWidth + CONFIG.cellGap) {
             m.setPosition(x - halfW, y - halfH, -200)
             instancedMesh.setMatrixAt(i, m)
             i++
@@ -170,6 +369,7 @@ function createCubesInstancedMesh(scene: ThreeScene) {
 
     instancedMesh.instanceMatrix.needsUpdate = true
     scene.renderChild(instancedMesh)
+    return instancedMesh
 }
 
 export default function MovingLeafBg() {
@@ -194,22 +394,54 @@ export default function MovingLeafBg() {
         canvas.setBgColor(pickSceneBackground)
         const observer = new MutationObserver(() => feedObserver(canvas))
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
-        createCubesInstancedMesh(canvas)
+        const tileGrid = new TileGrid(canvas)
+        const testPatternInstances: LeafPatternInstance[] = []
+        for (let i = 0; i < 25; i++) {
+            const leafPatternInstance = new LeafPatternInstance(testLeaf, 3)
+            leafPatternInstance.initCenterCell(tileGrid.rows, tileGrid.cols)
+            testPatternInstances.push(leafPatternInstance)
+        }
 
-        const sun = new THREE.DirectionalLight(0xffffff, 1)
+
+        const sun = new THREE.DirectionalLight(0xffffff, 3)
         sun.position.set(1, 2, 3)
         canvas.scene.add(sun)
-        canvas.scene.add(new THREE.AmbientLight(0xffffff, 0.4))
+        canvas.scene.add(new THREE.AmbientLight(0xffffff, 0.6))
 
-        canvas.applyCameraRotation(10, 5, 0)
+        canvas.applyCameraRotation(25, 15, 9)
+        canvas.applyCameraPosition(60, 0, 200)
+        
 
         canvas.renderer.setSize(windowSize.width, windowSize.height)
-        mountRef.current.appendChild(canvas.renderer.domElement)
+        mountRef.current.appendChild(canvas.renderer.domElement) 
 
         
+        const MOVE_INTERVAL = 0.3
+        const LIFT = 10
+        const clock = new THREE.Clock()
+        let timeSinceMove = 0
 
         const animate = () => {
             requestAnimationFrame(animate)
+            const dt = clock.getDelta()
+            timeSinceMove += dt
+            if (timeSinceMove > MOVE_INTERVAL) {
+                timeSinceMove = 0
+                for (const leaf of testPatternInstances) {
+                    const oldCells = leaf.getActivePatternCells() ?? []
+                    for (const cell of oldCells) {
+                        tileGrid.deactivateTile(cell.dx, cell.dy)
+                    }
+
+
+                    leaf.move(tileGrid.rows, tileGrid.cols)
+
+                    const newCells = leaf.getActivePatternCells() ?? []
+                    for (const cell of newCells) {
+                        tileGrid.activateTile(cell.dx, cell.dy, LIFT, cell.color)
+                    }
+                }
+            }
             canvas.renderer?.render(canvas.scene, canvas.camera!)
         }
         animate()
