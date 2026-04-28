@@ -60,8 +60,8 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="w-full bg-nav shadow-sm sticky top-0 z-50" ref={menuRef}>
-      <div className="max-w-screen overflow-x-hidden mx-auto px-4 md:px-6 py-3 md:py-4">
+    <nav className="w-full bg-nav shadow-sm fixed top-0 z-50" ref={menuRef}>
+      <div className="max-w-screen mx-auto px-4 md:px-6 py-3 md:py-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2 text-nav-text font-semibold text-xl hover:opacity-80 transition-opacity">
             <img src="/EcoGlass.png" alt="EcoGlass" className="w-10 h-10" />
