@@ -212,7 +212,7 @@ export default function LegislativeProcessPage() {
             Clean Water Act, and Endangered Species Act followed this process.
           </p>
           <a
-            href="/my_rep"
+            href="/representatives"
             className="wf-btn-active inline-block px-6 py-3 font-semibold"
           >
             View Your Representatives

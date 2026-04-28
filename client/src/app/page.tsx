@@ -1,16 +1,17 @@
 import Link from 'next/link'
-import { IsometricThreeBackground } from '@/components/IsometricThreeBackground'
 import {
     BentoFeatureCard,
     BentoImageCard,
     type BentoFeatureItem,
     type BentoImageItem,
 } from '@/components/landing/LandingPage'
+import MovingLeafBg from '@/components/threejs/MovingLeafBg'
 
 
-const FEATURES: BentoFeatureItem[] = [
+// ─── Tracking: live data tools, top of the page, prominent ────────
+const TRACKING: BentoFeatureItem[] = [
     {
-        href: '/my_rep',
+        href: '/representatives',
         title: 'Find Your Representatives',
         description: 'Look up your Senators and House members by state. See photos, party, and bills they sponsor.',
         iconPath: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
@@ -34,12 +35,6 @@ const FEATURES: BentoFeatureItem[] = [
         iconPath: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
     },
     {
-        href: '/legislative-process',
-        title: 'How Congress Works',
-        description: 'A plain-language guide to the US legislative process and executive rulemaking.',
-        iconPath: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z',
-    },
-    {
         href: '/news',
         title: 'Environmental News',
         description: 'Coming soon!',
@@ -48,30 +43,25 @@ const FEATURES: BentoFeatureItem[] = [
 ]
 
 
-const BENTO_ITEMS: BentoImageItem[] = [
+// ─── Learn: background reading, lower on the page, lighter weight ────────
+const LEARN: BentoImageItem[] = [
     {
         href: '/legislative-process',
-        caption: 'Legislative Process',
+        caption: 'Explore the Legislative Process',
         src: '/images/USHouse-photo.avif',
         alt: 'Interior of the US House of Representatives chamber',
     },
     {
         href: '/environmental-protection',
-        caption: 'Environmental Protection',
+        caption: 'A Brief History of US Environmental Protection',
         src: '/images/Yosemite.jpg',
         alt: 'Yosemite Valley with granite cliffs and evergreen forest',
     },
     {
         href: '/executive-branch',
-        caption: 'Executive Actions',
+        caption: 'How Our Executive Branch Affect the Environment',
         src: '/images/executivecab.jpg',
         alt: 'Executive cabinet meeting',
-    },
-    {
-        href: '/climate-impact',
-        caption: 'Climate Impact',
-        src: '/images/Florida-Keys.jpg',
-        alt: 'Aerial view of the Florida Keys and surrounding water',
     },
 ]
 
@@ -79,13 +69,12 @@ export default function Home() {
     return (
         <>
             {/* Background: fills the entire scroll region, sits at z-index -10 */}
-            <IsometricThreeBackground />
+            <MovingLeafBg />
 
             <main className="relative">
                 {/* ─── Hero ──────────────────────────────────────── */}
                 <section className="min-h-[calc(75vh-4rem)] flex items-center justify-center px-4 py-16">
                     <div className="wf-glass max-w-2xl w-full">
-                        <p className="wf-label text-accent mb-3">Environmental Transparency</p>
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-main mb-4 leading-tight">
                             Track  <span className="text-accent underline">every</span> environmental bill in Congress
                         </h1>
@@ -95,86 +84,78 @@ export default function Home() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-3 mb-10">
-                            <Link href="/my_rep" className="wf-btn-active text-center">
+                            <Link href="/representatives" className="wf-btn-active text-center">
                                 Find My Representatives
                             </Link>
                             <Link href="/search" className="wf-btn text-center">
                                 Search Bills
                             </Link>
                         </div>
-
-                        <a
-                            href="#tools"
-                            className="wf-label inline-flex items-center gap-2 opacity-70 hover:opacity-100 transition-opacity"
-                        >
-                            Explore <span aria-hidden="true">↓</span>
-                        </a>
                     </div>
                 </section>
 
-                {/* <div className="max-w-5xl mx-auto px-4" id="tools">
-                    <div className="flex items-center gap-4 mb-6">
-                        <span className="wf-label">01 / Explore</span>
-                        <span className="flex-1 wf-divider" />
-                    </div>
-                </div> */}
-
-                <section className="px-4 pb-16">
+                {/* ─── Tracking ──────────────────────────────────── */}
+                <section className="px-4 pb-32">
                     <div className="max-w-5xl mx-auto">
-                        <div className="wf-glass mb-6">
-                            <p className="wf-label text-accent mb-2">The Platform</p>
-                            <h2 className="text-2xl md:text-3xl font-bold text-main">
-                                Tools and topics, side by side
+                        <div className="wf-glass mb-10">
+                            <p className="wf-label text-accent mb-3">Tracking</p>
+                            <h2 className="text-3xl md:text-4xl font-bold text-main mb-3 leading-tight">
+                                Pick a tool to dig into the data.
                             </h2>
-                            <p className="text-sm text-light leading-relaxed mt-2 max-w-xl">
-                                Pick a tool to dig into the data, or jump in through a subject —
-                                the institutions that write the rules and the places those rules affect.
+                            <p className="text-base md:text-lg text-light leading-relaxed max-w-xl">
+                                Live, pulled from Congress.gov, the EPA, and other public sources.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 md:auto-rows-[200px]">
-                            {/* Row 1: wide image → feature → feature */}
-                            <BentoImageCard item={BENTO_ITEMS[0]} spanClass="md:col-span-2 md:row-span-1" />
-                            <BentoFeatureCard feature={FEATURES[0]} spanClass="md:col-span-1 md:row-span-1" />
-                            <BentoFeatureCard feature={FEATURES[1]} spanClass="md:col-span-1 md:row-span-1" />
-
-                            {/* Row 2: tall image → wide feature → feature */}
-                            <BentoImageCard item={BENTO_ITEMS[1]} spanClass="md:col-span-1 md:row-span-2" />
-                            <BentoFeatureCard feature={FEATURES[3]} spanClass="md:col-span-2 md:row-span-1" />
-                            <BentoFeatureCard feature={FEATURES[5]} spanClass="md:col-span-1 md:row-span-1" />
-
-                            {/* Row 3 (partial under tall): image → wide image */}
-                            <BentoImageCard item={BENTO_ITEMS[2]} spanClass="md:col-span-1 md:row-span-1" />
-                            <BentoImageCard item={BENTO_ITEMS[3]} spanClass="md:col-span-2 md:row-span-1" />
-
-                            {/* Row 4: feature → wide feature */}
-                            <BentoFeatureCard feature={FEATURES[2]} spanClass="md:col-span-2 md:row-span-1" />
-                            <BentoFeatureCard feature={FEATURES[4]} spanClass="md:col-span-2 md:row-span-1" />
+                        {/* Row 1: two large primary cards (3 + 3 of 6 cols) */}
+                        {/* Row 2: three medium cards (2 + 2 + 2 of 6 cols) */}
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 md:gap-8">
+                            <BentoFeatureCard
+                                feature={TRACKING[0]}
+                                prominent
+                                spanClass="md:col-span-3 md:min-h-[220px]"
+                            />
+                            <BentoFeatureCard
+                                feature={TRACKING[1]}
+                                prominent
+                                spanClass="md:col-span-3 md:min-h-[220px]"
+                            />
+                            <BentoFeatureCard
+                                feature={TRACKING[2]}
+                                prominent
+                                spanClass="md:col-span-2 md:min-h-[180px]"
+                            />
+                            <BentoFeatureCard
+                                feature={TRACKING[3]}
+                                prominent
+                                spanClass="md:col-span-2 md:min-h-[180px]"
+                            />
+                            <BentoFeatureCard
+                                feature={TRACKING[4]}
+                                prominent
+                                spanClass="md:col-span-2 md:min-h-[180px]"
+                            />
                         </div>
                     </div>
                 </section>
 
+                {/* ─── Learn ─────────────────────────────────────── */}
                 <section className="px-4 pb-24">
                     <div className="max-w-5xl mx-auto">
-                        <div className="wf-glass text-center">
-                            <h2 className="text-2xl md:text-3xl font-bold text-main mb-3">
-                                See what your representatives have been up to.
+                        <div className="mb-6 px-1">
+                            <p className="wf-label mb-1 opacity-70">Background</p>
+                            <h2 className="text-xl md:text-2xl font-semibold text-main mb-1">
+                                Jump in through a subject.
                             </h2>
-                            <p className="text-sm md:text-base text-light leading-relaxed mb-6 max-w-xl mx-auto">
-                                Enter your state, pull up your senators and House members,
-                                and browse the environmental bills they have sponsored or cosponsored.
+                            <p className="text-sm text-light leading-relaxed max-w-lg opacity-80">
+                                The institutions that write the rules and the places those rules affect.
                             </p>
-                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                <Link href="/my_rep" className="wf-btn-active text-center">
-                                    Find My Representatives
-                                </Link>
-                                <Link href="/news" className="wf-btn text-center">
-                                    Read the News Feed
-                                </Link>
-                            </div>
-                            <p className="wf-label text-center mt-8 opacity-70">
-                                Data from Congress.gov &middot; Built for transparency
-                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {LEARN.map((item) => (
+                                <BentoImageCard key={item.href} item={item} compact />
+                            ))}
                         </div>
                     </div>
                 </section>
@@ -182,4 +163,3 @@ export default function Home() {
         </>
     )
 }
-
