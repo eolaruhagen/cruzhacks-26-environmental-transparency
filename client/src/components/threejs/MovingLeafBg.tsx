@@ -190,7 +190,9 @@ class LeafPatternInstance {
 
     /** Once A movement has been applied, compute the tiles that have LEFT the pattern and tiles that have joined the pattern */
     private _computeStepDiffs(): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>} {
-        if (!this.lastStepActiveCells || !this.activePatternCells) return {left: new Set(), joined: new Set()}
+        if (!this.activePatternCells) return {left: new Set(), joined: new Set()}
+        // First move has no previous cells — treat as empty so every current cell becomes "joined"
+        if (!this.lastStepActiveCells) this.lastStepActiveCells = []
         // create a hash map of the current active cells to map positions to colors -> returned sets should be LeafCellAbsolutePositions instead of strings
         const activeCellsColorMap = new Map<string, THREE.Color>()
         for (const cell of this.activePatternCells) {
