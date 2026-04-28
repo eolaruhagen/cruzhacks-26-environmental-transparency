@@ -12,8 +12,8 @@ const CONFIG = {
     // grid layout
     columnsRelativeSize: 0.009,    // cell width as fraction of window width
     cellGap: 2,                     // pixels between cell edges
-    padWidth: 1.2,                  // grid extends past viewport (×width)
-    padHeight: 1.5,                 // grid extends past viewport (×height)
+    padWidth: 1.6,                  // grid extends past viewport (×width)
+    padHeight: 1.8,                 // grid extends past viewport (×height)
     cubeDepth: 8,                   // box thickness along z
     baseZ: -200,                    // resting tile z-depth
     sceneBackgroundLight: '#595959',
@@ -430,6 +430,23 @@ class LeafPatternInstance {
         return this._computeStepDiffs()
     }
 
+    /** clamp leaf center cell to fit grid */
+    public clampToGrid(rows: number, cols: number) {
+        if (!this.centerCell) return
+        const minX = this.size
+        const maxX = cols - this.size
+        const minY = this.size
+        const maxY = rows - this.size
+        // Grid too small to host this leaf → leave centerCell as-is, blank out cells.
+        if (maxX < minX || maxY < minY) {
+            this.activePatternCells = null
+            return
+        }
+        this.centerCell.x = Math.max(minX, Math.min(maxX, this.centerCell.x))
+        this.centerCell.y = Math.max(minY, Math.min(maxY, this.centerCell.y))
+        this.activePatternCells = this._getCellsInPattern()
+    }
+
     /** Does this leaf currently include the cell at (x, y) in its active pattern? */
     public includesCell(x: number, y: number): boolean {
         if (!this.activePatternCells) return false
@@ -446,10 +463,11 @@ class LeafPatternInstance {
 
 
 class TileGrid {
-    readonly mesh: THREE.InstancedMesh
-    readonly cols: number
-    readonly rows: number
+    public mesh: THREE.InstancedMesh
+    public cols: number
+    public rows: number
     readonly baseZ: number
+    private readonly _scene: THREE.Scene
     private readonly _matrix = new THREE.Matrix4()
     private readonly _scratchEuler = new THREE.Euler()
     private readonly _leafPatternInstances: LeafPatternInstance[] = []
@@ -464,6 +482,7 @@ class TileGrid {
 
     constructor(scene: THREE.Scene, windowSize: Window, baseZ: number) {
         const { cols, rows } = this._getDims(windowSize)
+        this._scene = scene
         this.cols = cols
         this.rows = rows
         this.baseZ = baseZ
@@ -551,6 +570,51 @@ class TileGrid {
         const cols = Math.ceil(window.paddedWidth / step)
         const rows = Math.ceil(window.paddedHeight / step)
         return { cols, rows }
+    }
+
+    /** Rebuild Mesh on Window Resize 
+     *  - Rebuilds mesh
+     *  - Resets animations
+     *  - Re-stamps leaf pattern instances
+    */
+    public resizeBoard(windowSize: Window = new Window(globalThis.window)): Window {
+        this._scene.remove(this.mesh)
+        this.mesh.geometry.dispose()
+        if (Array.isArray(this.mesh.material)) {
+            for (const m of this.mesh.material) m.dispose()
+        } else {
+            this.mesh.material.dispose()
+        }
+        this.mesh.dispose()
+
+        const { cols, rows } = this._getDims(windowSize)
+        this.cols = cols
+        this.rows = rows
+        this.mesh = createCubesInstancedMesh(this._scene, windowSize, rows, cols, this.baseZ)
+        this._animations.clear()
+        this._owners.clear()
+
+        this._applyBaseColors()
+
+
+        // apply each leaf back fo the board, ordered by priority so that visible leaf follow ownership rules
+        const ordered = [...this._leafPatternInstances].sort((a, b) => a.priority - b.priority)
+        for (const leaf of ordered) {
+            leaf.clampToGrid(rows, cols)
+            const cells = leaf.getCells()
+            for (const cell of cells) {
+                if (cell.x < 0 || cell.x >= cols || cell.y < 0 || cell.y >= rows) continue
+                const idx = this._indexOf(cell.x, cell.y)
+                if (idx < 0 || idx >= this.mesh.count) continue
+                this._owners.set(idx, leaf)
+                this._setTileTransform(idx, this.baseZ + CONFIG.lift, 0, 0)
+                this.mesh.setColorAt(idx, cell.color)
+            }
+        }
+        this.mesh.instanceMatrix.needsUpdate = true
+        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
+
+        return windowSize
     }
 
     /** Schedule an animation for one tile. The new animation ALWAYS starts from
@@ -668,6 +732,7 @@ class TileGrid {
         this.mesh.instanceMatrix.needsUpdate = true
         if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
     }
+
 }
 
 
@@ -752,6 +817,10 @@ export default function MovingLeafBg() {
         tileGrid.setTheme(isDarkMode(), parseActiveTilePattern())
         const observer = new MutationObserver(() => feedThemeObserver(canvas, tileGrid))
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+        window.addEventListener('resize', () => {
+            const fresh = tileGrid.resizeBoard()   // returns the new Window
+            canvas.renderer!.setSize(fresh.width, fresh.height)
+        })
 
         for (let i = 0; i < CONFIG.leafCount; i++) {
             const leaf = new LeafPatternInstance(pickRandomTemplate(), Math.ceil(TEMPLATE_SIZE / 2))
