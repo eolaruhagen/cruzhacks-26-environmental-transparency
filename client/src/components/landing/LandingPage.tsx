@@ -44,17 +44,25 @@ export interface BentoImageItem {
 export function BentoFeatureCard({
     feature,
     spanClass = '',
+    prominent = false,
 }: {
     feature: BentoFeatureItem
     spanClass?: string
+    /** When true, card uses larger icon, title, body text, and padding for hierarchy. */
+    prominent?: boolean
 }) {
+    const padding = prominent ? '!p-7' : ''
+    const iconClass = prominent ? 'w-8 h-8 mb-5' : 'w-5 h-5 mb-3'
+    const titleClass = prominent ? 'text-xl mb-2' : 'mb-1'
+    const descClass = prominent ? 'text-base' : 'text-sm'
+
     return (
         <Link
             href={feature.href}
-            className={`wf-glass-card wf-shadow group flex flex-col h-full ${spanClass}`}
+            className={`wf-glass-card wf-shadow group flex flex-col h-full ${padding} ${spanClass}`}
         >
             <svg
-                className="w-5 h-5 text-accent mb-3"
+                className={`text-accent ${iconClass}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -66,10 +74,10 @@ export function BentoFeatureCard({
                     d={feature.iconPath}
                 />
             </svg>
-            <h3 className="font-semibold text-main mb-1 group-hover:text-accent transition-colors">
+            <h3 className={`font-semibold text-main group-hover:text-accent transition-colors ${titleClass}`}>
                 {feature.title}
             </h3>
-            <p className="text-sm text-light leading-relaxed">
+            <p className={`${descClass} text-light leading-relaxed`}>
                 {feature.description}
             </p>
         </Link>
@@ -79,14 +87,20 @@ export function BentoFeatureCard({
 export function BentoImageCard({
     item,
     spanClass = '',
+    compact = false,
 }: {
     item: BentoImageItem
     spanClass?: string
+    /** When true, fixed shorter height, smaller caption — for de-emphasized rows. */
+    compact?: boolean
 }) {
+    const heightClass = compact ? 'h-44 md:!h-48' : 'h-64 md:h-auto'
+    const captionClass = compact ? 'text-base' : 'text-lg'
+
     return (
         <Link
             href={item.href}
-            className={`group relative block overflow-hidden border border-border wf-shadow h-64 md:h-auto ${spanClass}`}
+            className={`group relative block overflow-hidden border border-border wf-shadow ${heightClass} ${spanClass}`}
         >
             <Image
                 src={item.src}
@@ -101,8 +115,7 @@ export function BentoImageCard({
             />
             <div className="absolute inset-0 flex items-end p-4">
                 <div>
-                    <p className="wf-label text-white/80 mb-1">Explore</p>
-                    <p className="text-white font-semibold text-lg leading-tight">
+                    <p className={`text-white font-semibold leading-tight ${captionClass}`}>
                         {item.caption}
                     </p>
                 </div>

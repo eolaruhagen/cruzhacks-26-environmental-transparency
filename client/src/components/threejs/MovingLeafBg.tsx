@@ -22,14 +22,15 @@ const CONFIG = {
     baseColorDark: 0x2a2f33,
     cubeMaterialColor: 0xb5bdb6,    // base material color (multiplies with instanceColor)
     cameraRotation: { x: 25, y: 15, z: 9 },
-    cameraPosition: { x: 50, y: -50, z: 200 },
+    cameraPosition: { x: 85, y: -55, z: 200 },
     sunPosition: { x: 1, y: 2, z: 3 },
     sunIntensity: 3,
     ambientIntensity: 0.6,
-    leafCount: 8,
+    leafCount: 11,
     moveIntervalMin: 1.5,           // seconds between moves (per-leaf, randomized)
     moveIntervalMax: 2.8,
     lift: 12,                        // z-offset for a lit tile
+    minLeafBuffer: 3,                // min Chebyshev distance between any two leaves' cells
     enterDuration: 0.3,
     leaveDuration: 0.3,
     maxTiltRad: 0.25,        // peak tilt angle during enter/leave
@@ -229,13 +230,27 @@ class LeafPatternInstance {
     /** Initializes the center cell of the pattern
      * - Random location on the board based on the rows and cols
      * - Initialized centercell cannot be closer than `this.size` cells from the edge of the board
+     * - If `others` is provided, retries up to 100 times to find a position whose cells
+     *   stay >= CONFIG.minLeafBuffer Chebyshev distance from every other leaf's cells.
+     *   Falls back to a random position if no clear spot is found.
      */
-    public initCenterCell(rows: number, cols: number) {
+    public initCenterCell(rows: number, cols: number, others: LeafPatternInstance[] = []) {
         const minX = this.size
         const maxX = cols - this.size
         const minY = this.size
         const maxY = rows - this.size
-        this.centerCell = {x: Math.floor(Math.random() * (maxX - minX + 1)) + minX, y: Math.floor(Math.random() * (maxY - minY + 1)) + minY}
+        const pickRandom = () => ({
+            x: Math.floor(Math.random() * (maxX - minX + 1)) + minX,
+            y: Math.floor(Math.random() * (maxY - minY + 1)) + minY,
+        })
+        for (let attempt = 0; attempt < 100; attempt++) {
+            const candidate = pickRandom()
+            if (!this._wouldCollideAtCenter(candidate, others)) {
+                this.centerCell = candidate
+                return
+            }
+        }
+        this.centerCell = pickRandom()  // fallback: place anyway
     }
 
     /** Advance this leaf's clock; return true if it should move this frame. */
@@ -250,15 +265,53 @@ class LeafPatternInstance {
         return this.lastMovement
     }
 
+    private _cellsAtCenter(center: {x: number, y: number}): LeafCellAbsolutePositions[] {
+        return this.pattern.map(cell => ({
+            x: cell.dx + center.x,
+            y: cell.dy + center.y,
+            color: cell.color,
+        }))
+    }
+
     private _getCellsInPattern(): LeafCellAbsolutePositions[] {
         if (!this.centerCell) return []
-        return this.pattern.map(cell => {
-            return {
-                x: cell.dx + this.centerCell!.x,
-                y: cell.dy + this.centerCell!.y,
-                color: cell.color,
+        return this._cellsAtCenter(this.centerCell)
+    }
+
+    /** Cells this leaf currently occupies. Falls back to computing from centerCell
+     *  if the leaf hasn't moved yet (init-time collision checks need this). */
+    public getCells(): LeafCellAbsolutePositions[] {
+        if (this.activePatternCells) return this.activePatternCells
+        if (!this.centerCell) return []
+        return this._cellsAtCenter(this.centerCell)
+    }
+
+    private _proposedCenter(dir: MovementDirection): {x: number, y: number} {
+        const c = this.centerCell!
+        switch (dir) {
+            case 'left':  return { x: c.x - 1, y: c.y }
+            case 'right': return { x: c.x + 1, y: c.y }
+            case 'up':    return { x: c.x, y: c.y + 1 }
+            case 'down':  return { x: c.x, y: c.y - 1 }
+        }
+    }
+
+    /** True if placing this leaf at `center` would put any of its cells within
+     *  CONFIG.minLeafBuffer (Chebyshev) of any other leaf's cells. */
+    private _wouldCollideAtCenter(center: {x: number, y: number}, others: LeafPatternInstance[]): boolean {
+        const buffer = CONFIG.minLeafBuffer
+        const myCells = this._cellsAtCenter(center)
+        for (const other of others) {
+            if (other === this) continue
+            const otherCells = other.getCells()
+            if (otherCells.length === 0) continue
+            for (const a of myCells) {
+                for (const b of otherCells) {
+                    if (Math.abs(a.x - b.x) < buffer && Math.abs(a.y - b.y) < buffer) return true
+                }
             }
-        })
+        }
+        return false
     }
 
     private _getValidMovements(rows: number, cols: number): MovementDirection[] {
@@ -342,8 +395,11 @@ class LeafPatternInstance {
      * - Applies the movement when finished.
      * - If no movement is allowed, nothing happens
      */
-    public move(rows: number, cols: number): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>, colorChanged: Set<LeafCellAbsolutePositions>} {
-        const validMovements = this._getValidMovements(rows, cols)
+    public move(rows: number, cols: number, others: LeafPatternInstance[] = []): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>, colorChanged: Set<LeafCellAbsolutePositions>} {
+        // filter out movements that would push us within CONFIG.minLeafBuffer of another leaf
+        const validMovements = this._getValidMovements(rows, cols).filter(dir =>
+            !this._wouldCollideAtCenter(this._proposedCenter(dir), others)
+        )
         if (validMovements.length === 0) return {left: new Set(), joined: new Set(), colorChanged: new Set()}
         let chosenMovement: MovementDirection
         if (this.lastMovement && validMovements.includes(this.lastMovement)) {
@@ -703,7 +759,7 @@ export default function MovingLeafBg() {
             leaf.moveInterval = CONFIG.moveIntervalMin + Math.random() * (CONFIG.moveIntervalMax - CONFIG.moveIntervalMin)
             leaf.enterAnimation = tileEnterAnimation
             leaf.leaveAnimation = tileLeaveAnimation
-            leaf.initCenterCell(tileGrid.rows, tileGrid.cols)
+            leaf.initCenterCell(tileGrid.rows, tileGrid.cols, tileGrid.getLeafPatternInstances())
             tileGrid.addLeafPatternInstance(leaf)
         }
 
@@ -727,10 +783,11 @@ export default function MovingLeafBg() {
             const dt = clock.getDelta()
 
             // Phase 1: tick each leaf's clock; collect those that should move this frame
+            const allLeaves = tileGrid.getLeafPatternInstances()
             const moves: Array<{ leaf: LeafPatternInstance, diffs: ReturnType<LeafPatternInstance['move']> }> = []
-            for (const leaf of tileGrid.getLeafPatternInstances()) {
+            for (const leaf of allLeaves) {
                 if (leaf.tick(dt)) {
-                    moves.push({ leaf, diffs: leaf.move(tileGrid.rows, tileGrid.cols) })
+                    moves.push({ leaf, diffs: leaf.move(tileGrid.rows, tileGrid.cols, allLeaves) })
                 }
             }
             // Phase 2: route diffs through ownership-aware request methods
