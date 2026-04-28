@@ -4,6 +4,7 @@ import {useEffect, useRef} from 'react'
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { ThreeScene } from './ThreeScene'
+import leafConfig from '@/lib/leaf-templates.json'
 
 
 // DONT FORGET: X: +x = right, -x = left, Y: +y = up, -y = down, Z: +z = forward, -z = backward (into screen)
@@ -12,10 +13,11 @@ const CONFIG = {
     columnsRelativeSize: 0.0095, // relative to the width of the screen ~ 1.5% -> row relative size calculated on the fly s.t its even
     sceneBackgroundLight: '#595959',
     sceneBackgroundDark: '#000000',
-    padHeight: 2,
+    padHeight: 1.5,
     padWidth: 1.2,
     cellGap: 2,
-    animationSpeed: 1,
+    enterDuration: 0.5,
+    leaveDuration: 0.5,
 }
 
 
@@ -51,12 +53,18 @@ type LeafCellAbsolutePositions = {
 
 type MovementDirection = 'up' | 'down' | 'left' | 'right'
 
+type ColorOrResolver = THREE.Color | (() => THREE.Color)
+
+function resolveColor(c: ColorOrResolver): THREE.Color {
+    return typeof c === 'function' ? c() : c
+}
+
 type TileAnimationContext = {
     elapsed: number          // seconds since the animation started
     fromZ: number            // z-offset (delta from BASE_Z) at start
     toZ: number              // z-offset target
     fromColor: THREE.Color
-    toColor: THREE.Color
+    toColor: ColorOrResolver // function form re-resolves each tick (e.g. theme-current base)
 }
 
 type ScheduleAnimationParams = Omit<TileAnimationContext, 'elapsed'>
@@ -83,18 +91,16 @@ function easeOutBack(t: number): number {
     return 1 + BACK_C3 * u * u * u + BACK_C1 * u * u
 }
 
-const ENTER_DURATION = 0.4   // seconds
-const LEAVE_DURATION = 0.5
-
 /** Cell joining the pattern: rises past the target lift, then settles back down.
  *  Color lerps linearly from current color to the leaf cell's color. */
 const tileEnterAnimation: TileAnimation = (ctx) => {
-    const t = Math.min(ctx.elapsed / ENTER_DURATION, 1)
+    const t = Math.min(ctx.elapsed / CONFIG.enterDuration, 1)
     const easedZ = easeOutBack(t)
     const zOffset = ctx.fromZ + (ctx.toZ - ctx.fromZ) * easedZ
-    const color = ctx.fromColor.clone().lerp(ctx.toColor, t)
+    const to = resolveColor(ctx.toColor)
+    const color = ctx.fromColor.clone().lerp(to, t)
     if (t >= 1) {
-        return { zOffset: ctx.toZ, color: ctx.toColor.clone(), done: true }
+        return { zOffset: ctx.toZ, color: to.clone(), done: true }
     }
     return { zOffset, color }
 }
@@ -102,29 +108,67 @@ const tileEnterAnimation: TileAnimation = (ctx) => {
 /** Cell leaving the pattern: drops past the base height (hyperpolarization
  *  bounce), then settles back to base. Color lerps back to the base color. */
 const tileLeaveAnimation: TileAnimation = (ctx) => {
-    const t = Math.min(ctx.elapsed / LEAVE_DURATION, 1)
+    const t = Math.min(ctx.elapsed / CONFIG.leaveDuration, 1)
     const easedZ = easeOutBack(t)
     const zOffset = ctx.fromZ + (ctx.toZ - ctx.fromZ) * easedZ
-    const color = ctx.fromColor.clone().lerp(ctx.toColor, t)
+    const to = resolveColor(ctx.toColor)
+    const color = ctx.fromColor.clone().lerp(to, t)
     if (t >= 1) {
-        return { zOffset: ctx.toZ, color: ctx.toColor.clone(), done: true }
+        return { zOffset: ctx.toZ, color: to.clone(), done: true }
     }
     return { zOffset, color }
 }
 
-/** A test leaf pattern, just a simple cross shape with a light green color on the tiles */
-const testLeaf: LeafCellRelativePositions[] = [
-    {dx: 0, dy: 0, color: new THREE.Color('#00ff00')},
-    {dx: 1, dy: 0, color: new THREE.Color('#00ff00')},
-    {dx: -1, dy: 0, color: new THREE.Color('#00ff00')},
-    {dx: 0, dy: 1, color: new THREE.Color('#00ff00')},
-    {dx: 0, dy: -1, color: new THREE.Color('#00ff00')},
-]
+type LeafConfigCell = { x: number; y: number; color: string }
+type LeafConfigTemplate = { name: string; cells: LeafConfigCell[] }
+
+const TEMPLATE_SIZE: number = leafConfig.templateSize
+
+function parseLeafTemplate(template: LeafConfigTemplate): LeafCellRelativePositions[] {
+    const center = Math.floor(TEMPLATE_SIZE / 2)
+    return template.cells
+        .filter(c => c.x >= 0 && c.x < TEMPLATE_SIZE && c.y >= 0 && c.y < TEMPLATE_SIZE)
+        .map(c => ({
+            dx: c.x - center,
+            dy: center - c.y,                // flip vertically: JSON y grows down, world y grows up
+            color: new THREE.Color(c.color),
+        }))
+}
+
+type TilePatternCellConfig = { x: number; y: number; light: string; dark: string }
+type TilePatternConfigEntry = { name: string; cells: TilePatternCellConfig[] }
+
+type ParsedTilePattern = {
+    size: number
+    light: (THREE.Color | null)[]
+    dark: (THREE.Color | null)[]
+}
+
+function parseActiveTilePattern(): ParsedTilePattern | null {
+    const cfg = leafConfig as { tilePatternSize?: number; tilePatterns?: TilePatternConfigEntry[] }
+    if (!cfg.tilePatternSize || !cfg.tilePatterns?.length) return null
+    const size = cfg.tilePatternSize
+    const count = size * size
+    const light: (THREE.Color | null)[] = new Array(count).fill(null)
+    const dark: (THREE.Color | null)[] = new Array(count).fill(null)
+    for (const cell of cfg.tilePatterns[0].cells) {
+        if (cell.x < 0 || cell.x >= size || cell.y < 0 || cell.y >= size) continue
+        const idx = cell.y * size + cell.x
+        light[idx] = new THREE.Color(cell.light)
+        dark[idx] = new THREE.Color(cell.dark)
+    }
+    return { size, light, dark }
+}
+
+const leafTemplates: LeafCellRelativePositions[][] = (leafConfig.templates as LeafConfigTemplate[]).map(parseLeafTemplate)
+const pickRandomTemplate = (): LeafCellRelativePositions[] =>
+    leafTemplates[Math.floor(Math.random() * leafTemplates.length)]
 
 
 class LeafPatternInstance {
     readonly pattern: LeafCellRelativePositions[]
     readonly size: number
+    public priority: number = 0   // higher wins on tile collision; assigned by caller
     private centerCell: {x: number, y: number} | null = null
     private lastMovement: MovementDirection | null = null
     private activePatternCells: LeafCellAbsolutePositions[] | null = null
@@ -181,16 +225,10 @@ class LeafPatternInstance {
         return new Set(patternCells.map(cell => `${cell.x},${cell.y}`))
     }
 
-    // private _deserializePositions(serializedPositions: Set<string>): LeafCellAbsolutePositions[] {
-    //     return Array.from(serializedPositions).map(cell => {
-    //         const [dx, dy] = cell.split(',').map(Number)
-    //         return {dx, dy, color: BASE_COLOR}
-    //     })
-    // }
 
-    /** Once A movement has been applied, compute the tiles that have LEFT the pattern and tiles that have joined the pattern */
-    private _computeStepDiffs(): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>} {
-        if (!this.activePatternCells) return {left: new Set(), joined: new Set()}
+    /** Once A movement has been applied, compute the tiles that have LEFT the pattern, tiles that have joined the pattern, and tiles that stayed but changed color */
+    private _computeStepDiffs(): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>, colorChanged: Set<LeafCellAbsolutePositions>} {
+        if (!this.activePatternCells) return {left: new Set(), joined: new Set(), colorChanged: new Set()}
         // First move has no previous cells — treat as empty so every current cell becomes "joined"
         if (!this.lastStepActiveCells) this.lastStepActiveCells = []
         // create a hash map of the current active cells to map positions to colors -> returned sets should be LeafCellAbsolutePositions instead of strings
@@ -233,7 +271,19 @@ class LeafPatternInstance {
             const color = activeCellsColorMap.get(cell)!
             joinedPatternCells.add({x: Number(cell.split(',')[0]), y: Number(cell.split(',')[1]), color})
         }
-        return {left: leftPatternCells, joined: joinedPatternCells}
+
+        // cells that exist in both sets but the color changed
+        const colorChangedCells: Set<LeafCellAbsolutePositions> = new Set()
+        for (const cell of serializedCurrent) {
+            if (!serializedPrevious.has(cell)) continue
+            const newColor = activeCellsColorMap.get(cell)!
+            const oldColor = lastStepCellsColorMap.get(cell)!
+            if (!newColor.equals(oldColor)) {
+                colorChangedCells.add({x: Number(cell.split(',')[0]), y: Number(cell.split(',')[1]), color: newColor})
+            }
+        }
+
+        return {left: leftPatternCells, joined: joinedPatternCells, colorChanged: colorChangedCells}
     }
 
     /** Move the cell over one unit in a random direction preferes, but does not guarantee movement in the last taken direction
@@ -242,13 +292,16 @@ class LeafPatternInstance {
      * - If no movement is allowed, nothing happens
      */
 
-    public move(rows: number, cols: number): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>} {
+    public move(rows: number, cols: number): {left: Set<LeafCellAbsolutePositions>, joined: Set<LeafCellAbsolutePositions>, colorChanged: Set<LeafCellAbsolutePositions>} {
         const validMovements = this._getValidMovements(rows, cols)
-        if (validMovements.length === 0) return {left: new Set(), joined: new Set()}
+        if (validMovements.length === 0) return {left: new Set(), joined: new Set(), colorChanged: new Set()}
         let chosenMovement: MovementDirection
         if (this.lastMovement && validMovements.includes(this.lastMovement)) {
-            validMovements.push(this.lastMovement) // second instance of lastMovement makes it 2x more likely
+            validMovements.push(this.lastMovement)
+            validMovements.push(this.lastMovement)// second instance of lastMovement makes it 2x more likely
         }
+        if ('left' in validMovements) validMovements.push('right')
+        if ('right' in validMovements) validMovements.push('left')
         chosenMovement = validMovements[Math.floor(Math.random() * validMovements.length)]
         this.lastMovement = chosenMovement
         switch (chosenMovement) {
@@ -274,10 +327,24 @@ class LeafPatternInstance {
     public getActivePatternCells(): LeafCellAbsolutePositions[] | null {
         return this.activePatternCells
     }
+
+    /** Does this leaf currently include the cell at (x, y) in its active pattern? */
+    public includesCell(x: number, y: number): boolean {
+        if (!this.activePatternCells) return false
+        return this.activePatternCells.some(c => c.x === x && c.y === y)
+    }
+
+    /** Color this leaf assigns to (x, y), or null if it doesn't include that cell. */
+    public getColorAtCell(x: number, y: number): THREE.Color | null {
+        if (!this.activePatternCells) return null
+        const c = this.activePatternCells.find(c => c.x === x && c.y === y)
+        return c ? c.color : null
+    }
 }
 
 const BASE_Z = -200
-const BASE_COLOR = new THREE.Color(0xb5bdb6)
+const BASE_COLOR_LIGHT = new THREE.Color(0xb5bdb6)
+const BASE_COLOR_DARK = new THREE.Color(0x2a2f33)
 
 class TileGrid {
     readonly mesh: THREE.InstancedMesh
@@ -291,7 +358,9 @@ class TileGrid {
         animationParams: ScheduleAnimationParams
         elapsed: number
     }> = new Map()
-    private readonly _scratchColor = new THREE.Color()
+    private readonly _owners: Map<number, LeafPatternInstance> = new Map()
+    private _isDark: boolean = false
+    private _basePattern: ParsedTilePattern | null = null
 
     constructor(scene: THREE.Scene, windowSize: Window, baseZ: number) {
         const { cols, rows } = this._getDims(windowSize)
@@ -299,10 +368,41 @@ class TileGrid {
         this.rows = rows
         this.baseZ = baseZ
         this.mesh = createCubesInstancedMesh(scene, windowSize, rows, cols, baseZ)
+        this._applyBaseColors()
+    }
 
-        // initialize per-instance color buffer so setColorAt works
+    /** Set whether we're in dark mode + optional repeating pattern. Re-colors
+     *  every non-animating tile to its new base color. Animating tiles will
+     *  pick up the new base color naturally when their leave animation lands. */
+    public setTheme(isDark: boolean, pattern: ParsedTilePattern | null = this._basePattern) {
+        this._isDark = isDark
+        this._basePattern = pattern
+        this._applyBaseColors()
+    }
+
+    /** Get the base color this tile should be at rest, given current theme + pattern. */
+    public getBaseColorAt(row: number, col: number): THREE.Color {
+        const idx = this._indexOf(col, row)
+        return this._baseColorForIdx(idx)
+    }
+
+    private _baseColorForIdx(idx: number): THREE.Color {
+        const fallback = this._isDark ? BASE_COLOR_DARK : BASE_COLOR_LIGHT
+        if (!this._basePattern) return fallback
+        const col = Math.floor(idx / this.rows)
+        const row = idx % this.rows
+        const px = ((col % this._basePattern.size) + this._basePattern.size) % this._basePattern.size
+        const py = ((row % this._basePattern.size) + this._basePattern.size) % this._basePattern.size
+        const patternIdx = py * this._basePattern.size + px
+        const arr = this._isDark ? this._basePattern.dark : this._basePattern.light
+        return arr[patternIdx] ?? fallback
+    }
+
+    private _applyBaseColors() {
         for (let i = 0; i < this.mesh.count; i++) {
-            this.mesh.setColorAt(i, BASE_COLOR)
+            if (this._animations.has(i)) continue
+            if (this._owners.has(i)) continue
+            this.mesh.setColorAt(i, this._baseColorForIdx(i))
         }
         if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
     }
@@ -316,30 +416,10 @@ class TileGrid {
         return this._leafPatternInstances
     }
 
-    /** instantly snap the tile to the lifted z and given color */
-    public activateTile(row: number, col: number, lift: number, color: THREE.Color) {
-        const idx = this._indexOf(col, row)
-        if (idx < 0 || idx >= this.mesh.count) return
-        this._setTileZ(idx, BASE_Z + lift)
-        this.mesh.setColorAt(idx, color)
-        this.mesh.instanceMatrix.needsUpdate = true
-        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
-    }
-
-    public setTileColorAt(row: number, col: number, color: THREE.Color) {
+    private _setTileColorAt(row: number, col: number, color: THREE.Color) {
         const idx = this._indexOf(col, row)
         if (idx < 0 || idx >= this.mesh.count) return
         this.mesh.setColorAt(idx, color)
-        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
-    }
-
-    /** instantly snap the tile back to base z and base color */
-    public deactivateTile(row: number, col: number) {
-        const idx = this._indexOf(col, row)
-        if (idx < 0 || idx >= this.mesh.count) return
-        this._setTileZ(idx, BASE_Z)
-        this.mesh.setColorAt(idx, BASE_COLOR)
-        this.mesh.instanceMatrix.needsUpdate = true
         if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
     }
 
@@ -367,27 +447,93 @@ class TileGrid {
         return { cols, rows }
     }
 
-    /** Schedule an animation for one tile. If that tile already has an in-flight
-     *  animation, it gets replaced — and the new animation starts from the tile's
-     *  *current* z and color (not the caller's stated fromZ/fromColor) so the
-     *  visual handoff is smooth, no snap. */
-    public scheduleAnimation(row: number, col: number, animation: TileAnimation, animationParams: ScheduleAnimationParams) {
+    /** Schedule an animation for one tile. The new animation ALWAYS starts from
+     *  the tile's current visual state (z and color) — caller's fromZ/fromColor
+     *  are advisory and get overridden. This makes every handoff smooth, whether
+     *  there was a prior animation, a static lit tile, or a fresh base tile. */
+    private _scheduleAnimation(row: number, col: number, animation: TileAnimation, animationParams: ScheduleAnimationParams) {
         const idx = this._indexOf(col, row)
         if (idx < 0 || idx >= this.mesh.count) return
 
-        let params = animationParams
-        if (this._animations.has(idx)) {
-            this.mesh.getMatrixAt(idx, this._matrix)
-            const currentZ = this._matrix.elements[14] - this.baseZ
-            const currentColor = new THREE.Color()
-            if (this.mesh.instanceColor) this.mesh.getColorAt(idx, currentColor)
-            params = { ...animationParams, fromZ: currentZ, fromColor: currentColor }
-        }
+        this.mesh.getMatrixAt(idx, this._matrix)
+        const currentZ = this._matrix.elements[14] - this.baseZ
+        const currentColor = new THREE.Color()
+        if (this.mesh.instanceColor) this.mesh.getColorAt(idx, currentColor)
+        const params = { ...animationParams, fromZ: currentZ, fromColor: currentColor }
 
         this._animations.set(idx, { animation, animationParams: params, elapsed: 0 })
     }
 
-    /** Tick every in-flight animation by `dt`, apply its result to the mesh*/
+    /** Highest-priority leaf (other than `exclude`) that currently includes (col, row). */
+    private _findCurrentOccupant(col: number, row: number, exclude?: LeafPatternInstance): LeafPatternInstance | null {
+        let best: LeafPatternInstance | null = null
+        for (const leaf of this._leafPatternInstances) {
+            if (exclude && leaf === exclude) continue
+            if (!leaf.includesCell(col, row)) continue
+            if (!best || leaf.priority > best.priority) best = leaf
+        }
+        return best
+    }
+
+    /** A leaf wants to claim this tile. Wins iff no strictly-higher-priority owner. */
+    public requestEnter(row: number, col: number, leaf: LeafPatternInstance, color: THREE.Color, animation: TileAnimation, lift: number) {
+        const idx = this._indexOf(col, row)
+        if (idx < 0 || idx >= this.mesh.count) return
+        const current = this._owners.get(idx)
+        // skip the animation scheduling if this leaf isnt allowed to take ownership 
+        if (current && current !== leaf && current.priority > leaf.priority) return
+        this._owners.set(idx, leaf)
+        this._scheduleAnimation(row, col, animation, {
+            fromZ: 0, toZ: lift,
+            fromColor: this._baseColorForIdx(idx),  // overridden by snapshot
+            toColor: color,
+        })
+    }
+
+    /** A leaf is releasing this tile. If another leaf still occupies it,
+     *  hand off to that leaf's color (stay lifted). Otherwise, drop to base —
+     *  with a LAZY toColor so theme changes mid-leave land on the new base. */
+    public requestLeave(row: number, col: number, leaf: LeafPatternInstance, animation: TileAnimation, lift: number) {
+        const idx = this._indexOf(col, row)
+        if (idx < 0 || idx >= this.mesh.count) return
+        const current = this._owners.get(idx)
+        if (current !== leaf) return  // we weren't the visible owner; nothing to do
+
+        // note: both fromColor's passed in here, are overwritten with the current mesh colors
+        // inside of _scheduleAnimation, its arbitrary
+        const next = this._findCurrentOccupant(col, row, leaf)
+        if (next) {
+            this._owners.set(idx, next)
+            const nextColor = next.getColorAtCell(col, row) ?? this._baseColorForIdx(idx)
+            this._scheduleAnimation(row, col, animation, {
+                fromZ: lift, toZ: lift,                            // stay lifted
+                fromColor: this._baseColorForIdx(idx),              // overridden by snapshot
+                toColor: nextColor,
+            })
+        } else {
+            this._owners.delete(idx)
+            this._scheduleAnimation(row, col, animation, {
+                fromZ: lift, toZ: 0,
+                fromColor: this._baseColorForIdx(idx),              // overridden by snapshot
+                toColor: () => this._baseColorForIdx(idx),          // lazy: theme-current at finish
+            })
+        }
+    }
+
+    /** change color: only honored if this leaf is current owner. */
+    public requestRecolor(row: number, col: number, leaf: LeafPatternInstance, color: THREE.Color) {
+        const idx = this._indexOf(col, row)
+        if (idx < 0 || idx >= this.mesh.count) return
+        const current = this._owners.get(idx)
+        // make sure its actually the owning leaf
+        if (current && current !== leaf) return
+        this._owners.set(idx, leaf)
+        this._setTileColorAt(row, col, color)
+    }
+
+    /** use dt to run all current animations and apply them to the tiles
+     * - Assumes that all animations exist in accordance to leaf ownership rules
+    */
     public runPendingAnimations(dt: number) {
         if (this._animations.size === 0) return
 
@@ -408,14 +554,18 @@ class TileGrid {
 }
 
 
-function feedThemeObserver(canvas: ThreeScene) {
+function isDarkMode(): boolean {
+    return document.documentElement.classList.contains('dark')
+}
+
+function feedThemeObserver(canvas: ThreeScene, tileGrid: TileGrid) {
     canvas.setBgColor(pickSceneBackground)
+    tileGrid.setTheme(isDarkMode())
 }
 
 
 function pickSceneBackground(): string {
-    const isDark = document.documentElement.classList.contains('dark')
-    return isDark ? CONFIG.sceneBackgroundDark : CONFIG.sceneBackgroundLight
+    return isDarkMode() ? CONFIG.sceneBackgroundDark : CONFIG.sceneBackgroundLight
 }
 
 
@@ -474,11 +624,13 @@ export default function MovingLeafBg() {
         }
 
         canvas.setBgColor(pickSceneBackground)
-        const observer = new MutationObserver(() => feedThemeObserver(canvas))
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
         const tileGrid = new TileGrid(canvas.scene, windowSize, BASE_Z)
-        for (let i = 0; i < 25; i++) {
-            const leafPatternInstance = new LeafPatternInstance(testLeaf, 3)
+        tileGrid.setTheme(isDarkMode(), parseActiveTilePattern())
+        const observer = new MutationObserver(() => feedThemeObserver(canvas, tileGrid))
+        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+        for (let i = 0; i < 10; i++) {
+            const leafPatternInstance = new LeafPatternInstance(pickRandomTemplate(), Math.ceil(TEMPLATE_SIZE / 2))
+            leafPatternInstance.priority = i   // later-instantiated leaves win on collision
             leafPatternInstance.enterAnimation = tileEnterAnimation
             leafPatternInstance.leaveAnimation = tileLeaveAnimation
             leafPatternInstance.initCenterCell(tileGrid.rows, tileGrid.cols)
@@ -492,15 +644,15 @@ export default function MovingLeafBg() {
         canvas.scene.add(new THREE.AmbientLight(0xffffff, 0.6))
 
         canvas.applyCameraRotation(25, 15, 9)
-        canvas.applyCameraPosition(60, 0, 200)
+        canvas.applyCameraPosition(50, -50, 200)
         
 
         canvas.renderer.setSize(windowSize.width, windowSize.height)
         mountRef.current.appendChild(canvas.renderer.domElement) 
 
         
-        const MOVE_INTERVAL = 0.9
-        const LIFT = 10
+        const MOVE_INTERVAL = 1.8
+        const LIFT = 8
         const clock = new THREE.Timer()
         let timeSinceMove = 0
 
@@ -511,20 +663,22 @@ export default function MovingLeafBg() {
 
             if (timeSinceMove > MOVE_INTERVAL) {
                 timeSinceMove = 0
-                for (const leaf of tileGrid.getLeafPatternInstances()) {
-                    const { left, joined } = leaf.move(tileGrid.rows, tileGrid.cols)
-
+                // Phase 1: move every leaf so includesCell reflects new positions before diffs run
+                const moves = tileGrid.getLeafPatternInstances().map(leaf => ({
+                    leaf,
+                    diffs: leaf.move(tileGrid.rows, tileGrid.cols),
+                }))
+                // Phase 2: route diffs through ownership-aware request methods
+                for (const { leaf, diffs } of moves) {
+                    const { left, joined, colorChanged } = diffs
                     for (const cell of left) {
-                        tileGrid.scheduleAnimation(cell.y, cell.x, leaf.leaveAnimation, {
-                            fromZ: LIFT, toZ: 0,
-                            fromColor: cell.color, toColor: BASE_COLOR,
-                        })
+                        tileGrid.requestLeave(cell.y, cell.x, leaf, leaf.leaveAnimation, LIFT)
                     }
                     for (const cell of joined) {
-                        tileGrid.scheduleAnimation(cell.y, cell.x, leaf.enterAnimation, {
-                            fromZ: 0, toZ: LIFT,
-                            fromColor: BASE_COLOR, toColor: cell.color,
-                        })
+                        tileGrid.requestEnter(cell.y, cell.x, leaf, cell.color, leaf.enterAnimation, LIFT)
+                    }
+                    for (const cell of colorChanged) {
+                        tileGrid.requestRecolor(cell.y, cell.x, leaf, cell.color)
                     }
                 }
             }
