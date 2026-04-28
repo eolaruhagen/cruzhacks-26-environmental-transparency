@@ -9,7 +9,7 @@ import { ThreeScene } from './ThreeScene'
 // DONT FORGET: X: +x = right, -x = left, Y: +y = up, -y = down, Z: +z = forward, -z = backward (into screen)
 
 const CONFIG = {
-    columnsRelativeSize: 0.0075, // relative to the width of the screen ~ 1.5% -> row relative size calculated on the fly s.t its even
+    columnsRelativeSize: 0.0095, // relative to the width of the screen ~ 1.5% -> row relative size calculated on the fly s.t its even
     sceneBackgroundLight: '#595959',
     sceneBackgroundDark: '#000000',
     padHeight: 2,
@@ -86,11 +86,11 @@ function easeOutBack(t: number): number {
 const ENTER_DURATION = 0.4   // seconds
 const LEAVE_DURATION = 0.5
 
-/** Cell joining the pattern: dips slightly down, then rises to lift height.
+/** Cell joining the pattern: rises past the target lift, then settles back down.
  *  Color lerps linearly from current color to the leaf cell's color. */
 const tileEnterAnimation: TileAnimation = (ctx) => {
     const t = Math.min(ctx.elapsed / ENTER_DURATION, 1)
-    const easedZ = easeInBack(t)
+    const easedZ = easeOutBack(t)
     const zOffset = ctx.fromZ + (ctx.toZ - ctx.fromZ) * easedZ
     const color = ctx.fromColor.clone().lerp(ctx.toColor, t)
     if (t >= 1) {
@@ -284,13 +284,12 @@ class TileGrid {
     readonly baseZ: number
     private readonly _matrix = new THREE.Matrix4()
     private readonly _leafPatternInstances: LeafPatternInstance[] = []
-    private readonly _animations: {
-        row: number,
-        col: number,
+    private readonly _animations: Map<number, {
         animation: TileAnimation
         animationParams: ScheduleAnimationParams
         elapsed: number
-    }[] = []
+    }> = new Map()
+    private readonly _scratchColor = new THREE.Color()
 
     constructor(scene: THREE.Scene, windowSize: Window, baseZ: number) {
         const { cols, rows } = this._getDims(windowSize)
@@ -366,37 +365,39 @@ class TileGrid {
         return { cols, rows }
     }
 
+    /** Schedule an animation for one tile. If that tile already has an in-flight
+     *  animation, it gets replaced — and the new animation starts from the tile's
+     *  *current* z and color (not the caller's stated fromZ/fromColor) so the
+     *  visual handoff is smooth, no snap. */
     public scheduleAnimation(row: number, col: number, animation: TileAnimation, animationParams: ScheduleAnimationParams) {
-        this._animations.push({
-            row,
-            col,
-            animation,
-            animationParams,
-            elapsed: 0,
-        })
+        const idx = this._indexOf(col, row)
+        if (idx < 0 || idx >= this.mesh.count) return
+
+        let params = animationParams
+        if (this._animations.has(idx)) {
+            this.mesh.getMatrixAt(idx, this._matrix)
+            const currentZ = this._matrix.elements[14] - this.baseZ
+            const currentColor = new THREE.Color()
+            if (this.mesh.instanceColor) this.mesh.getColorAt(idx, currentColor)
+            params = { ...animationParams, fromZ: currentZ, fromColor: currentColor }
+        }
+
+        this._animations.set(idx, { animation, animationParams: params, elapsed: 0 })
     }
 
-    /** Tick every in-flight animation by `dt`, apply its result to the mesh,
-     *  cull entries that returned done. Iterates in reverse so splicing is safe. */
+    /** Tick every in-flight animation by `dt`, apply its result to the mesh*/
     public runPendingAnimations(dt: number) {
-        if (this._animations.length === 0) return
+        if (this._animations.size === 0) return
 
-        for (let i = this._animations.length - 1; i >= 0; i--) {
-            const entry = this._animations[i]
+        for (const [idx, entry] of this._animations) {
             entry.elapsed += dt
-
             const result = entry.animation({
                 ...entry.animationParams,
                 elapsed: entry.elapsed,
             })
-
-            const idx = this._indexOf(entry.col, entry.row)
-            if (idx >= 0 && idx < this.mesh.count) {
-                this._setTileZ(idx, this.baseZ + result.zOffset)
-                this.mesh.setColorAt(idx, result.color)
-            }
-
-            if (result.done) this._animations.splice(i, 1)
+            this._setTileZ(idx, this.baseZ + result.zOffset)
+            this.mesh.setColorAt(idx, result.color)
+            if (result.done) this._animations.delete(idx)
         }
 
         this.mesh.instanceMatrix.needsUpdate = true
@@ -496,7 +497,7 @@ export default function MovingLeafBg() {
         mountRef.current.appendChild(canvas.renderer.domElement) 
 
         
-        const MOVE_INTERVAL = 0.3
+        const MOVE_INTERVAL = 0.9
         const LIFT = 10
         const clock = new THREE.Timer()
         let timeSinceMove = 0
