@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '@/lib/supabase';
 import { Bill, BillType } from '@/lib/types';
-import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter } from '@/components/search/SearchModal';
+import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter, type SearchModalSortOption, type PaginatedQueryResult, type SearchModalHandle } from '@/components/search/SearchModal';
 import { BillSearchResult } from '@/components/search/SearchResultItem';
+
+const PAGE_SIZE = 50;
 
 // Filter option definitions
 const BILL_TYPES: { id: BillType; label: string }[] = [
@@ -37,7 +39,7 @@ const billFilters: SearchModalFilter<string>[] = [
     {
         type: 'text',
         key: 'search',
-        label: 'Search',
+        label: 'Search Full Text',
         value: '',
         placeholder: 'Search by title, bill number, or sponsor...',
         onChange: () => { },
@@ -84,15 +86,31 @@ const billFilters: SearchModalFilter<string>[] = [
     },
 ];
 
+// One option per sortable field. The `direction` is the initial direction —
+// the modal toggles it when the user clicks an already-active option.
+const billSortOptions: [SearchModalSortOption, ...SearchModalSortOption[]] = [
+    { key: 'date_of_introduction', label: 'Date of introduction', direction: 'desc' },
+    { key: 'num_cosponsors',       label: 'Cosponsors',           direction: 'desc' },
+];
+
 // Strip PostgREST filter metacharacters to prevent filter injection
 function sanitizeFilterInput(input: string): string {
     return input.replace(/[(),."'\\]/g, '')
 }
 
-// Query function — reads filter state, builds Supabase query, returns bills
-async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]> {
-    // Extract each filter's value by key, narrowing via discriminant
-    // Extract each filter's value by key, narrowing via discriminant
+// Extracts and applies the shared filter chain used by both queryBills and countBills.
+// Returns the still-chainable query — caller adds .order/.range or .select count modifiers.
+// With no active filters the chain is a no-op and the query returns everything (subject to the
+// caller's .range limit), giving the user instant default results on page load.
+function buildFilteredBillsQuery<Q extends {
+    in: (col: string, vals: readonly string[]) => Q;
+    or: (filters: string) => Q;
+    gte: (col: string, val: string | number) => Q;
+    lte: (col: string, val: string | number) => Q;
+}>(
+    filters: SearchModalFilter<string>[],
+    initialQuery: Q,
+): Q {
     const searchFilter = filters.find((f): f is TextFilter => f.key === 'search' && f.type === 'text');
     const categoryFilter = filters.find((f): f is DiscreteFilter<string> => f.key === 'category' && f.type === 'discrete');
     const statusFilter = filters.find((f): f is DiscreteFilter<string> => f.key === 'status' && f.type === 'discrete');
@@ -105,16 +123,7 @@ async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]>
     const selectedStatuses = statusFilter?.selected ?? new Set<string>();
     const selectedParties = partyFilter?.selected ?? new Set<string>();
 
-    // Don't query if no filters active
-    const hasDiscreteFilters = selectedCategories.size > 0 || selectedStatuses.size > 0 || selectedParties.size > 0;
-    if (!hasDiscreteFilters && !searchQuery) {
-        return [];
-    }
-
-    let query = supabase
-        .from('house_bills')
-        .select('id, legislation_number, title, sponsor, party_of_sponsor, category, url, latest_action, latest_tracker_stage, date_of_introduction')
-        .order('date_of_introduction', { ascending: false });
+    let query = initialQuery;
 
     if (selectedCategories.size > 0) {
         query = query.in('category', Array.from(selectedCategories) as BillType[]);
@@ -135,7 +144,6 @@ async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]>
         query = query.or(`title.ilike.%${searchQuery}%,legislation_number.ilike.%${searchQuery}%,sponsor.ilike.%${searchQuery}%`);
     }
 
-    // Date range filter — uses gte/lte on date_of_introduction
     if (dateFilter) {
         const [from, to] = dateFilter.value;
         query = query
@@ -143,7 +151,6 @@ async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]>
             .lte('date_of_introduction', to.toISOString().split('T')[0]);
     }
 
-    // Cosponsor count range filter
     if (cosponsorFilter) {
         const [min, max] = cosponsorFilter.value;
         query = query
@@ -151,13 +158,69 @@ async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]>
             .lte('num_cosponsors', max);
     }
 
+    return query;
+}
+
+
+type Cursor = { sortValue: string | number; id: string };
+
+// Each sort option's `key` must be a valid Supabase column on house_bills, so
+// passing it through to .order() / .or() is safe (no untrusted strings).
+async function queryBills(
+    filters: SearchModalFilter<string>[],
+    sort: SearchModalSortOption,
+    cursorStr: string | null,
+): Promise<PaginatedQueryResult<Bill>> {
+    const baseQuery = supabase
+        .from('house_bills')
+        .select('id, legislation_number, title, sponsor, party_of_sponsor, category, url, latest_action, latest_tracker_stage, date_of_introduction');
+
+    const ascending = sort.direction === 'asc';
+    // Tiebreaker on id (ordered the same direction as primary) gives a total order,
+    let query = buildFilteredBillsQuery(filters, baseQuery)
+        .order(sort.key, { ascending })
+        .order('id', { ascending });
+
+    if (cursorStr) {
+        const cursor: Cursor = JSON.parse(cursorStr);
+        const op = ascending ? 'gt' : 'lt';
+        query = query.or(
+            `${sort.key}.${op}.${cursor.sortValue},and(${sort.key}.eq.${cursor.sortValue},id.${op}.${cursor.id})`
+        );
+    }
+
+    query = query.limit(PAGE_SIZE);
+
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+
+    const items = data ?? [];
+
+    // build the next cursor from the last row of this page
+    let nextCursor: string | null = null;
+    if (items.length === PAGE_SIZE) {
+        const last = items[items.length - 1] as unknown as Record<string, string | number>;
+        nextCursor = JSON.stringify({
+            sortValue: last[sort.key],
+            id: String(last.id),
+        } satisfies Cursor);
+    }
+    return { items, nextCursor };
+}
+
+async function countBills(filters: SearchModalFilter<string>[]): Promise<number> {
+    const baseQuery = supabase
+        .from('house_bills')
+        .select('*', { count: 'exact', head: true });
+
+    const query = buildFilteredBillsQuery(filters, baseQuery);
+    const { count, error } = await query;
+    if (error) throw error;
+    return count ?? 0;
 }
 
 // Virtualized bill list using BillSearchResult cards
-function VirtualizedBillList({ bills }: { bills: Bill[] }) {
+function VirtualizedBillList({ bills, onNeedMore }: { bills: Bill[]; onNeedMore?: () => void }) {
     const parentRef = useRef<HTMLDivElement>(null);
 
     const virtualizer = useVirtualizer({
@@ -166,6 +229,31 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
         estimateSize: () => 160,
         overscan: 5,
     });
+
+    // guard/trigger for 
+    const hasFired = useRef(false);
+    useEffect(() => {
+        // Reset trigger whenever the list grows/shrinks — the next page-end visit can fire again
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        hasFired.current = false;
+    }, [bills.length]);
+
+    const virtualItems = virtualizer.getVirtualItems();
+    const maxVisibleIndex = virtualItems.length > 0
+        ? virtualItems[virtualItems.length - 1].index
+        : -1;
+
+    useEffect(() => {
+        if (
+            onNeedMore &&
+            bills.length > 0 &&
+            maxVisibleIndex >= bills.length - 10 &&
+            !hasFired.current
+        ) {
+            hasFired.current = true;
+            onNeedMore();
+        }
+    }, [maxVisibleIndex, bills.length, onNeedMore]);
 
     return (
         <div
@@ -180,7 +268,7 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
                     position: 'relative',
                 }}
             >
-                {virtualizer.getVirtualItems().map((virtualRow) => (
+                {virtualItems.map((virtualRow) => (
                     <div
                         key={virtualRow.key}
                         ref={virtualizer.measureElement}
@@ -206,38 +294,40 @@ function VirtualizedBillList({ bills }: { bills: Bill[] }) {
 export default function SearchClient() {
     const [bills, setBills] = useState<Bill[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    const [hasSearched, setHasSearched] = useState(false);
+    const [totalCount, setTotalCount] = useState<number | null>(null);
+    const modalRef = useRef<SearchModalHandle>(null);
 
-    const wrappedQueryFn = useCallback(async (filters: SearchModalFilter<string>[]) => {
-        // Check if any filters are actually active
-        const hasActiveFilters = filters.some(f =>
-            (f.type === 'discrete' && f.selected.size > 0) ||
-            (f.type === 'text' && f.value.trim() !== '')
-        );
-
-        if (!hasActiveFilters) {
-            setHasSearched(false);
-            setIsLoading(false);
-            return [];
-        }
-
-        setIsLoading(true);
-        setHasSearched(true);
-        const results = await queryBills(filters);
-        setIsLoading(false);
+    const wrappedQueryFn = useCallback(async (
+        filters: SearchModalFilter<string>[],
+        sort: SearchModalSortOption,
+        cursor: string | null,
+    ): Promise<PaginatedQueryResult<Bill>> => {
+        // Only show the top-level "Searching..." indicator on first-page fetches —
+        // pagination requests append silently below the existing list.
+        if (cursor === null) setIsLoading(true);
+        const results = await queryBills(filters, sort, cursor);
+        if (cursor === null) setIsLoading(false);
         return results;
     }, []);
 
-    const handleResults = useCallback((results: Bill[]) => {
-        setBills(results);
+    const wrappedCountFn = useCallback(async (filters: SearchModalFilter<string>[]): Promise<number> => {
+        return countBills(filters);
+    }, []);
+
+    const handleResults = useCallback((results: Bill[], append: boolean) => {
+        setBills(prev => append ? [...prev, ...results] : results);
     }, []);
 
     return (
         <>
             <SearchModal
+                ref={modalRef}
                 filters={billFilters}
+                sortOptions={billSortOptions}
                 queryFn={wrappedQueryFn}
+                countQueryFn={wrappedCountFn}
                 setResults={handleResults}
+                setTotalCount={setTotalCount}
             />
 
             {/* Results */}
@@ -251,17 +341,20 @@ export default function SearchClient() {
                 {!isLoading && bills.length > 0 && (
                     <>
                         <p className="text-xs font-mono uppercase tracking-widest text-light mb-3">
-                            Showing {bills.length} bills
+                            {totalCount === null
+                                ? `${bills.length} bills`
+                                : `${bills.length} of ${totalCount} bills`}
                         </p>
-                        <VirtualizedBillList bills={bills} />
+                        <VirtualizedBillList
+                            bills={bills}
+                            onNeedMore={() => modalRef.current?.loadNextPage()}
+                        />
                     </>
                 )}
 
                 {!isLoading && bills.length === 0 && (
                     <p className="text-sm text-light">
-                        {hasSearched
-                            ? 'No bills match your current filters.'
-                            : 'Select a category or enter a search term to find bills.'}
+                        No bills match your current filters.
                     </p>
                 )}
             </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from "react"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react"
 
 export interface DiscreteFilter<K extends React.Key> {
     type: 'discrete'
@@ -41,43 +41,148 @@ export interface DateRangeFilter {
 }
 
 
+type SortOptionDirection = 'asc' | 'desc'
+export interface SearchModalSortOption {
+    key: string // column tie
+    label: string // user visible label
+    direction: SortOptionDirection
+}
+
+
+
 /** Discriminated union of all filter types: meant for use by SearchModal */
 export type SearchModalFilter<K extends React.Key = string> = DiscreteFilter<K> | RangeFilter | TextFilter | DateRangeFilter
 
 
-export interface SearchModalProps<T, K extends React.Key> {
-    filters: SearchModalFilter<K>[]
-    queryFn: (filters: SearchModalFilter<K>[]) => Promise<T[]>
-    setResults: (results: T[]) => void
+export interface PaginatedQueryResult<T> {
+    items: T[]
+    nextCursor?: string | null  // null/undefined = no more pages
+}
+
+export type SearchModalQueryFn<T, K extends React.Key> = (
+    filters: SearchModalFilter<K>[],
+    sort: SearchModalSortOption,
+    cursor: string | null,  // null = first page
+) => Promise<PaginatedQueryResult<T>>
+
+export type SearchModalCountFn<K extends React.Key> = (
+    filters: SearchModalFilter<K>[],
+) => Promise<number>
+
+export interface SearchModalHandle {
+    loadNextPage: () => void
 }
 
 
-export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResults }: SearchModalProps<T, K>) {
+export interface SearchModalProps<T, K extends React.Key> {
+    filters: SearchModalFilter<K>[]
+    /** At least one sort option must be provided — the tuple type enforces this at compile time. */
+    sortOptions: [SearchModalSortOption, ...SearchModalSortOption[]]
+    /** Key of the sort option to start active. If omitted (or no match), defaults to sortOptions[0]. */
+    defaultSortKey?: string
+    queryFn: SearchModalQueryFn<T, K>
+    /** Optional async count of total matching rows. Runs separately from page fetches
+     *  so initial results show fast; count arrives later. Re-runs on filter/sort change. */
+    countQueryFn?: SearchModalCountFn<K>
+    /** append=false for fresh queries (filter/sort changed), append=true for pagination. */
+    setResults: (results: T[], append: boolean) => void
+    /** null while loading; the count when it resolves. */
+    setTotalCount?: (count: number | null) => void
+}
+
+
+function SearchModalInner<T, K extends React.Key>(
+    {
+        filters,
+        sortOptions,
+        defaultSortKey,
+        queryFn,
+        countQueryFn,
+        setResults,
+        setTotalCount,
+    }: SearchModalProps<T, K>,
+    ref: React.ForwardedRef<SearchModalHandle>,
+) {
     const [activeFilters, setActiveFilters] = useState<SearchModalFilter<K>[]>(filters)
+
+    // The component owns the sort options' direction state after mount — caller-provided
+    // direction is the initial value only. This is how clicking an active option flips
+    // its direction without losing other options' remembered directions.
+    const [sortState, setSortState] = useState<SearchModalSortOption[]>(() => sortOptions.map(o => ({ ...o })))
+
+    // Resolve initial active key: caller-specified if it matches an option, else first.
+    const initialSortKey =
+        defaultSortKey && sortOptions.some((s) => s.key === defaultSortKey)
+            ? defaultSortKey
+            : sortOptions[0].key
+    const [activeSortKey, setActiveSortKey] = useState<string>(initialSortKey)
+    const activeSort = sortState.find((s) => s.key === activeSortKey) ?? sortState[0]
 
     const updateFilter = useCallback((key: string, value: SearchModalFilter<K>) => {
         setActiveFilters((prev) => prev.map((f) => (f.key === key ? value : f)))
     }, [])
 
-    // Debounced autosubmission: waits 300ms after last filter change, discards stale results
+    // Click semantics: clicking an inactive option activates it (with its current
+    // remembered direction); clicking the active option flips its direction.
+    const handleSortClick = useCallback((key: string) => {
+        if (key === activeSortKey) {
+            setSortState(prev => prev.map(s =>
+                s.key === key
+                    ? { ...s, direction: s.direction === 'asc' ? 'desc' : 'asc' }
+                    : s
+            ))
+        } else {
+            setActiveSortKey(key)
+        }
+    }, [activeSortKey])
+
+    // Pagination state. nextCursor is the cursor for the NEXT page; null = "next is the first page".
+    const [nextCursor, setNextCursor] = useState<string | null>(null)
+    const [isFetchingPage, setIsFetchingPage] = useState(false)
+
+    // Debounced first-page fetch + count: waits 300ms after last filter or sort change, discards stale results
     useEffect(() => {
         let stale = false;
         const timeout = setTimeout(() => {
-            queryFn(activeFilters).then(results => {
-                if (!stale) setResults(results)
+            // Reset cursor — we're fetching the first page.
+            setNextCursor(null)
+            queryFn(activeFilters, activeSort, null).then(result => {
+                if (!stale) {
+                    setResults(result.items, false)
+                    setNextCursor(result.nextCursor ?? null)
+                }
             })
+            if (countQueryFn) {
+                setTotalCount?.(null)
+                countQueryFn(activeFilters).then(c => {
+                    if (!stale) setTotalCount?.(c)
+                })
+            }
         }, 300)
         return () => {
             stale = true;
             clearTimeout(timeout);
         }
-    }, [activeFilters, queryFn, setResults])
+    }, [activeFilters, activeSort, queryFn, countQueryFn, setResults, setTotalCount])
+
+    const loadNextPage = useCallback(() => {
+        if (!nextCursor || isFetchingPage) return
+        setIsFetchingPage(true)
+        queryFn(activeFilters, activeSort, nextCursor).then(result => {
+            setResults(result.items, true)
+            setNextCursor(result.nextCursor ?? null)
+            setIsFetchingPage(false)
+        })
+    }, [nextCursor, isFetchingPage, activeFilters, activeSort, queryFn, setResults])
+
+    useImperativeHandle(ref, () => ({ loadNextPage }), [loadNextPage])
 
     // Track whether we've seen the first non-text filter to default it open
     let firstNonTextSeen = false
 
     return (
         <div className="wf-section space-y-6">
+            <SortBar options={sortState} activeKey={activeSortKey} onClick={handleSortClick} />
             {activeFilters.map((filter) => {
                 let defaultOpen = true
                 if (filter.type !== 'text' && !firstNonTextSeen) {
@@ -87,6 +192,71 @@ export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResul
                 return <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={updateFilter} defaultOpen={defaultOpen} />
             })}
         </div>
+    )
+}
+
+export const SearchModal = forwardRef(SearchModalInner) as <T, K extends React.Key>(
+    props: SearchModalProps<T, K> & { ref?: React.Ref<SearchModalHandle> }
+) => React.ReactElement
+
+
+/** Sort selector — visually distinct from filter UI: always-visible row at the top
+ *  (no collapsible FilterBox), single-active-at-a-time, each option carries its own
+ *  ↑/↓ direction chevron. Click inactive → activate. Click active → flip direction. */
+function SortBar({
+    options,
+    activeKey,
+    onClick,
+}: {
+    options: ReadonlyArray<SearchModalSortOption>
+    activeKey: string
+    onClick: (key: string) => void
+}) {
+    return (
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-2 pb-4 border-b border-border">
+            <p className="wf-label whitespace-nowrap">Sort by</p>
+            <div className="flex flex-wrap gap-2">
+                {options.map((option) => {
+                    const isActive = option.key === activeKey
+                    return (
+                        <button
+                            key={option.key}
+                            onClick={() => onClick(option.key)}
+                            className={`flex flex-col items-center justify-center leading-none !py-1 ${isActive ? 'wf-btn-active' : 'wf-btn'}`}
+                            aria-pressed={isActive}
+                            title={isActive ? 'Click to flip direction' : 'Click to sort by this field'}
+                        >
+                            <span>{option.label}</span>
+                            {isActive && (
+                                <span className="text-[10px] font-light">
+                                    {option.direction === 'asc' ? 'Ascending' : 'Descending'}
+                                </span>
+                            )}
+                        </button>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+function SortDirectionIcon({ direction, dimmed = false }: { direction: SortOptionDirection, dimmed?: boolean }) {
+    // chevron-up for ascending, chevron-down for descending; dimmed for inactive options
+    return (
+        <svg
+            className={`w-3 h-3 ${dimmed ? 'opacity-50' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d={direction === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}
+            />
+        </svg>
     )
 }
 
@@ -186,7 +356,7 @@ function RangeFilterUI({ filter, onChange }: { filter: RangeFilter, onChange: (v
 
     return (
         <div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <input
                     type="range"
                     min={filter.min}
@@ -195,7 +365,7 @@ function RangeFilterUI({ filter, onChange }: { filter: RangeFilter, onChange: (v
                     onChange={handleMinChange}
                     className="flex-1 accent-[var(--color-accent)]"
                 />
-                <span className="text-sm font-mono text-main whitespace-nowrap px-3 py-1">
+                <span className="text-sm font-mono text-main  px-3 py-1">
                     {filter.value[0]} – {filter.value[1]}
                 </span>
                 <input
