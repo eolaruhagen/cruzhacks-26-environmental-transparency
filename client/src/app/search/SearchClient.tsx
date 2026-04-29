@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '@/lib/supabase';
 import { Bill, BillType } from '@/lib/types';
-import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter } from '@/components/search/SearchModal';
+import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter, type SearchModalSortOption } from '@/components/search/SearchModal';
 import { BillSearchResult } from '@/components/search/SearchResultItem';
 
 // Filter option definitions
@@ -37,7 +37,7 @@ const billFilters: SearchModalFilter<string>[] = [
     {
         type: 'text',
         key: 'search',
-        label: 'Search',
+        label: 'Search Full Text',
         value: '',
         placeholder: 'Search by title, bill number, or sponsor...',
         onChange: () => { },
@@ -84,13 +84,21 @@ const billFilters: SearchModalFilter<string>[] = [
     },
 ];
 
+// One option per sortable field. The `direction` is the initial direction —
+// the modal toggles it when the user clicks an already-active option.
+const billSortOptions: [SearchModalSortOption, ...SearchModalSortOption[]] = [
+    { key: 'date_of_introduction', label: 'Date of introduction', direction: 'desc' },
+    { key: 'num_cosponsors',       label: 'Cosponsors',           direction: 'desc' },
+];
+
 // Strip PostgREST filter metacharacters to prevent filter injection
 function sanitizeFilterInput(input: string): string {
     return input.replace(/[(),."'\\]/g, '')
 }
 
-// Query function — reads filter state, builds Supabase query, returns bills
-async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]> {
+// Each sort option's `key` must be a valid Supabase column on house_bills, so
+// passing it through to .order() is safe (no untrusted strings).
+async function queryBills(filters: SearchModalFilter<string>[], sort: SearchModalSortOption): Promise<Bill[]> {
     // Extract each filter's value by key, narrowing via discriminant
     // Extract each filter's value by key, narrowing via discriminant
     const searchFilter = filters.find((f): f is TextFilter => f.key === 'search' && f.type === 'text');
@@ -114,7 +122,7 @@ async function queryBills(filters: SearchModalFilter<string>[]): Promise<Bill[]>
     let query = supabase
         .from('house_bills')
         .select('id, legislation_number, title, sponsor, party_of_sponsor, category, url, latest_action, latest_tracker_stage, date_of_introduction')
-        .order('date_of_introduction', { ascending: false });
+        .order(sort.key, { ascending: sort.direction === 'asc' });
 
     if (selectedCategories.size > 0) {
         query = query.in('category', Array.from(selectedCategories) as BillType[]);
@@ -208,7 +216,7 @@ export default function SearchClient() {
     const [isLoading, setIsLoading] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
 
-    const wrappedQueryFn = useCallback(async (filters: SearchModalFilter<string>[]) => {
+    const wrappedQueryFn = useCallback(async (filters: SearchModalFilter<string>[], sort: SearchModalSortOption) => {
         // Check if any filters are actually active
         const hasActiveFilters = filters.some(f =>
             (f.type === 'discrete' && f.selected.size > 0) ||
@@ -223,7 +231,7 @@ export default function SearchClient() {
 
         setIsLoading(true);
         setHasSearched(true);
-        const results = await queryBills(filters);
+        const results = await queryBills(filters, sort);
         setIsLoading(false);
         return results;
     }, []);
@@ -236,6 +244,7 @@ export default function SearchClient() {
         <>
             <SearchModal
                 filters={billFilters}
+                sortOptions={billSortOptions}
                 queryFn={wrappedQueryFn}
                 setResults={handleResults}
             />

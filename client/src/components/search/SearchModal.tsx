@@ -41,29 +41,75 @@ export interface DateRangeFilter {
 }
 
 
+type SortOptionDirection = 'asc' | 'desc'
+export interface SearchModalSortOption {
+    key: string // column tie
+    label: string // user visible label
+    direction: SortOptionDirection
+}
+
+
+
 /** Discriminated union of all filter types: meant for use by SearchModal */
 export type SearchModalFilter<K extends React.Key = string> = DiscreteFilter<K> | RangeFilter | TextFilter | DateRangeFilter
 
 
 export interface SearchModalProps<T, K extends React.Key> {
     filters: SearchModalFilter<K>[]
-    queryFn: (filters: SearchModalFilter<K>[]) => Promise<T[]>
+    /** At least one sort option must be provided — the tuple type enforces this at compile time. */
+    sortOptions: [SearchModalSortOption, ...SearchModalSortOption[]]
+    /** Key of the sort option to start active. If omitted (or no match), defaults to sortOptions[0]. */
+    defaultSortKey?: string
+    queryFn: (filters: SearchModalFilter<K>[], sort: SearchModalSortOption) => Promise<T[]>
     setResults: (results: T[]) => void
 }
 
 
-export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResults }: SearchModalProps<T, K>) {
+export function SearchModal<T, K extends React.Key>({
+    filters,
+    sortOptions,
+    defaultSortKey,
+    queryFn,
+    setResults,
+}: SearchModalProps<T, K>) {
     const [activeFilters, setActiveFilters] = useState<SearchModalFilter<K>[]>(filters)
+
+    // The component owns the sort options' direction state after mount — caller-provided
+    // direction is the initial value only. This is how clicking an active option flips
+    // its direction without losing other options' remembered directions.
+    const [sortState, setSortState] = useState<SearchModalSortOption[]>(() => sortOptions.map(o => ({ ...o })))
+
+    // Resolve initial active key: caller-specified if it matches an option, else first.
+    const initialSortKey =
+        defaultSortKey && sortOptions.some((s) => s.key === defaultSortKey)
+            ? defaultSortKey
+            : sortOptions[0].key
+    const [activeSortKey, setActiveSortKey] = useState<string>(initialSortKey)
+    const activeSort = sortState.find((s) => s.key === activeSortKey) ?? sortState[0]
 
     const updateFilter = useCallback((key: string, value: SearchModalFilter<K>) => {
         setActiveFilters((prev) => prev.map((f) => (f.key === key ? value : f)))
     }, [])
 
-    // Debounced autosubmission: waits 300ms after last filter change, discards stale results
+    // Click semantics: clicking an inactive option activates it (with its current
+    // remembered direction); clicking the active option flips its direction.
+    const handleSortClick = useCallback((key: string) => {
+        if (key === activeSortKey) {
+            setSortState(prev => prev.map(s =>
+                s.key === key
+                    ? { ...s, direction: s.direction === 'asc' ? 'desc' : 'asc' }
+                    : s
+            ))
+        } else {
+            setActiveSortKey(key)
+        }
+    }, [activeSortKey])
+
+    // Debounced autosubmission: waits 300ms after last filter or sort change, discards stale results
     useEffect(() => {
         let stale = false;
         const timeout = setTimeout(() => {
-            queryFn(activeFilters).then(results => {
+            queryFn(activeFilters, activeSort).then(results => {
                 if (!stale) setResults(results)
             })
         }, 300)
@@ -71,13 +117,14 @@ export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResul
             stale = true;
             clearTimeout(timeout);
         }
-    }, [activeFilters, queryFn, setResults])
+    }, [activeFilters, activeSort, queryFn, setResults])
 
     // Track whether we've seen the first non-text filter to default it open
     let firstNonTextSeen = false
 
     return (
         <div className="wf-section space-y-6">
+            <SortBar options={sortState} activeKey={activeSortKey} onClick={handleSortClick} />
             {activeFilters.map((filter) => {
                 let defaultOpen = true
                 if (filter.type !== 'text' && !firstNonTextSeen) {
@@ -87,6 +134,67 @@ export function SearchModal<T, K extends React.Key>({ filters, queryFn, setResul
                 return <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={updateFilter} defaultOpen={defaultOpen} />
             })}
         </div>
+    )
+}
+
+
+/** Sort selector — visually distinct from filter UI: always-visible row at the top
+ *  (no collapsible FilterBox), single-active-at-a-time, each option carries its own
+ *  ↑/↓ direction chevron. Click inactive → activate. Click active → flip direction. */
+function SortBar({
+    options,
+    activeKey,
+    onClick,
+}: {
+    options: ReadonlyArray<SearchModalSortOption>
+    activeKey: string
+    onClick: (key: string) => void
+}) {
+    return (
+        <div className="flex items-center flex-wrap gap-x-3 gap-y-2 pb-4 border-b border-border">
+            <p className="wf-label whitespace-nowrap">Sort by</p>
+            <div className="flex flex-wrap gap-2">
+                {options.map((option) => {
+                    const isActive = option.key === activeKey
+                    return (
+                        <button
+                            key={option.key}
+                            onClick={() => onClick(option.key)}
+                            className={`flex flex-col items-center justify-center leading-none !py-1 ${isActive ? 'wf-btn-active' : 'wf-btn'}`}
+                            aria-pressed={isActive}
+                            title={isActive ? 'Click to flip direction' : 'Click to sort by this field'}
+                        >
+                            <span>{option.label}</span>
+                            {isActive && (
+                                <span className="text-[10px] font-light">
+                                    {option.direction === 'asc' ? 'Ascending' : 'Descending'}
+                                </span>
+                            )}
+                        </button>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+function SortDirectionIcon({ direction, dimmed = false }: { direction: SortOptionDirection, dimmed?: boolean }) {
+    // chevron-up for ascending, chevron-down for descending; dimmed for inactive options
+    return (
+        <svg
+            className={`w-3 h-3 ${dimmed ? 'opacity-50' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            aria-hidden="true"
+        >
+            <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2.5}
+                d={direction === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}
+            />
+        </svg>
     )
 }
 
@@ -186,7 +294,7 @@ function RangeFilterUI({ filter, onChange }: { filter: RangeFilter, onChange: (v
 
     return (
         <div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
                 <input
                     type="range"
                     min={filter.min}
@@ -195,7 +303,7 @@ function RangeFilterUI({ filter, onChange }: { filter: RangeFilter, onChange: (v
                     onChange={handleMinChange}
                     className="flex-1 accent-[var(--color-accent)]"
                 />
-                <span className="text-sm font-mono text-main whitespace-nowrap px-3 py-1">
+                <span className="text-sm font-mono text-main  px-3 py-1">
                     {filter.value[0]} – {filter.value[1]}
                 </span>
                 <input
