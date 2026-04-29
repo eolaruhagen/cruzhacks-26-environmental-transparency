@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from "react"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react"
 
 export interface DiscreteFilter<K extends React.Key> {
     type: 'discrete'
@@ -54,24 +54,55 @@ export interface SearchModalSortOption {
 export type SearchModalFilter<K extends React.Key = string> = DiscreteFilter<K> | RangeFilter | TextFilter | DateRangeFilter
 
 
+export interface PaginatedQueryResult<T> {
+    items: T[]
+    nextCursor?: string | null  // null/undefined = no more pages
+}
+
+export type SearchModalQueryFn<T, K extends React.Key> = (
+    filters: SearchModalFilter<K>[],
+    sort: SearchModalSortOption,
+    cursor: string | null,  // null = first page
+) => Promise<PaginatedQueryResult<T>>
+
+export type SearchModalCountFn<K extends React.Key> = (
+    filters: SearchModalFilter<K>[],
+) => Promise<number>
+
+export interface SearchModalHandle {
+    loadNextPage: () => void
+}
+
+
 export interface SearchModalProps<T, K extends React.Key> {
     filters: SearchModalFilter<K>[]
     /** At least one sort option must be provided — the tuple type enforces this at compile time. */
     sortOptions: [SearchModalSortOption, ...SearchModalSortOption[]]
     /** Key of the sort option to start active. If omitted (or no match), defaults to sortOptions[0]. */
     defaultSortKey?: string
-    queryFn: (filters: SearchModalFilter<K>[], sort: SearchModalSortOption) => Promise<T[]>
-    setResults: (results: T[]) => void
+    queryFn: SearchModalQueryFn<T, K>
+    /** Optional async count of total matching rows. Runs separately from page fetches
+     *  so initial results show fast; count arrives later. Re-runs on filter/sort change. */
+    countQueryFn?: SearchModalCountFn<K>
+    /** append=false for fresh queries (filter/sort changed), append=true for pagination. */
+    setResults: (results: T[], append: boolean) => void
+    /** null while loading; the count when it resolves. */
+    setTotalCount?: (count: number | null) => void
 }
 
 
-export function SearchModal<T, K extends React.Key>({
-    filters,
-    sortOptions,
-    defaultSortKey,
-    queryFn,
-    setResults,
-}: SearchModalProps<T, K>) {
+function SearchModalInner<T, K extends React.Key>(
+    {
+        filters,
+        sortOptions,
+        defaultSortKey,
+        queryFn,
+        countQueryFn,
+        setResults,
+        setTotalCount,
+    }: SearchModalProps<T, K>,
+    ref: React.ForwardedRef<SearchModalHandle>,
+) {
     const [activeFilters, setActiveFilters] = useState<SearchModalFilter<K>[]>(filters)
 
     // The component owns the sort options' direction state after mount — caller-provided
@@ -105,19 +136,46 @@ export function SearchModal<T, K extends React.Key>({
         }
     }, [activeSortKey])
 
-    // Debounced autosubmission: waits 300ms after last filter or sort change, discards stale results
+    // Pagination state. nextCursor is the cursor for the NEXT page; null = "next is the first page".
+    const [nextCursor, setNextCursor] = useState<string | null>(null)
+    const [isFetchingPage, setIsFetchingPage] = useState(false)
+
+    // Debounced first-page fetch + count: waits 300ms after last filter or sort change, discards stale results
     useEffect(() => {
         let stale = false;
         const timeout = setTimeout(() => {
-            queryFn(activeFilters, activeSort).then(results => {
-                if (!stale) setResults(results)
+            // Reset cursor — we're fetching the first page.
+            setNextCursor(null)
+            queryFn(activeFilters, activeSort, null).then(result => {
+                if (!stale) {
+                    setResults(result.items, false)
+                    setNextCursor(result.nextCursor ?? null)
+                }
             })
+            if (countQueryFn) {
+                setTotalCount?.(null)
+                countQueryFn(activeFilters).then(c => {
+                    if (!stale) setTotalCount?.(c)
+                })
+            }
         }, 300)
         return () => {
             stale = true;
             clearTimeout(timeout);
         }
-    }, [activeFilters, activeSort, queryFn, setResults])
+    }, [activeFilters, activeSort, queryFn, countQueryFn, setResults, setTotalCount])
+
+    const loadNextPage = useCallback(() => {
+        if (!nextCursor || isFetchingPage) return
+        setIsFetchingPage(true)
+        queryFn(activeFilters, activeSort, nextCursor).then(result => {
+            setResults(result.items, true)
+            setNextCursor(result.nextCursor ?? null)
+            setIsFetchingPage(false)
+        })
+    }, [nextCursor, isFetchingPage, activeFilters, activeSort, queryFn, setResults])
+
+    useImperativeHandle(ref, () => ({ loadNextPage }), [loadNextPage])
 
     // Track whether we've seen the first non-text filter to default it open
     let firstNonTextSeen = false
@@ -136,6 +194,10 @@ export function SearchModal<T, K extends React.Key>({
         </div>
     )
 }
+
+export const SearchModal = forwardRef(SearchModalInner) as <T, K extends React.Key>(
+    props: SearchModalProps<T, K> & { ref?: React.Ref<SearchModalHandle> }
+) => React.ReactElement
 
 
 /** Sort selector — visually distinct from filter UI: always-visible row at the top

@@ -143,7 +143,7 @@ export default function TestPage() {
                 <SearchModal
                     filters={filters}
                     sortOptions={[{ key: 'date', label: 'Newest first', direction: 'desc' }]}
-                    queryFn={async () => []}
+                    queryFn={async () => ({ items: [], nextCursor: null })}
                     setResults={() => { }}
                 />
 
