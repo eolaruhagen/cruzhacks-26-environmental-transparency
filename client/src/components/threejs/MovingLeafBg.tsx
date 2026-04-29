@@ -10,9 +10,9 @@ import leafConfig from '@/lib/leaf-templates.json'
 
 const CONFIG = {
     // grid layout
-    columnsRelativeSize: 0.009,    // cell width as fraction of window width
+    rowsRelativeSize: 0.0275,    // cell width as fraction of window width
     cellGap: 2,                     // pixels between cell edges
-    padWidth: 1.6,                  // grid extends past viewport (×width)
+    padWidth: 2.5,                  // grid extends past viewport (×width)
     padHeight: 1.8,                 // grid extends past viewport (×height)
     cubeDepth: 8,                   // box thickness along z
     baseZ: -200,                    // resting tile z-depth
@@ -26,7 +26,7 @@ const CONFIG = {
     sunPosition: { x: 1, y: 2, z: 3 },
     sunIntensity: 3,
     ambientIntensity: 0.6,
-    leafCount: 11,
+    leafCount: 7,
     moveIntervalMin: 1.5,           // seconds between moves (per-leaf, randomized)
     moveIntervalMax: 2.8,
     lift: 12,                        // z-offset for a lit tile
@@ -56,7 +56,7 @@ class Window {
 
     /** returns the width of a square cell */
     public getCellDims(): number {
-        return this.width * CONFIG.columnsRelativeSize
+        return this.height * CONFIG.rowsRelativeSize
     }
 }
 
@@ -535,6 +535,80 @@ class TileGrid {
         return this._leafPatternInstances
     }
 
+    /** Cell-pair Chebyshev-distance check between two leaves' current cells.
+     *  Same predicate as `_wouldCollideAtCenter` but operates on already-placed leaves. */
+    private _leavesCollide(a: LeafPatternInstance, b: LeafPatternInstance): boolean {
+        const buffer = CONFIG.minLeafBuffer
+        const aCells = a.getCells()
+        const bCells = b.getCells()
+        for (const ac of aCells) {
+            for (const bc of bCells) {
+                if (Math.abs(ac.x - bc.x) < buffer && Math.abs(ac.y - bc.y) < buffer) return true
+            }
+        }
+        return false
+    }
+
+    /** Walk every leaf pair and collect the lower-priority leaf from each
+     *  colliding pair. The higher-priority leaf is kept in place — losers go
+     *  to `_respawnLeaf`. Returns a deduped list (a leaf colliding with multiple
+     *  others only respawns once). */
+    private _checkCollisions(): LeafPatternInstance[] {
+        const losers = new Set<LeafPatternInstance>()
+        const leaves = this._leafPatternInstances
+        for (let i = 0; i < leaves.length; i++) {
+            for (let j = i + 1; j < leaves.length; j++) {
+                const a = leaves[i]
+                const b = leaves[j]
+                if (this._leavesCollide(a, b)) {
+                    losers.add(a.priority < b.priority ? a : b)
+                }
+            }
+        }
+        return [...losers]
+    }
+
+    /** Move one leaf to a new (collision-free, attempt-bounded) center on the
+     *  current grid. Repaints its old cells to base, picks a new center via
+     *  `initCenterCell` (which uses `others` for buffer-aware placement), then
+     *  re-stamps the new cells onto the mesh as owned + lifted. */
+    private _respawnLeaf(leaf: LeafPatternInstance) {
+        // 1. Clear old cells from ownership + repaint base.
+        for (const cell of leaf.getCells()) {
+            const idx = this._indexOf(cell.x, cell.y)
+            if (idx < 0 || idx >= this.mesh.count) continue
+            if (this._owners.get(idx) === leaf) {
+                this._owners.delete(idx)
+                this._setTileTransform(idx, this.baseZ, 0, 0)
+                this.mesh.setColorAt(idx, this._baseColorForIdx(idx))
+            }
+        }
+
+        // 2. Pick a new center. `initCenterCell` skips `this` via the `other === this`
+        //    guard inside `_wouldCollideAtCenter`, so the leaf's stale cells don't
+        //    self-veto. After 100 failed attempts it falls back to a random spot.
+        leaf.initCenterCell(this.rows, this.cols, this._leafPatternInstances)
+
+        // 3. `initCenterCell` only sets centerCell — clampToGrid recomputes activePatternCells
+        //    from the new center (and is a no-op for the bounds check since we just placed it inside).
+        leaf.clampToGrid(this.rows, this.cols)
+
+        // 4. Stamp new cells. Respect priority: don't overwrite a higher-priority owner
+        //    (rare edge case but possible if respawn lands adjacent to another leaf).
+        for (const cell of leaf.getCells()) {
+            if (cell.x < 0 || cell.x >= this.cols || cell.y < 0 || cell.y >= this.rows) continue
+            const idx = this._indexOf(cell.x, cell.y)
+            if (idx < 0 || idx >= this.mesh.count) continue
+            const current = this._owners.get(idx)
+            if (current && current !== leaf && current.priority > leaf.priority) continue
+            this._owners.set(idx, leaf)
+            this._setTileTransform(idx, this.baseZ + CONFIG.lift, 0, 0)
+            this.mesh.setColorAt(idx, cell.color)
+        }
+        this.mesh.instanceMatrix.needsUpdate = true
+        if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
+    }
+
     private _setTileColorAt(row: number, col: number, color: THREE.Color) {
         const idx = this._indexOf(col, row)
         if (idx < 0 || idx >= this.mesh.count) return
@@ -613,6 +687,13 @@ class TileGrid {
         }
         this.mesh.instanceMatrix.needsUpdate = true
         if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true
+
+        // 6. Post-clamp collision sweep: if any leaves now overlap (or are within
+        //    minLeafBuffer), respawn the lower-priority one in each colliding pair.
+        //    Single pass — convergence isn't guaranteed but is good enough.
+        for (const loser of this._checkCollisions()) {
+            this._respawnLeaf(loser)
+        }
 
         return windowSize
     }
@@ -820,6 +901,7 @@ export default function MovingLeafBg() {
         window.addEventListener('resize', () => {
             const fresh = tileGrid.resizeBoard()   // returns the new Window
             canvas.renderer!.setSize(fresh.width, fresh.height)
+            canvas.setOrthographicFrustum(fresh.width, fresh.height)
         })
 
         for (let i = 0; i < CONFIG.leafCount; i++) {
