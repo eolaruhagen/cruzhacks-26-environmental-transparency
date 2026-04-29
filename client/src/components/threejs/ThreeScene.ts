@@ -77,6 +77,17 @@ export class ThreeScene {
         if (z !== undefined) this.camera.position.z = z
     }
 
+    /** Update an orthographic camera's frustum to match new viewport dims (call on resize).
+     *  No-op for perspective cameras or before a camera is set. Preserves position/rotation/near/far. */
+    public setOrthographicFrustum(width: number, height: number) {
+        if (!this.camera || !(this.camera instanceof THREE.OrthographicCamera)) return
+        this.camera.left = -width / 2
+        this.camera.right = width / 2
+        this.camera.top = height / 2
+        this.camera.bottom = -height / 2
+        this.camera.updateProjectionMatrix()
+    }
+
     public dismount() {
         this.renderer?.dispose()
         this.scene.clear()
