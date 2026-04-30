@@ -1,6 +1,6 @@
-import { SearchCardShell, BillSearchResult, ArticleSearchResult } from "@/components/search/SearchResultItem"
-import type { ArticleSearchResultProps, ResultItemBadge as ResultItemBadgeType } from "@/components/search/SearchResultItem"
-import type { BillSearchResultProps } from "@/components/search/SearchResultItem"
+import { SearchCardShell, BillSearchResult, ArticleSearchResult } from "@/components/search/ui/SearchResultItem"
+import type { ArticleSearchResultProps, ResultItemBadge as ResultItemBadgeType } from "@/components/search/ui/SearchResultItem"
+import type { BillSearchResultProps } from "@/components/search/ui/SearchResultItem"
 
 const testBillSearchProps: BillSearchResultProps = {
     bill: {

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { supabase } from '@/lib/supabase';
 import { Bill, BillType } from '@/lib/types';
-import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter, type SearchModalSortOption, type PaginatedQueryResult, type SearchModalHandle } from '@/components/search/SearchModal';
-import { BillSearchResult } from '@/components/search/SearchResultItem';
+import { SearchModal, type SearchModalFilter, type DiscreteFilter, type TextFilter, type DateRangeFilter, type RangeFilter, type SearchModalSortOption, type PaginatedQueryResult } from '@/components/search/ui/SearchModal';
+import { BillSearchResult } from '@/components/search/ui/SearchResultItem';
+import { useSearchModal } from '@/components/search/hooks/useSearchModal';
 
 const PAGE_SIZE = 50;
 
@@ -292,42 +293,31 @@ function VirtualizedBillList({ bills, onNeedMore }: { bills: Bill[]; onNeedMore?
 }
 
 export default function SearchClient() {
-    const [bills, setBills] = useState<Bill[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [totalCount, setTotalCount] = useState<number | null>(null);
-    const modalRef = useRef<SearchModalHandle>(null);
-
-    const wrappedQueryFn = useCallback(async (
-        filters: SearchModalFilter<string>[],
-        sort: SearchModalSortOption,
-        cursor: string | null,
-    ): Promise<PaginatedQueryResult<Bill>> => {
-        // Only show the top-level "Searching..." indicator on first-page fetches —
-        // pagination requests append silently below the existing list.
-        if (cursor === null) setIsLoading(true);
-        const results = await queryBills(filters, sort, cursor);
-        if (cursor === null) setIsLoading(false);
-        return results;
-    }, []);
-
-    const wrappedCountFn = useCallback(async (filters: SearchModalFilter<string>[]): Promise<number> => {
-        return countBills(filters);
-    }, []);
-
-    const handleResults = useCallback((results: Bill[], append: boolean) => {
-        setBills(prev => append ? [...prev, ...results] : results);
-    }, []);
+    const {
+        activeFilters,
+        sortState,
+        activeSortKey,
+        updateFilter,
+        handleSortClick,
+        results: bills,
+        totalCount,
+        isLoading,
+        loadNextPage,
+    } = useSearchModal<Bill, string>({
+        filters: billFilters,
+        sortOptions: billSortOptions,
+        queryFn: queryBills,
+        countQueryFn: countBills,
+    });
 
     return (
         <>
             <SearchModal
-                ref={modalRef}
-                filters={billFilters}
-                sortOptions={billSortOptions}
-                queryFn={wrappedQueryFn}
-                countQueryFn={wrappedCountFn}
-                setResults={handleResults}
-                setTotalCount={setTotalCount}
+                activeFilters={activeFilters}
+                sortState={sortState}
+                activeSortKey={activeSortKey}
+                onFilterUpdate={updateFilter}
+                onSortClick={handleSortClick}
             />
 
             {/* Results */}
@@ -347,7 +337,7 @@ export default function SearchClient() {
                         </p>
                         <VirtualizedBillList
                             bills={bills}
-                            onNeedMore={() => modalRef.current?.loadNextPage()}
+                            onNeedMore={loadNextPage}
                         />
                     </>
                 )}

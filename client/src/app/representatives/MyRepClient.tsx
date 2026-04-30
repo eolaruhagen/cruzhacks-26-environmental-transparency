@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Bill, RepBill, RadarBill, Subcategory, Representative } from '@/lib/types'
-import { BillSearchResult } from '@/components/search/SearchResultItem'
+import { BillSearchResult } from '@/components/search/ui/SearchResultItem'
 
 // Mini Policy Radar Component
 interface MiniPolicyRadarProps {
