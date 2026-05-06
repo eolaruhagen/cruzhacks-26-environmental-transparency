@@ -1,8 +1,7 @@
 "use client"
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
 import { kmeans } from 'ml-kmeans';
-import { RadarBill, BillWithScores, Subcategory, Cluster } from '@/lib/types';
+import { BillWithScores, Subcategory, Cluster } from '@/lib/types';
 
 // Polar Scatter Chart Component
 interface PolarScatterChartProps {
@@ -858,14 +857,15 @@ function formatCategoryName(name: string): string {
         .join(' ');
 }
 
-export default function GraphClient() {
-    const [bills, setBills] = useState<BillWithScores[]>([]);
-    const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+interface GraphClientProps {
+    bills: BillWithScores[];
+    subcategories: Subcategory[];
+}
 
-    const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+export default function GraphClient({ bills, subcategories }: GraphClientProps) {
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(
+        () => Array.from(new Set(subcategories.map(s => s.bill_type))).sort()[0] ?? null
+    );
     const [showInstructions, setShowInstructions] = useState(true);
 
     // Year range filter state
@@ -876,155 +876,12 @@ export default function GraphClient() {
         setShowInstructions(false);
     };
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-
-                // 1. Fetch subcategories first
-                const { data: subcatData, error: subcatError } = await supabase
-                    .from('categories_embeddings')
-                    .select('subcategory, bill_type, embedding');
-
-                if (subcatError) throw subcatError;
-
-                const subcats = subcatData as Subcategory[];
-
-                // Helper to parse embedding
-                const parseEmbedding = (embedding: string | number[]): number[] => {
-                    if (Array.isArray(embedding)) return embedding;
-                    if (typeof embedding === 'string') {
-                        try {
-                            return JSON.parse(embedding);
-                        } catch {
-                            return [];
-                        }
-                    }
-                    return [];
-                };
-
-                // Parse subcategory embeddings
-                const parsedSubcats = subcats.map(s => ({
-                    ...s,
-                    embedding: parseEmbedding(s.embedding)
-                }));
-
-                setSubcategories(parsedSubcats);
-
-                // 2. Identify first category
-                const uniqueCategories = Array.from(new Set(subcats.map(s => s.bill_type))).sort();
-                const firstCategory = uniqueCategories.length > 0 ? uniqueCategories[0] : null;
-
-                if (!firstCategory) {
-                    setLoading(false);
-                    return;
-                }
-
-                // Set initial selection to first category
-                setSelectedCategory(firstCategory);
-
-                // 3. Fetch ONLY first category bills immediately
-                const { data: initialBillsData, error: initialError } = await supabase
-                    .from('house_bills')
-                    .select('legislation_number, category, subcategory_scores, title, url, date_of_introduction')
-                    .eq('category', firstCategory)
-                    .not('subcategory_scores', 'is', null)
-                    .limit(2000); // Generous limit for single category
-
-                if (initialError) throw initialError;
-
-                const initialBills = initialBillsData as RadarBill[];
-
-                // Process bills - now just use pre-computed scores
-                const processBills = (rawBills: RadarBill[]) => {
-                    return rawBills
-                        .filter(bill => bill.category && bill.subcategory_scores)
-                        .map((bill) => {
-                            // Extract year from date_of_introduction
-                            let introYear: number | null = null;
-                            if (bill.date_of_introduction) {
-                                const year = new Date(bill.date_of_introduction).getFullYear();
-                                if (!isNaN(year)) introYear = year;
-                            }
-                            return {
-                                legislation_number: bill.legislation_number,
-                                category: bill.category,
-                                title: bill.title || bill.legislation_number,
-                                url: bill.url || '',
-                                subcategoryScores: bill.subcategory_scores as Record<string, number>,
-                                introductionYear: introYear
-                            };
-                        });
-                };
-
-                const initialProcessed = processBills(initialBills);
-                setBills(initialProcessed);
-                setLoading(false); // Enable interaction immediately
-
-                // 4. Background fetch for the rest (everything NOT in first category)
-                setIsBackgroundLoading(true);
-
-                const fetchChunk = async (from: number, to: number) => {
-                    const { data: chunkData, error: chunkError } = await supabase
-                        .from('house_bills')
-                        .select('legislation_number, category, subcategory_scores, title, url, date_of_introduction')
-                        .neq('category', firstCategory) // Exclude what we already have
-                        .not('subcategory_scores', 'is', null)
-                        .range(from, to);
-
-                    if (chunkError) {
-                        console.error('Background fetch error:', chunkError);
-                        return false;
-                    }
-
-                    if (!chunkData || chunkData.length === 0) return false;
-
-                    const chunkBills = chunkData as RadarBill[];
-                    const processedChunk = processBills(chunkBills);
-
-                    setBills(prev => [...prev, ...processedChunk]);
-                    return true;
-                };
-
-                // Fetch in chunks of 1000
-                const CHUNK_SIZE = 1000;
-                let offset = 0;
-                let hasMore = true;
-
-                while (hasMore) {
-                    // Small delay to prevent UI freezing
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    hasMore = await fetchChunk(offset, offset + CHUNK_SIZE - 1);
-                    offset += CHUNK_SIZE;
-
-                    // Safety break
-                    if (offset > 50000) break;
-                }
-
-                setIsBackgroundLoading(false);
-
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            } catch (err: any) {
-                console.error('Fetch error:', err);
-                console.error('Error details:', JSON.stringify(err, null, 2));
-                setError(err.message || JSON.stringify(err) || 'Failed to fetch data');
-                setLoading(false);
-            }
-        }
-
-        fetchData();
-    }, []);
-
-    // Get unique categories for the dropdown
-    // Get unique categories for the dropdown (combine from loaded bills and known subcategories to ensure complete list)
     const categories = Array.from(new Set(subcategories.map(s => s.bill_type))).sort();
 
-    // Filter bills by selected category
     const categoryFilteredBills = selectedCategory
         ? bills.filter(b => b.category === selectedCategory)
         : bills;
 
-    // Calculate min/max years from all loaded bills (only once when bills change)
     const yearBounds = useMemo(() => {
         const years = bills
             .map(b => b.introductionYear)
@@ -1033,31 +890,19 @@ export default function GraphClient() {
         return { min: Math.min(...years), max: Math.max(...years) };
     }, [bills]);
 
-    // Update yearRange when bounds change
     useEffect(() => {
         setYearRange([yearBounds.min, yearBounds.max]);
         setSelectedYearRange([yearBounds.min, yearBounds.max]);
     }, [yearBounds]);
 
-    // Filter bills by selected year range
     const filteredBills = categoryFilteredBills.filter(b => {
-        if (b.introductionYear === null) return true; // Include bills without date
+        if (b.introductionYear === null) return true;
         return b.introductionYear >= selectedYearRange[0] && b.introductionYear <= selectedYearRange[1];
     });
 
-    // Get subcategories for selected category
-    // Get subcategories for selected category OR all subcategories if All is selected
     const categorySubcats = selectedCategory
         ? subcategories.filter(s => s.bill_type === selectedCategory)
-        : subcategories; // Use ALL subcategories when showing all bills
-
-    if (loading) {
-        return <div className="p-4">Loading bills and subcategories...</div>;
-    }
-
-    if (error) {
-        return <div className="p-4 text-red-500">Error: {error}</div>;
-    }
+        : subcategories;
 
     return (
         <div className="p-3 md:p-6 max-w-7xl mx-auto overflow-x-hidden">
@@ -1067,11 +912,6 @@ export default function GraphClient() {
                     <h1 className="text-2xl md:text-3xl font-bold text-main">Policy Radar</h1>
                     <p className="text-light text-sm md:text-base mt-1 font-mono">Visualize environmental legislation by policy area</p>
                 </div>
-                {isBackgroundLoading && (
-                    <div className="text-sm text-accent animate-pulse wf-badge">
-                        Loading more bills... ({bills.length} loaded)
-                    </div>
-                )}
             </div>
 
             <div className="flex flex-col md:flex-row gap-4 md:gap-6">
