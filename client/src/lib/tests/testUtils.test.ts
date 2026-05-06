@@ -1,6 +1,6 @@
 import { describe, test } from "node:test"
 import assert from "node:assert"
-import { formatTzDate } from "./utils"
+import { formatTzDate } from "../utils"
 
 describe("formatTzDate", () => {
     test("should return 'Today' for dates within the last 24 hours", () => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react"
+import { useState } from "react"
 
 export interface DiscreteFilter<K extends React.Key> {
     type: 'discrete'
@@ -69,135 +69,44 @@ export type SearchModalCountFn<K extends React.Key> = (
     filters: SearchModalFilter<K>[],
 ) => Promise<number>
 
-export interface SearchModalHandle {
-    loadNextPage: () => void
+export interface SearchModalProps<K extends React.Key> {
+    /** Current filter list (state owned by the caller — usually via useSearchModal). */
+    activeFilters: SearchModalFilter<K>[]
+    /** Current sort options array, including each option's remembered direction. */
+    sortState: SearchModalSortOption[]
+    /** Key of the currently-active sort option. */
+    activeSortKey: string
+    /** Replace one filter (matched by key) with a new value. */
+    onFilterUpdate: (key: string, value: SearchModalFilter<K>) => void
+    /** Inactive option key → activate; active option key → flip its direction. */
+    onSortClick: (key: string) => void
 }
 
 
-export interface SearchModalProps<T, K extends React.Key> {
-    filters: SearchModalFilter<K>[]
-    /** At least one sort option must be provided — the tuple type enforces this at compile time. */
-    sortOptions: [SearchModalSortOption, ...SearchModalSortOption[]]
-    /** Key of the sort option to start active. If omitted (or no match), defaults to sortOptions[0]. */
-    defaultSortKey?: string
-    queryFn: SearchModalQueryFn<T, K>
-    /** Optional async count of total matching rows. Runs separately from page fetches
-     *  so initial results show fast; count arrives later. Re-runs on filter/sort change. */
-    countQueryFn?: SearchModalCountFn<K>
-    /** append=false for fresh queries (filter/sort changed), append=true for pagination. */
-    setResults: (results: T[], append: boolean) => void
-    /** null while loading; the count when it resolves. */
-    setTotalCount?: (count: number | null) => void
-}
-
-
-function SearchModalInner<T, K extends React.Key>(
-    {
-        filters,
-        sortOptions,
-        defaultSortKey,
-        queryFn,
-        countQueryFn,
-        setResults,
-        setTotalCount,
-    }: SearchModalProps<T, K>,
-    ref: React.ForwardedRef<SearchModalHandle>,
-) {
-    const [activeFilters, setActiveFilters] = useState<SearchModalFilter<K>[]>(filters)
-
-    // The component owns the sort options' direction state after mount — caller-provided
-    // direction is the initial value only. This is how clicking an active option flips
-    // its direction without losing other options' remembered directions.
-    const [sortState, setSortState] = useState<SearchModalSortOption[]>(() => sortOptions.map(o => ({ ...o })))
-
-    // Resolve initial active key: caller-specified if it matches an option, else first.
-    const initialSortKey =
-        defaultSortKey && sortOptions.some((s) => s.key === defaultSortKey)
-            ? defaultSortKey
-            : sortOptions[0].key
-    const [activeSortKey, setActiveSortKey] = useState<string>(initialSortKey)
-    const activeSort = sortState.find((s) => s.key === activeSortKey) ?? sortState[0]
-
-    const updateFilter = useCallback((key: string, value: SearchModalFilter<K>) => {
-        setActiveFilters((prev) => prev.map((f) => (f.key === key ? value : f)))
-    }, [])
-
-    // Click semantics: clicking an inactive option activates it (with its current
-    // remembered direction); clicking the active option flips its direction.
-    const handleSortClick = useCallback((key: string) => {
-        if (key === activeSortKey) {
-            setSortState(prev => prev.map(s =>
-                s.key === key
-                    ? { ...s, direction: s.direction === 'asc' ? 'desc' : 'asc' }
-                    : s
-            ))
-        } else {
-            setActiveSortKey(key)
-        }
-    }, [activeSortKey])
-
-    // Pagination state. nextCursor is the cursor for the NEXT page; null = "next is the first page".
-    const [nextCursor, setNextCursor] = useState<string | null>(null)
-    const [isFetchingPage, setIsFetchingPage] = useState(false)
-
-    // Debounced first-page fetch + count: waits 300ms after last filter or sort change, discards stale results
-    useEffect(() => {
-        let stale = false;
-        const timeout = setTimeout(() => {
-            // Reset cursor — we're fetching the first page.
-            setNextCursor(null)
-            queryFn(activeFilters, activeSort, null).then(result => {
-                if (!stale) {
-                    setResults(result.items, false)
-                    setNextCursor(result.nextCursor ?? null)
-                }
-            })
-            if (countQueryFn) {
-                setTotalCount?.(null)
-                countQueryFn(activeFilters).then(c => {
-                    if (!stale) setTotalCount?.(c)
-                })
-            }
-        }, 300)
-        return () => {
-            stale = true;
-            clearTimeout(timeout);
-        }
-    }, [activeFilters, activeSort, queryFn, countQueryFn, setResults, setTotalCount])
-
-    const loadNextPage = useCallback(() => {
-        if (!nextCursor || isFetchingPage) return
-        setIsFetchingPage(true)
-        queryFn(activeFilters, activeSort, nextCursor).then(result => {
-            setResults(result.items, true)
-            setNextCursor(result.nextCursor ?? null)
-            setIsFetchingPage(false)
-        })
-    }, [nextCursor, isFetchingPage, activeFilters, activeSort, queryFn, setResults])
-
-    useImperativeHandle(ref, () => ({ loadNextPage }), [loadNextPage])
-
+export function SearchModal<K extends React.Key>({
+    activeFilters,
+    sortState,
+    activeSortKey,
+    onFilterUpdate,
+    onSortClick,
+}: SearchModalProps<K>) {
     // Track whether we've seen the first non-text filter to default it open
     let firstNonTextSeen = false
 
     return (
         <div className="wf-section space-y-6">
-            <SortBar options={sortState} activeKey={activeSortKey} onClick={handleSortClick} />
+            <SortBar options={sortState} activeKey={activeSortKey} onClick={onSortClick} />
             {activeFilters.map((filter) => {
                 let defaultOpen = true
                 if (filter.type !== 'text' && !firstNonTextSeen) {
                     defaultOpen = true
                     firstNonTextSeen = true
                 }
-                return <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={updateFilter} defaultOpen={defaultOpen} />
+                return <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={onFilterUpdate} defaultOpen={defaultOpen} />
             })}
         </div>
     )
 }
-
-export const SearchModal = forwardRef(SearchModalInner) as <T, K extends React.Key>(
-    props: SearchModalProps<T, K> & { ref?: React.Ref<SearchModalHandle> }
-) => React.ReactElement
 
 
 /** Sort selector — visually distinct from filter UI: always-visible row at the top
@@ -237,26 +146,6 @@ function SortBar({
                 })}
             </div>
         </div>
-    )
-}
-
-function SortDirectionIcon({ direction, dimmed = false }: { direction: SortOptionDirection, dimmed?: boolean }) {
-    // chevron-up for ascending, chevron-down for descending; dimmed for inactive options
-    return (
-        <svg
-            className={`w-3 h-3 ${dimmed ? 'opacity-50' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
-        >
-            <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2.5}
-                d={direction === 'asc' ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'}
-            />
-        </svg>
     )
 }
 

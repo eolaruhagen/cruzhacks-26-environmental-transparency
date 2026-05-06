@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { SearchModal, type SearchModalFilter } from '@/components/search/SearchModal'
-import { SearchCardShell, BillSearchResult, ArticleSearchResult } from '@/components/search/SearchResultItem'
-import type { BillSearchResultProps, ArticleSearchResultProps } from '@/components/search/SearchResultItem'
+import { SearchModal, type SearchModalFilter } from '@/components/search/ui/SearchModal'
+import { useSearchModal } from '@/components/search/hooks/useSearchModal'
+import { SearchCardShell, BillSearchResult, ArticleSearchResult } from '@/components/search/ui/SearchResultItem'
+import type { BillSearchResultProps, ArticleSearchResultProps } from '@/components/search/ui/SearchResultItem'
 
 // --- Test data ---
 
@@ -41,6 +42,25 @@ const testArticle: ArticleSearchResultProps = {
         associated_bills: null,
         associated_representatives: ['Rep. Johnson, Maria'],
     }
+}
+
+// Demo wrapper: drives the presentational SearchModal via the hook so the test
+// page stays a one-line render and the hook's behavior is exercised here too.
+function SearchModalDemo({ filters }: { filters: SearchModalFilter<string>[] }) {
+    const { activeFilters, sortState, activeSortKey, updateFilter, handleSortClick } = useSearchModal<unknown, string>({
+        filters,
+        sortOptions: [{ key: 'date', label: 'Newest first', direction: 'desc' }],
+        queryFn: async () => ({ items: [], nextCursor: null }),
+    })
+    return (
+        <SearchModal
+            activeFilters={activeFilters}
+            sortState={sortState}
+            activeSortKey={activeSortKey}
+            onFilterUpdate={updateFilter}
+            onSortClick={handleSortClick}
+        />
+    )
 }
 
 // --- Test page ---
@@ -140,12 +160,7 @@ export default function TestPage() {
                 </div>
 
                 {/* Search Modal */}
-                <SearchModal
-                    filters={filters}
-                    sortOptions={[{ key: 'date', label: 'Newest first', direction: 'desc' }]}
-                    queryFn={async () => ({ items: [], nextCursor: null })}
-                    setResults={() => { }}
-                />
+                <SearchModalDemo filters={filters} />
 
                 {/* Divider */}
                 <div className="wf-divider" />

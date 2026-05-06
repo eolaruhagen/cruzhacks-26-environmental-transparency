@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase"
 import { useCallback, useEffect, useState } from "react"
-import { Database } from "../../../../supabase/functions/database.types"
+import { Database } from "../../../../../supabase/functions/database.types"
 import { Bill, BillType } from "@/lib/types"
 import { formatBillCategory, formatTzDate } from "@/lib/utils"
 
