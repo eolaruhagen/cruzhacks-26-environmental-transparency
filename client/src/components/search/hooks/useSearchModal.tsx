@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
     SearchModalCountFn,
     SearchModalFilter,
@@ -14,13 +14,27 @@ export interface UseSearchModalOptions<T, K extends React.Key> {
     countQueryFn?: SearchModalCountFn<K>
 }
 
+// doesnt need to extend react key here only the searchmodal needs it for indexing instances of
+// the searchmodal filter component
+export interface UseSearchModalResult<T, K extends React.Key> {
+    activeFilters: SearchModalFilter<K>[]
+    sortState: SearchModalSortOption[]
+    activeSortKey: string
+    updateFilter: (key: string, value: SearchModalFilter<K>) => void
+    handleSortClick: (key: string) => void
+    results: T[]
+    totalCount: number | null
+    isLoading: boolean
+    loadNextPage: () => void
+}
+
 export function useSearchModal<T, K extends React.Key>({
     filters,
     sortOptions,
     defaultSortKey,
     queryFn,
     countQueryFn,
-}: UseSearchModalOptions<T, K>) {
+}: UseSearchModalOptions<T, K>): UseSearchModalResult<T, K> {
     const [activeFilters, setActiveFilters] = useState<SearchModalFilter<K>[]>(filters)
 
     // Hook owns the sort options' direction state after mount — caller-provided
@@ -62,9 +76,16 @@ export function useSearchModal<T, K extends React.Key>({
     const [isFetchingPage, setIsFetchingPage] = useState(false)
 
     // Debounced first-page fetch + count: waits 300ms after last filter/sort change, discards stale results.
+    const abortController = useRef<AbortController | null>(null)
+
     useEffect(() => {
         let stale = false
         const timeout = setTimeout(() => {
+            // abort the controller -> the signal is going to be read by loadNextPage
+            // prevents pageLoads finishing when filters/sort have changed
+            abortController.current?.abort()
+            const controller = new AbortController()
+            abortController.current = controller
             setNextCursor(null)
             setIsLoading(true)
             queryFn(activeFilters, activeSort, null).then(result => {
@@ -87,9 +108,15 @@ export function useSearchModal<T, K extends React.Key>({
     }, [activeFilters, activeSort, queryFn, countQueryFn])
 
     const loadNextPage = useCallback(() => {
+        // get handle to current signal in the ref
+        const currentSignal = abortController.current?.signal
         if (!nextCursor || isFetchingPage) return
         setIsFetchingPage(true)
         queryFn(activeFilters, activeSort, nextCursor).then(result => {
+            if (currentSignal?.aborted) {
+                setIsFetchingPage(false)
+                return
+            }
             setResults(prev => [...prev, ...result.items])
             setNextCursor(result.nextCursor ?? null)
             setIsFetchingPage(false)
@@ -110,3 +137,4 @@ export function useSearchModal<T, K extends React.Key>({
         loadNextPage,
     }
 }
+

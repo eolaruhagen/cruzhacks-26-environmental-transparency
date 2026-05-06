@@ -1,7 +1,8 @@
 {
   "devDependencies": {
     "@types/node": "^25.6.0",
-    "shadcn": "^3.7.0"
+    "shadcn": "^3.7.0",
+    "typescript": "^6.0.3"
   },
   "dependencies": {
     "recharts": "^3.6.0",
