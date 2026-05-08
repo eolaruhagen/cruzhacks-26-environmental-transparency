@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
   public: {
     Tables: {
       article_details: {
@@ -227,6 +222,33 @@ export type Database = {
         }
         Relationships: []
       }
+      congress_sync_state_new: {
+        Row: {
+          api_rate_limit_reset_at: string | null
+          created_at: string
+          id: number
+          last_error: string | null
+          last_sync_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_rate_limit_reset_at?: string | null
+          created_at?: string
+          id: number
+          last_error?: string | null
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_rate_limit_reset_at?: string | null
+          created_at?: string
+          id?: number
+          last_error?: string | null
+          last_sync_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       house_bills: {
         Row: {
           bill_policy_area: string | null
@@ -314,6 +336,119 @@ export type Database = {
         }
         Relationships: []
       }
+      house_bills_2: {
+        Row: {
+          bill_number: number
+          bill_policy_area: string | null
+          bill_text: string | null
+          bill_type: Database["public"]["Enums"]["legislation_type"]
+          category: Database["public"]["Enums"]["bill_type"] | null
+          committees: string[]
+          congress: number
+          congress_end_year: number
+          congress_start_year: number
+          congress_update_date: string | null
+          congress_update_date_including_text: string | null
+          cosponsor_bioguide_ids: string[]
+          created_at: string
+          date_of_introduction: string | null
+          embedding: unknown
+          id: string
+          is_law: boolean
+          latest_action: string | null
+          latest_action_code: string | null
+          latest_action_date: string | null
+          latest_action_type: string | null
+          latest_summary: string | null
+          law_number: string | null
+          law_type: string | null
+          num_cosponsors: number
+          origin_chamber: Database["public"]["Enums"]["chamber"]
+          sponsor_bioguide_id: string | null
+          subcategory_scores: Json | null
+          subject_terms: string[]
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          bill_number: number
+          bill_policy_area?: string | null
+          bill_text?: string | null
+          bill_type: Database["public"]["Enums"]["legislation_type"]
+          category?: Database["public"]["Enums"]["bill_type"] | null
+          committees?: string[]
+          congress: number
+          congress_end_year: number
+          congress_start_year: number
+          congress_update_date?: string | null
+          congress_update_date_including_text?: string | null
+          cosponsor_bioguide_ids?: string[]
+          created_at?: string
+          date_of_introduction?: string | null
+          embedding?: unknown
+          id?: string
+          is_law?: boolean
+          latest_action?: string | null
+          latest_action_code?: string | null
+          latest_action_date?: string | null
+          latest_action_type?: string | null
+          latest_summary?: string | null
+          law_number?: string | null
+          law_type?: string | null
+          num_cosponsors?: number
+          origin_chamber: Database["public"]["Enums"]["chamber"]
+          sponsor_bioguide_id?: string | null
+          subcategory_scores?: Json | null
+          subject_terms?: string[]
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          bill_number?: number
+          bill_policy_area?: string | null
+          bill_text?: string | null
+          bill_type?: Database["public"]["Enums"]["legislation_type"]
+          category?: Database["public"]["Enums"]["bill_type"] | null
+          committees?: string[]
+          congress?: number
+          congress_end_year?: number
+          congress_start_year?: number
+          congress_update_date?: string | null
+          congress_update_date_including_text?: string | null
+          cosponsor_bioguide_ids?: string[]
+          created_at?: string
+          date_of_introduction?: string | null
+          embedding?: unknown
+          id?: string
+          is_law?: boolean
+          latest_action?: string | null
+          latest_action_code?: string | null
+          latest_action_date?: string | null
+          latest_action_type?: string | null
+          latest_summary?: string | null
+          law_number?: string | null
+          law_type?: string | null
+          num_cosponsors?: number
+          origin_chamber?: Database["public"]["Enums"]["chamber"]
+          sponsor_bioguide_id?: string | null
+          subcategory_scores?: Json | null
+          subject_terms?: string[]
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "house_bills_2_sponsor_bioguide_id_fkey"
+            columns: ["sponsor_bioguide_id"]
+            isOneToOne: false
+            referencedRelation: "representatives"
+            referencedColumns: ["bioguide_id"]
+          },
+        ]
+      }
       incomplete_bills: {
         Row: {
           bill_policy_area: string | null
@@ -377,6 +512,80 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           url?: string | null
+        }
+        Relationships: []
+      }
+      representatives: {
+        Row: {
+          bioguide_id: string
+          created_at: string
+          district: number | null
+          first_name: string | null
+          is_active: boolean
+          last_name: string | null
+          last_seen_in_congress: number | null
+          middle_name: string | null
+          party: Database["public"]["Enums"]["party"] | null
+          role: Database["public"]["Enums"]["chamber"]
+          state: string | null
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          bioguide_id: string
+          created_at?: string
+          district?: number | null
+          first_name?: string | null
+          is_active?: boolean
+          last_name?: string | null
+          last_seen_in_congress?: number | null
+          middle_name?: string | null
+          party?: Database["public"]["Enums"]["party"] | null
+          role: Database["public"]["Enums"]["chamber"]
+          state?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          bioguide_id?: string
+          created_at?: string
+          district?: number | null
+          first_name?: string | null
+          is_active?: boolean
+          last_name?: string | null
+          last_seen_in_congress?: number | null
+          middle_name?: string | null
+          party?: Database["public"]["Enums"]["party"] | null
+          role?: Database["public"]["Enums"]["chamber"]
+          state?: string | null
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "representatives_state_fkey"
+            columns: ["state"]
+            isOneToOne: false
+            referencedRelation: "states"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      states: {
+        Row: {
+          code: string
+          kind: string
+          name: string
+        }
+        Insert: {
+          code: string
+          kind: string
+          name: string
+        }
+        Update: {
+          code?: string
+          kind?: string
+          name?: string
         }
         Relationships: []
       }
@@ -471,43 +680,6 @@ export type Database = {
         Args: { msgs: Json[]; queue_name: string }
         Returns: number[]
       }
-      search_cosponsored_bills: {
-        Args: { cosponsor_name: string; max_results?: number }
-        Returns: {
-          bill_policy_area: string | null
-          bill_text: string
-          category: Database["public"]["Enums"]["bill_type"] | null
-          committees: string | null
-          congress: string
-          congress_number: number
-          congress_years: number[]
-          cosponsors: string[] | null
-          created_at: string
-          date_of_introduction: string | null
-          embedding: unknown
-          id: string
-          latest_action: string
-          latest_action_date: string | null
-          latest_summary: string | null
-          latest_tracker_stage: string
-          legislation_number: string
-          num_cosponsors: number | null
-          party_of_sponsor: string
-          sponsor: string
-          subcategory_scores: Json | null
-          subject_terms: string[] | null
-          title: string
-          updated_at: string
-          updated_category: Database["public"]["Enums"]["bill_type"] | null
-          url: string
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "house_bills"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       trigger_next_step_internal: {
         Args: {
           p_function_name: string
@@ -539,7 +711,18 @@ export type Database = {
         | "disaster_and_emergency"
         | "climate_and_emissions"
         | "justice_and_environment"
+      chamber: "House" | "Senate" | "Joint"
       impact_level: "local" | "state" | "national" | "international"
+      legislation_type:
+        | "HR"
+        | "S"
+        | "HJRES"
+        | "SJRES"
+        | "HCONRES"
+        | "SCONRES"
+        | "HRES"
+        | "SRES"
+      party: "Democrat" | "Republican" | "Independent"
     }
     CompositeTypes: {
       bill_reference: {
@@ -681,7 +864,20 @@ export const Constants = {
         "climate_and_emissions",
         "justice_and_environment",
       ],
+      chamber: ["House", "Senate", "Joint"],
       impact_level: ["local", "state", "national", "international"],
+      legislation_type: [
+        "HR",
+        "S",
+        "HJRES",
+        "SJRES",
+        "HCONRES",
+        "SCONRES",
+        "HRES",
+        "SRES",
+      ],
+      party: ["Democrat", "Republican", "Independent"],
     },
   },
 } as const
+

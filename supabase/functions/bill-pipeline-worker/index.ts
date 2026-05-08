@@ -1,7 +1,7 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { z } from "zod";
 import { DiscordSink, ObservabilityProvider } from "../lib/shared/index.ts";
-import { authenticateInvokaction } from "../lib/local/pgmq-interactions.ts";
+import { authenticateRequest } from "../lib/local/auth.ts";
 
 // ---------------------------------------------------------------------------
 // Request body schema
@@ -63,9 +63,7 @@ Deno.serve(async (req: Request) => {
     // Auth gate — first thing. Cron sends Authorization: Bearer <SECRET_API_KEY>
     // and so does any trusted manual caller. Anyone hitting this endpoint with
     // just the publishable/anon key gets 401 here.
-    const envSecretKey = Deno.env.get("SECRET_API_KEY") ?? "";
-    const passedSecretKey = (req.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-    const authError = authenticateInvokaction(envSecretKey, passedSecretKey);
+    const authError = authenticateRequest(req, Deno.env.get("SECRET_API_KEY") ?? "");
     if (authError) return authError;
 
     const invocation: Invocation = InvocationSchema.parse(await req.json());
