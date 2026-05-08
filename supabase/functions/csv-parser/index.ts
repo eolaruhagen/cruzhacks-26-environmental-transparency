@@ -25,6 +25,11 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../database.types.ts";
+import {
+  parseCSVLine,
+  parseCongressNumber,
+  parseLegislationNumber,
+} from "../lib/local/csv-parse.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,59 +48,6 @@ interface BillForCategorization {
   committees: string;
   latestAction: string;
   summary?: string; // Only included if available (~48% of bills have this)
-}
-
-/**
- * Parse "Legislation Number" to extract bill type and number
- * e.g., "H.R. 5861" -> { billType: "H.R.", billNumber: "5861" }
- * e.g., "S. 1234" -> { billType: "S.", billNumber: "1234" }
- * e.g., "H.J.Res. 138" -> { billType: "H.J.Res.", billNumber: "138" }
- */
-function parseLegislationNumber(legNum: string): { billType: string; billNumber: string } | null {
-  if (!legNum) return null;
-
-  // Match patterns like "H.R. 5861", "S. 1234", "H.J.Res. 138", "S.Con.Res. 5", etc.
-  const match = legNum.match(/^([A-Z][A-Za-z.]*\.(?:\s*[A-Za-z]+\.)*)\s*(\d+)$/i);
-  if (match) {
-    return {
-      billType: match[1].trim(),
-      billNumber: match[2],
-    };
-  }
-  return null;
-}
-
-/**
- * Parse "Congress" column to extract congress number
- * e.g., "113th Congress (2013-2014)" -> "113"
- */
-function parseCongressNumber(congress: string): string | null {
-  if (!congress) return null;
-  const match = congress.match(/^(\d+)/);
-  return match ? match[1] : null;
-}
-
-/**
- * Parse CSV string handling quoted values
- */
-function parseCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === "," && !inQuotes) {
-      result.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current);
-  return result;
 }
 
 Deno.serve(async (req: Request) => {

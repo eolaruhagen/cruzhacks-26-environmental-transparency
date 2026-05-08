@@ -1,16 +1,48 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { z } from "zod";
-import { DiscordSink, ObservabilityProvider } from "../lib/shared/index.ts";
+import {
+    type BillListResponse,
+    CongressClient,
+    DiscordSink,
+    ObservabilityProvider,
+} from "../lib/shared/index.ts";
 import { supabase } from "../lib/local/supabase-client.ts";
-import { authenticateRequest } from "../lib/local/auth.ts";
+import { runEdgeInvocation } from "../lib/local/edge-invocation.ts";
+import {
+    type HouseBillQueueMessage,
+    PgmqInteraction,
+} from "../lib/local/pgmq-interactions.ts";
+import { CongressSyncStateClient } from "../lib/local/congress-sync-state.ts";
+import { csvBillSource, type CsvSource } from "../lib/local/csv-bill-source.ts";
+import { isRunningLow } from "../lib/local/time-budget.ts";
+import { selfInvoke } from "../lib/local/self-chain.ts";
 
+// ---------------------------------------------------------------------------
+// Body schema
+// ---------------------------------------------------------------------------
+// Manual mode: caller picks `source` (api or csv). CSV mode is one-shot —
+// the function processes whatever fits in the time budget and exits, no
+// self-chain (the bulk CSV is a finite file; a re-run continues from where
+// it left off only if the caller passes a fresh offset).
+//
+// API mode (also the default for scheduled cron): self-chains via `nextUrl`
+// when the time budget runs low, so a wide cursor doesn't drop bills.
 
-const InvocationSchema = z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("manual"), reason: z.string() }),
-    z.object({ kind: z.literal("scheduled") }),
+const SyncBillsInvocationSchema = z.discriminatedUnion("kind", [
+    z.object({
+        kind: z.literal("manual"),
+        reason: z.string(),
+        source: z.enum(["api", "csv"]).default("api"),
+        nextUrl: z.string().url().optional(),
+    }),
+    z.object({
+        kind: z.literal("scheduled"),
+        nextUrl: z.string().url().optional(),
+    }),
 ]);
-type Invocation = z.infer<typeof InvocationSchema>;
 
+const BATCH_SIZE = 250;
+const RATE_LIMIT_FALLBACK_MS = 60 * 60 * 1000; // 1 hour rolling window
 
 function getDiscordSink(): DiscordSink {
     const webhookUrl = Deno.env.get("DISCORD_WEBHOOK_URL");
@@ -18,50 +50,180 @@ function getDiscordSink(): DiscordSink {
     return new DiscordSink({ webhookUrl, username: "sync-bills-new" });
 }
 
-Deno.serve(async (req: Request) => {
-    // Auth gate — first thing. Cron sends Authorization: Bearer <SECRET_API_KEY>
-    // and so does any trusted manual caller. Anyone hitting this endpoint with
-    // just the publishable/anon key gets 401 here, before observability spins
-    // up, so bad-auth attempts don't pollute Discord.
-    const authError = authenticateRequest(req, Deno.env.get("SECRET_API_KEY") ?? "");
-    if (authError) return authError;
+function billListItemToMessage(
+    item: BillListResponse["bills"][number],
+): HouseBillQueueMessage | null {
+    // Filter out items that don't carry the natural key. Rare but seen in
+    // the wild when the API returns a stub during data refreshes.
+    const congress = item.congress;
+    const billType = item.type;
+    const number = typeof item.number === "number" ? String(item.number) : item.number;
+    if (!congress || !billType || !number) return null;
+    return {
+        congress,
+        bill_type: billType,
+        bill_number: number,
+    };
+}
 
-    // ObservabilityProvider holds the list of sinks. withSession constructs a
-    // Session, runs the callback, and emits "completed" on success or "failed"
-    // on throw — then rethrows so the caller knows the work didn't finish.
+function makeStorageCsvSource(bucket: string, fileName: string): CsvSource {
+    return {
+        readText: async () => {
+            const { data, error } = await supabase.storage.from(bucket).download(fileName);
+            if (error) {
+                throw new Error(
+                    `[sync-bills-new] CSV download failed (bucket=${bucket}, file=${fileName}): ${error.message}`,
+                );
+            }
+            return await data.text();
+        },
+    };
+}
+
+Deno.serve(async (req: Request) => {
+    const startedAt = Date.now();
+    const envSecretKey = Deno.env.get("SECRET_API_KEY") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const congressApiKey = Deno.env.get("CONGRESS_API_KEY") ?? "";
+    if (!congressApiKey) throw new Error("Missing CONGRESS_API_KEY env var");
+
+    const gate = await runEdgeInvocation({
+        req,
+        envSecretKey,
+        schema: SyncBillsInvocationSchema,
+    });
+    if (gate.kind === "deny") return gate.response;
+    const invocation = gate.invocation;
+
     const obs = new ObservabilityProvider([getDiscordSink()]);
 
     try {
         await obs.withSession("sync-bills-new", async (session) => {
-            // Stage the parse step BEFORE awaiting req.json(). If the body is
-            // malformed or the schema rejects it, the failed-event Discord
-            // embed will say "stage: parse-request" so the cause is obvious.
-            session.stage("parse-request");
-            const invocation: Invocation = InvocationSchema.parse(await req.json());
-
-            // First log: stdout marker showing how the function was invoked.
-            console.log(
-                `[sync-bills-new] invoked: ${invocation.kind}` +
-                    (invocation.kind === "manual" ? ` (reason: ${invocation.reason})` : ""),
-            );
-
-            // session.set(key, value) stashes context that lands in the
-            // SessionEvent.fields object DiscordSink renders as embed fields.
             session.set("invocation_kind", invocation.kind);
-            if (invocation.kind === "manual") {
-                session.set("manual_reason", invocation.reason);
+            const source = invocation.kind === "manual" ? invocation.source : "api";
+            session.set("source", source);
+            if (invocation.kind === "manual") session.set("manual_reason", invocation.reason);
+            if (invocation.nextUrl) session.set("next_url", invocation.nextUrl);
+
+            session.stage("read-sync-state");
+            const syncStateClient = CongressSyncStateClient.fromSupabase(supabase);
+            const state = await syncStateClient.read();
+
+            // Rate-limit gate. If the previous run set api_rate_limit_reset_at
+            // in the future, we sit out until that timestamp passes.
+            if (
+                state.api_rate_limit_reset_at &&
+                new Date(state.api_rate_limit_reset_at).getTime() > Date.now()
+            ) {
+                session.set("skipped_reason", "rate_limited_until_" + state.api_rate_limit_reset_at);
+                console.log(
+                    `[sync-bills-new] api_rate_limit_reset_at=${state.api_rate_limit_reset_at} > now, skipping`,
+                );
+                return;
             }
 
-            session.stage("placeholder");
-            // ... actual work goes here ...
+            const queue = new PgmqInteraction("house_bills_queue_new", supabase);
+            const congressClient = new CongressClient({ apiKey: congressApiKey });
+
+            try {
+                if (source === "csv") {
+                    session.stage("csv-stream");
+                    const bucket = Deno.env.get("CSV_BUCKET_NAME") ?? "csv-data";
+                    const fileName = Deno.env.get("KICKSTART_CSV_NAME") ?? "all_bills.csv";
+                    const csvSrc = makeStorageCsvSource(bucket, fileName);
+
+                    let buffer: HouseBillQueueMessage[] = [];
+                    let totalEnqueued = 0;
+                    let stoppedEarly = false;
+                    for await (const msg of csvBillSource(csvSrc)) {
+                        buffer.push(msg);
+                        if (buffer.length >= BATCH_SIZE) {
+                            await queue.sendBatch(buffer);
+                            totalEnqueued += buffer.length;
+                            buffer = [];
+                            if (isRunningLow(startedAt)) {
+                                stoppedEarly = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (buffer.length > 0) {
+                        await queue.sendBatch(buffer);
+                        totalEnqueued += buffer.length;
+                    }
+                    session.set("total_enqueued", String(totalEnqueued));
+                    if (stoppedEarly) session.set("stopped_early", "csv_time_budget");
+                } else {
+                    // API mode: cursor-based pagination, self-chain on time pressure.
+                    session.stage("api-stream");
+                    const fromDateTime = invocation.nextUrl
+                        ? undefined // listBillsAt uses the absolute URL
+                        : (state.last_sync_at ??
+                            new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+                    if (fromDateTime) session.set("from_date_time", fromDateTime);
+
+                    let page = invocation.nextUrl
+                        ? await congressClient.listBillsAt(invocation.nextUrl)
+                        : await congressClient.listBills({
+                            fromDateTime,
+                            limit: BATCH_SIZE,
+                            sort: "updateDate+asc",
+                        });
+
+                    let totalEnqueued = 0;
+                    while (true) {
+                        const messages = page.bills
+                            .map(billListItemToMessage)
+                            .filter((m): m is HouseBillQueueMessage => m !== null);
+                        if (messages.length > 0) {
+                            await queue.sendBatch(messages);
+                            totalEnqueued += messages.length;
+                        }
+                        const next = page.pagination?.next;
+                        if (!next) break;
+                        if (isRunningLow(startedAt)) {
+                            session.stage("self-chain");
+                            await selfInvoke({
+                                fnName: "sync-bills-new",
+                                body: { ...invocation, nextUrl: next },
+                                secretApiKey: envSecretKey,
+                                supabaseUrl,
+                            });
+                            session.set("total_enqueued", String(totalEnqueued));
+                            session.set("self_chained", "true");
+                            return; // chained invocation continues the work
+                        }
+                        page = await congressClient.listBillsAt(next);
+                    }
+                    session.set("total_enqueued", String(totalEnqueued));
+                }
+
+                // Drained cleanly — bump last_sync_at if this wasn't a continuation.
+                // For continuations (nextUrl set), the FINAL invocation in the
+                // chain is the one that drains, and only it bumps state.
+                session.stage("update-sync-state");
+                await syncStateClient.update({
+                    last_sync_at: new Date().toISOString(),
+                    last_error: null,
+                });
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                if (msg.includes("HTTP 429")) {
+                    // Rolling-hour rate-limit window — back off until then.
+                    const resetAt = new Date(Date.now() + RATE_LIMIT_FALLBACK_MS).toISOString();
+                    await syncStateClient.update({
+                        api_rate_limit_reset_at: resetAt,
+                        last_error: msg.slice(0, 500),
+                    });
+                    session.set("rate_limited_until", resetAt);
+                }
+                throw err;
+            }
         });
     } catch (_err) {
-        // error must be swallowed
+        // observability already failed the session; we just don't want to
+        // crash the runtime because that loses the discord embed.
     }
 
-
-    // from congress sync state -> must get the last update time. If null default to now
-    
-
-    return new Response();
+    return new Response("ok");
 });

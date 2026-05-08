@@ -1,41 +1,49 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { z } from "zod";
-import { DiscordSink, ObservabilityProvider } from "../lib/shared/index.ts";
-import { authenticateRequest } from "../lib/local/auth.ts";
+import { CongressClient, DiscordSink, ObservabilityProvider } from "../lib/shared/index.ts";
+import { supabase } from "../lib/local/supabase-client.ts";
+import { runEdgeInvocation } from "../lib/local/edge-invocation.ts";
+import { PgmqInteraction } from "../lib/local/pgmq-interactions.ts";
+import { CongressSyncStateClient } from "../lib/local/congress-sync-state.ts";
+import type { BillWriteBackend } from "../lib/local/bill-write.ts";
+import { processBill } from "../lib/local/process-bill.ts";
+import { mapConcurrent } from "../lib/local/concurrency.ts";
+import { isRunningLow } from "../lib/local/time-budget.ts";
+import { selfInvoke } from "../lib/local/self-chain.ts";
 
 // ---------------------------------------------------------------------------
-// Request body schema
+// Body schema
 // ---------------------------------------------------------------------------
-// Cron sends the blackout windows as part of the body (see the migration
-// supabase/migrations/20260508011159_new-house-bills-queue.sql) so they can
-// be edited live by altering the cron schedule, no redeploy needed.
-//
-// "HH:MM" is interpreted in PT (America/Los_Angeles); see isInBlackout below.
+// `invalidTimeWindows` is interpreted in PT inside isInBlackout. Format is
+// "HH:MM" (24-hour). Cron supplies the windows so they're tunable without
+// redeploy. `maxReads` is the PGMQ visibility-retry threshold — at read_ct
+// >= maxReads we archive (drop) the message and move on.
+
 const TimeWindowSchema = z.object({
     startPt: z.string().regex(/^\d{2}:\d{2}$/),
     endPt: z.string().regex(/^\d{2}:\d{2}$/),
 });
 type TimeWindow = z.infer<typeof TimeWindowSchema>;
 
-const InvocationSchema = z.discriminatedUnion("kind", [
+const WorkerInvocationSchema = z.discriminatedUnion("kind", [
     z.object({
         kind: z.literal("manual"),
         reason: z.string(),
         invalidTimeWindows: z.array(TimeWindowSchema).default([]),
+        maxReads: z.number().int().positive().default(5),
     }),
     z.object({
         kind: z.literal("scheduled"),
         invalidTimeWindows: z.array(TimeWindowSchema).default([]),
+        maxReads: z.number().int().positive().default(5),
     }),
 ]);
-type Invocation = z.infer<typeof InvocationSchema>;
 
-// ---------------------------------------------------------------------------
-// Blackout check
-// ---------------------------------------------------------------------------
-// Returns true if the current PT clock-time falls inside any of the windows.
-// Using `Intl.DateTimeFormat` with the `America/Los_Angeles` timeZone keeps
-// this DST-correct year-round — no UTC math required at the call site.
+const QUEUE_BATCH_SIZE = 20;
+const VISIBILITY_TIMEOUT_SEC = 300;
+const PER_BATCH_CONCURRENCY = 10;
+const RATE_LIMIT_FALLBACK_MS = 60 * 60 * 1000;
+
 function isInBlackout(windows: TimeWindow[]): boolean {
     if (windows.length === 0) return false;
     const fmt = new Intl.DateTimeFormat("en-US", {
@@ -59,44 +67,157 @@ function getDiscordSink(): DiscordSink {
     return new DiscordSink({ webhookUrl, username: "bill-pipeline-worker" });
 }
 
+function makeBillWriteBackend(): BillWriteBackend {
+    return {
+        upsertRepresentatives: async (reps) => {
+            const result = await supabase
+                .from("representatives")
+                .upsert(reps, { onConflict: "bioguide_id" });
+            return { error: result.error };
+        },
+        upsertHouseBill: async (bill) => {
+            const result = await supabase
+                .from("house_bills_2")
+                .upsert(bill, { onConflict: "congress,bill_type,bill_number" });
+            return { error: result.error };
+        },
+    };
+}
+
 Deno.serve(async (req: Request) => {
-    // Auth gate — first thing. Cron sends Authorization: Bearer <SECRET_API_KEY>
-    // and so does any trusted manual caller. Anyone hitting this endpoint with
-    // just the publishable/anon key gets 401 here.
-    const authError = authenticateRequest(req, Deno.env.get("SECRET_API_KEY") ?? "");
-    if (authError) return authError;
+    const startedAt = Date.now();
+    const envSecretKey = Deno.env.get("SECRET_API_KEY") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const congressApiKey = Deno.env.get("CONGRESS_API_KEY") ?? "";
+    if (!congressApiKey) throw new Error("Missing CONGRESS_API_KEY env var");
 
-    const invocation: Invocation = InvocationSchema.parse(await req.json());
-    console.log(`[bill-pipeline-worker] invoked: ${invocation.kind}`);
+    const gate = await runEdgeInvocation({
+        req,
+        envSecretKey,
+        schema: WorkerInvocationSchema,
+    });
+    if (gate.kind === "deny") return gate.response;
+    const invocation = gate.invocation;
 
-    // Blackout applies to BOTH manual and scheduled invocations. The constraint
-    // ("don't hit Congress API during the daily sync or the existing prod
-    // pipeline's heavy windows") is global — a manual override shouldn't bypass
-    // it. Skip silently (console-only); don't spam Discord with skip events.
+    // Blackout — skip silently (no Discord noise on routine skips).
     if (isInBlackout(invocation.invalidTimeWindows)) {
-        console.log(
-            `[bill-pipeline-worker] in blackout window, skipping (PT now)`,
-        );
+        console.log("[bill-pipeline-worker] in blackout window, skipping");
         return new Response("skipped: blackout", { status: 200 });
     }
 
-    // TODO: also check congress_sync_state.api_rate_limit_reset_time once
-    // that column exists. If now() < reset_time, the daily Congress API
-    // limit is exhausted — return early without doing the work.
+    // Pre-check rate-limit gate before spinning up observability so we don't
+    // emit a "session_started" Discord embed for a no-op skip.
+    const syncStateClient = CongressSyncStateClient.fromSupabase(supabase);
+    const state = await syncStateClient.read();
+    if (
+        state.api_rate_limit_reset_at &&
+        new Date(state.api_rate_limit_reset_at).getTime() > Date.now()
+    ) {
+        console.log(
+            `[bill-pipeline-worker] api_rate_limit_reset_at=${state.api_rate_limit_reset_at} > now, skipping`,
+        );
+        return new Response("skipped: rate-limited", { status: 200 });
+    }
 
     const obs = new ObservabilityProvider([getDiscordSink()]);
-    await obs.withSession("bill-pipeline-worker", async (session) => {
-        session.set("invocation_kind", invocation.kind);
-        if (invocation.kind === "manual") {
-            session.set("manual_reason", invocation.reason);
-        }
 
-        session.stage("placeholder");
-        // TODO: pop K messages from house_bills_queue_new
-        // TODO: for each, fetch bill data via CongressClient (parallel)
-        // TODO: upsert reps + bill in a transaction
-        // TODO: archive PGMQ messages on success
-    });
+    try {
+        await obs.withSession("bill-pipeline-worker", async (session) => {
+            session.set("invocation_kind", invocation.kind);
+            if (invocation.kind === "manual") session.set("manual_reason", invocation.reason);
+            session.set("max_reads", String(invocation.maxReads));
+
+            const queue = new PgmqInteraction("house_bills_queue_new", supabase);
+            const congressClient = new CongressClient({ apiKey: congressApiKey });
+            const billBackend = makeBillWriteBackend();
+
+            let totalProcessed = 0;
+            let totalFailed = 0;
+            let totalDropped = 0;
+            let rateLimited = false;
+
+            while (true) {
+                if (isRunningLow(startedAt)) {
+                    session.stage("self-chain");
+                    await selfInvoke({
+                        fnName: "bill-pipeline-worker",
+                        body: invocation,
+                        secretApiKey: envSecretKey,
+                        supabaseUrl,
+                    });
+                    session.set("self_chained", "true");
+                    break;
+                }
+
+                session.stage("read-batch");
+                const messages = await queue.readBatch(QUEUE_BATCH_SIZE, VISIBILITY_TIMEOUT_SEC);
+                if (messages.length === 0) break;
+
+                // Drop poison messages first — anything that's been retried
+                // beyond `maxReads` gets archived with a log line. This keeps
+                // a single bad bill from holding up the queue forever.
+                const fresh: typeof messages = [];
+                for (const m of messages) {
+                    if (m.read_ct >= invocation.maxReads) {
+                        console.warn(
+                            `[bill-pipeline-worker] dropping msg ${m.msg_id} (read_ct=${m.read_ct} >= maxReads=${invocation.maxReads})`,
+                        );
+                        await queue.archive(m.msg_id);
+                        totalDropped++;
+                    } else {
+                        fresh.push(m);
+                    }
+                }
+                if (fresh.length === 0) continue;
+
+                session.stage(`process-${fresh.length}`);
+                const results = await mapConcurrent(
+                    fresh,
+                    PER_BATCH_CONCURRENCY,
+                    (m) => processBill(m.message, { congressClient, backend: billBackend }),
+                );
+
+                for (let i = 0; i < results.length; i++) {
+                    const r = results[i];
+                    const msg = fresh[i];
+                    if (r.status === "fulfilled") {
+                        await queue.archive(msg.msg_id);
+                        totalProcessed++;
+                    } else {
+                        const reason = r.reason instanceof Error
+                            ? r.reason.message
+                            : String(r.reason);
+                        console.warn(
+                            `[bill-pipeline-worker] msg ${msg.msg_id} failed (read_ct=${msg.read_ct}): ${reason}`,
+                        );
+                        totalFailed++;
+                        if (reason.includes("HTTP 429")) rateLimited = true;
+                    }
+                }
+
+                if (rateLimited) break; // don't keep hammering the API
+            }
+
+            session.set("processed", String(totalProcessed));
+            session.set("failed", String(totalFailed));
+            session.set("dropped", String(totalDropped));
+
+            if (rateLimited) {
+                const resetAt = new Date(Date.now() + RATE_LIMIT_FALLBACK_MS).toISOString();
+                await syncStateClient.update({
+                    api_rate_limit_reset_at: resetAt,
+                    last_error: "Congress API HTTP 429 detected during batch processing",
+                });
+                session.set("rate_limited_until", resetAt);
+                throw new Error(
+                    `bill-pipeline-worker: rate-limited; cooldown until ${resetAt}`,
+                );
+            }
+        });
+    } catch (_err) {
+        // session.fail already emitted to Discord; swallow to keep the
+        // edge runtime from logging a generic crash.
+    }
 
     return new Response("ok");
 });
