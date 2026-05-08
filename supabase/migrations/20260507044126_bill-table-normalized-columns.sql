@@ -52,15 +52,11 @@ BEGIN
     WHERE typname = 'chamber'
       AND typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
   ) THEN
-    CREATE TYPE public.chamber AS ENUM ('House', 'Senate');
+    CREATE TYPE public.chamber AS ENUM ('House', 'Senate', 'Joint');
   END IF;
 END $$;
 
--- ===========================================================================
--- states
--- ===========================================================================
--- Static reference table for FK from representatives.state. Includes the 50
--- states + DC + 5 territories that send delegates / resident commissioners.
+
 
 CREATE TABLE IF NOT EXISTS public.states (
   code      text PRIMARY KEY,                     -- "CA", "DC", "PR", "GU", etc.
@@ -111,7 +107,6 @@ ON CONFLICT (code) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS public.representatives (
   bioguide_id   text PRIMARY KEY,                 -- e.g. "K000388"
-  full_name     text NOT NULL,                    -- "Angus S. King, Jr."
   first_name    text,
   middle_name   text,
   last_name     text,
@@ -168,7 +163,8 @@ CREATE TABLE IF NOT EXISTS public.house_bills_2 (
 
   -- Dates (mix of date + timestamptz mirrors API wire formats)
   date_of_introduction                date,
-  congress_years                      integer[] NOT NULL,
+  congress_start_year                 integer NOT NULL,
+  congress_end_year                   integer NOT NULL,
   congress_update_date                timestamptz,
   congress_update_date_including_text timestamptz,
 
@@ -220,5 +216,33 @@ CREATE TRIGGER trg_house_bills_2_set_updated_at
   BEFORE UPDATE ON public.house_bills_2
   FOR EACH ROW
   EXECUTE FUNCTION public.set_updated_at();
+
+
+-- All three tables are public-readable (the UI surfaces them) but only the
+-- worker (service_role) writes. service_role bypasses RLS entirely, so we
+-- only need to declare what anon + authenticated can do — and that's read,
+-- nothing else.
+
+ALTER TABLE public.states          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.representatives ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.house_bills_2   ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "states: anon+auth read"
+  ON public.states
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "representatives: anon+auth read"
+  ON public.representatives
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
+
+CREATE POLICY "house_bills_2: anon+auth read"
+  ON public.house_bills_2
+  FOR SELECT
+  TO anon, authenticated
+  USING (true);
 
 COMMIT;
