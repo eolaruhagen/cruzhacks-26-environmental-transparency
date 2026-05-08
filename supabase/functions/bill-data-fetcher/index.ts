@@ -46,7 +46,7 @@ interface BillData {
   // Optional fields for forcing updates
   category?: string | null;
   embedding?: string | null;
-  subcategory_scores?: any | null;
+  subcategory_scores?: Record<string, number> | null;
   bill_text: string;
 }
 
