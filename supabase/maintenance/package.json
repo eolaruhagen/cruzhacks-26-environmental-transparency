@@ -9,6 +9,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@cruzhacks/shared": "workspace:*",
     "@supabase/supabase-js": "^2.104.0"
   }
 }
