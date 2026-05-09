@@ -39,11 +39,19 @@ export type CongressSyncStateUpdate = z.infer<typeof CongressSyncStateUpdateSche
 // Both methods return a Postgrest-style envelope: { data, error }. data is
 // `unknown` because the class is what runs Zod over it — the backend doesn't
 // know or care about the row shape.
+//
+// `update`'s patch type matches the Database Update row exactly, not a wider
+// `Record<string, unknown>`. supabase-js v2 uses `RejectExcessProperties`
+// which refuses index-signatured objects, so passing a wider type would not
+// type-check at the supabase boundary inside the adapter. Aligning the port
+// with the table's Update type keeps the adapter cast-free.
+
+type SyncStateUpdateRow = Database["public"]["Tables"]["congress_sync_state_new"]["Update"];
 
 export interface CongressSyncStateBackend {
     read(): Promise<{ data: unknown; error: { message: string } | null }>;
     update(
-        patch: Record<string, unknown>,
+        patch: SyncStateUpdateRow,
     ): Promise<{ data: unknown; error: { message: string } | null }>;
 }
 

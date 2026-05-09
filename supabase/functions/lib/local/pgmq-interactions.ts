@@ -38,10 +38,16 @@ export const QueueRegistry = {
 } as const satisfies Record<string, z.ZodType>;
 
 export type QueueName = keyof typeof QueueRegistry;
-export type QueueMessage<K extends QueueName> = z.infer<typeof QueueRegistry[K]>;
 
-// Convenience aliases for common consumers.
-export type HouseBillQueueMessage = QueueMessage<"house_bills_queue_new">;
+// Direct z.infer off each schema (rather than indexing through QueueRegistry)
+// because the `satisfies Record<string, z.ZodType>` widens the registry
+// lookup type and z.infer ends up as `unknown`. Aliasing one-by-one keeps
+// the narrow types intact for consumers (process-bill iterates HouseBillQueueMessage,
+// so its bill_type stays strongly typed as the legislation_type enum).
+export type HouseBillQueueMessage = z.infer<typeof HouseBillMessageSchema>;
+export type QueueMessage<K extends QueueName> = K extends "house_bills_queue_new"
+    ? HouseBillQueueMessage
+    : never;
 
 /**
  * Typed wrapper around the public-schema `pgmq_*` RPC functions for one
