@@ -94,7 +94,7 @@ Deno.serve(async (req: Request) => {
         schema: SyncBillsInvocationSchema,
     });
     if (gate.kind === "deny") return gate.response;
-    const invocation = gate.invocation;
+    const { invocation } = gate;
 
     const obs = new ObservabilityProvider([getDiscordSink()]);
 

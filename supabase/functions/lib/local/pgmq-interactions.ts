@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { z } from "zod";
 import type { Database, Json } from "../../database.types.ts";
-import z from "zod";
 
 /**
  * One message popped from a PGMQ queue. The `message` field is the validated

@@ -15,10 +15,10 @@
  * `normalizeCsvBillType` to bridge.
  */
 
+import type { z } from "zod";
 import { LegislationTypeEnum } from "./bill-write.ts";
 
 export type LegislationType = z.infer<typeof LegislationTypeEnum>;
-import type { z } from "zod";
 
 /**
  * Parse a single CSV line, honoring double-quoted fields. Doesn't handle
