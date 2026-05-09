@@ -9,6 +9,8 @@ import {
     billChamberFromType,
     buildBillRows,
     congressYears,
+    ENVIRONMENTAL_POLICY_AREAS,
+    isEnvironmentalBill,
     mapDistrict,
     mapParty,
     processBill,
@@ -492,3 +494,136 @@ Deno.test("processBill: dedupes a sponsor that also cosponsors", async () => {
     // 2 unique reps after dedupe (K000388 and P000034).
     assertEquals(fake.repsCalls[0].length, 2);
 });
+
+// ---------------------------------------------------------------------------
+// Environmental policy-area filter
+// ---------------------------------------------------------------------------
+
+Deno.test("ENVIRONMENTAL_POLICY_AREAS contains the expected core 4", () => {
+    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Energy"), true);
+    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Environmental Protection"), true);
+    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Public Lands and Natural Resources"), true);
+    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Water Resources Development"), true);
+});
+
+Deno.test("isEnvironmentalBill: true for each allowlisted policyArea", () => {
+    for (const area of ENVIRONMENTAL_POLICY_AREAS) {
+        // Build a minimal BillDetail with just the policyArea set.
+        // deno-lint-ignore no-explicit-any
+        const detail = { policyArea: { name: area } } as any;
+        assertEquals(isEnvironmentalBill(detail), true);
+    }
+});
+
+Deno.test("isEnvironmentalBill: false for unrelated policyAreas", () => {
+    for (const area of ["Health", "Taxation", "Crime and Law Enforcement", ""]) {
+        // deno-lint-ignore no-explicit-any
+        const detail = { policyArea: { name: area } } as any;
+        assertEquals(isEnvironmentalBill(detail), false);
+    }
+});
+
+Deno.test("isEnvironmentalBill: false (conservative skip) when policyArea is missing", () => {
+    // deno-lint-ignore no-explicit-any
+    assertEquals(isEnvironmentalBill({} as any), false);
+    // deno-lint-ignore no-explicit-any
+    assertEquals(isEnvironmentalBill({ policyArea: undefined } as any), false);
+});
+
+// Recording fake-fetch — counts calls per URL substring so we can prove the
+// non-env path stops after detail() and never hits the other 6 endpoints.
+function recordingFakeFetch(responses: Record<string, unknown>): {
+    fetch: (url: string) => Promise<{
+        ok: boolean;
+        status: number;
+        json: () => Promise<unknown>;
+        text: () => Promise<string>;
+    }>;
+    callsByPath: Map<string, number>;
+} {
+    const callsByPath = new Map<string, number>();
+    const fetch = (url: string) => {
+        for (const [path, body] of Object.entries(responses)) {
+            if (url.includes(path) && (url.endsWith(path) || url.includes(path + "?"))) {
+                callsByPath.set(path, (callsByPath.get(path) ?? 0) + 1);
+                return Promise.resolve({
+                    ok: true,
+                    status: 200,
+                    json: () => Promise.resolve(body),
+                    text: () => Promise.resolve(JSON.stringify(body)),
+                });
+            }
+        }
+        return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ error: "no fixture for " + url }),
+            text: () => Promise.resolve("no fixture for " + url),
+        });
+    };
+    return { fetch, callsByPath };
+}
+
+Deno.test(
+    "processBill: skips non-environmental bill — no further API calls, no upserts",
+    async () => {
+        // Detail fixture has policyArea "Health" — outside the allowlist.
+        const nonEnvDetail = {
+            ...detailResponse() as Record<string, unknown>,
+        } as { bill: Record<string, unknown> };
+        nonEnvDetail.bill = { ...nonEnvDetail.bill, policyArea: { name: "Health" } };
+        const responses = { "/bill/119/hr/1": nonEnvDetail };
+
+        const { fetch, callsByPath } = recordingFakeFetch(responses);
+        const client = new CongressClient({ apiKey: "test", fetchImpl: fetch });
+        const fake = makeBackend();
+
+        await processBill(
+            { congress: 119, bill_type: "HR", bill_number: "1" },
+            { congressClient: client, backend: fake.backend },
+        );
+
+        // detail() called exactly once.
+        assertEquals(callsByPath.get("/bill/119/hr/1"), 1);
+        // None of the other six endpoints were even attempted.
+        for (
+            const sub of [
+                "/bill/119/hr/1/actions",
+                "/bill/119/hr/1/cosponsors",
+                "/bill/119/hr/1/summaries",
+                "/bill/119/hr/1/text",
+                "/bill/119/hr/1/subjects",
+                "/bill/119/hr/1/committees",
+            ]
+        ) {
+            assertEquals(callsByPath.get(sub) ?? 0, 0);
+        }
+        // No DB writes attempted.
+        assertEquals(fake.repsCalls.length, 0);
+        assertEquals(fake.billCalls.length, 0);
+    },
+);
+
+Deno.test(
+    "processBill: bill with no policyArea is treated as non-environmental",
+    async () => {
+        const detailWithoutPolicyArea = {
+            ...detailResponse() as Record<string, unknown>,
+        } as { bill: Record<string, unknown> };
+        delete detailWithoutPolicyArea.bill.policyArea;
+        const { fetch, callsByPath } = recordingFakeFetch({
+            "/bill/119/hr/1": detailWithoutPolicyArea,
+        });
+        const client = new CongressClient({ apiKey: "test", fetchImpl: fetch });
+        const fake = makeBackend();
+
+        await processBill(
+            { congress: 119, bill_type: "HR", bill_number: "1" },
+            { congressClient: client, backend: fake.backend },
+        );
+
+        assertEquals(callsByPath.get("/bill/119/hr/1"), 1);
+        assertEquals(fake.repsCalls.length, 0);
+        assertEquals(fake.billCalls.length, 0);
+    },
+);

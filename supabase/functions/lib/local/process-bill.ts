@@ -33,14 +33,47 @@ const LEGISLATION_TO_PARAM = {
     SRES: "sres",
 } as const satisfies Record<HouseBillQueueMessage["bill_type"], BillTypeAsParam>;
 
+// ---------------------------------------------------------------------------
+// Environmental policy-area allowlist
+// ---------------------------------------------------------------------------
+// Congress.gov assigns every bill exactly one top-level `policyArea` from a
+// fixed list of ~30 values (full list: https://www.congress.gov/help/field-values/policy-area).
+// We only persist bills whose policy area is directly environmental — keeps
+// house_bills_2 from collecting thousands of unrelated rows without needing
+// any LLM/extra-API filtering. To widen the scope, add to this set; to drop
+// it back to "all bills", swap `isEnvironmentalBill` for `() => true`.
+
+export const ENVIRONMENTAL_POLICY_AREAS: ReadonlySet<string> = new Set([
+    "Energy",
+    "Environmental Protection",
+    "Public Lands and Natural Resources",
+    "Water Resources Development",
+]);
+
+/**
+ * Decide whether a bill detail's policyArea places it in scope. Conservative:
+ * a missing or unknown policyArea returns false (skip), so a bill with no
+ * classification is dropped rather than persisted "just in case."
+ */
+export function isEnvironmentalBill(detail: BillDetailResponse["bill"]): boolean {
+    const name = detail.policyArea?.name;
+    if (!name) return false;
+    return ENVIRONMENTAL_POLICY_AREAS.has(name);
+}
+
 /**
  * Per-bill unit of work for the worker.
  *
- * Fetches every Congress endpoint we need for a single bill in parallel,
- * maps the responses into normalized representative + house_bills_2 rows,
- * and upserts in best-effort order: reps first, then the bill (which has
- * an FK on sponsor.bioguide_id). If reps upsert fails the bill upsert is
- * skipped; if bill upsert fails the orphan rep rows are tolerated.
+ * Fetches `detail()` first — it carries the policyArea we filter on. If the
+ * bill isn't environmentally relevant we return early: no further Congress
+ * API calls, no DB writes. The worker still archives the message because
+ * processing succeeded ("we looked, it didn't apply").
+ *
+ * For in-scope bills, fetches the remaining 6 endpoints in parallel, maps
+ * to normalized representative + house_bills_2 rows, and upserts in best-
+ * effort order: reps first, then the bill (which has an FK on
+ * sponsor.bioguide_id). If reps fails the bill upsert is skipped; if bill
+ * fails the orphan rep rows are tolerated.
  *
  * Throws on any failure so the worker leaves the message in the PGMQ queue
  * (visibility timeout will re-surface it for retry).
@@ -63,9 +96,14 @@ export async function processBill(
     const billTypeParam = LEGISLATION_TO_PARAM[message.bill_type];
     const scope = deps.congressClient.bill(message.congress, billTypeParam, billNumberInt);
 
-    const [detail, actions, cosponsors, summaries, textVersions, subjects, committees] =
+    // Detail-first so we can bail before the other 6 API calls when the bill
+    // isn't environmentally relevant. Most House bills aren't — this is the
+    // single biggest knob for keeping API budget and DB rows under control.
+    const detail = await scope.detail();
+    if (!isEnvironmentalBill(detail.bill)) return;
+
+    const [actions, cosponsors, summaries, textVersions, subjects, committees] =
         await Promise.all([
-            scope.detail(),
             scope.actions(),
             scope.cosponsors(),
             scope.summaries(),
