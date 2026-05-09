@@ -34,11 +34,11 @@ const SyncBillsInvocationSchema = z.discriminatedUnion("kind", [
         kind: z.literal("manual"),
         reason: z.string(),
         source: z.enum(["api", "csv"]).default("api"),
-        nextUrl: z.string().url().optional(),
+        nextUrl: z.url().optional(),
     }),
     z.object({
         kind: z.literal("scheduled"),
-        nextUrl: z.string().url().optional(),
+        nextUrl: z.url().optional(),
     }),
 ]);
 

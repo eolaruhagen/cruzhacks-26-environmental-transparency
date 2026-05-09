@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { isRunningLow } from "./time-budget.ts";
+import { isRunningLow } from "../time-budget.ts";
 
 // All tests inject `now` explicitly so they don't depend on the wall clock.
 // Pretend startedAt = 0 throughout — elapsed time equals the `now` value.

@@ -1,10 +1,10 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { CongressClient } from "../shared/index.ts";
+import { CongressClient } from "../../shared/index.ts";
 import {
     type BillWriteBackend,
     type HouseBillUpsert,
     type RepresentativeUpsert,
-} from "./bill-write.ts";
+} from "../bill-write.ts";
 import {
     billChamberFromType,
     buildBillRows,
@@ -13,7 +13,7 @@ import {
     mapParty,
     processBill,
     type ProcessBillDeps,
-} from "./process-bill.ts";
+} from "../process-bill.ts";
 
 // ---------------------------------------------------------------------------
 // Pure mapper tests — fast, no I/O

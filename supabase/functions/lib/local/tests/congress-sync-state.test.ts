@@ -2,7 +2,7 @@ import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import {
     CongressSyncStateClient,
     type CongressSyncStateBackend,
-} from "./congress-sync-state.ts";
+} from "../congress-sync-state.ts";
 
 // Recording fake — every read/update is captured for assertions, and the
 // canned response is whatever `nextRead` / `nextUpdate` is set to. Letting

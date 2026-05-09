@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { authenticateRequest } from "./auth.ts";
+import { authenticateRequest } from "../auth.ts";
 
 const SECRET = "test-secret-abc123";
 

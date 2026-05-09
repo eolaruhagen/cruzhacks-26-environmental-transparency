@@ -1,6 +1,6 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { z } from "zod";
-import { runEdgeInvocation } from "./edge-invocation.ts";
+import { runEdgeInvocation } from "../edge-invocation.ts";
 
 const SECRET = "test-secret-edge-invocation";
 

@@ -5,7 +5,7 @@ import {
     type RepresentativeUpsert,
     upsertHouseBill,
     upsertRepresentatives,
-} from "./bill-write.ts";
+} from "../bill-write.ts";
 
 interface RecordedCall {
     method: "upsertRepresentatives" | "upsertHouseBill";
