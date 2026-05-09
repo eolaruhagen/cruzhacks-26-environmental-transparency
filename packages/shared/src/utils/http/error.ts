@@ -35,6 +35,11 @@ function truncate(s: string, max: number): string {
  * Lets consumers write `if (isHttpStatus(err, 429))` without doing a manual
  * `instanceof + .status` check at every site, and removes the need to import
  * the class itself when only the predicate is needed.
+ *
+ * Note: in some editor LSP setups the `err is HttpResponseError` predicate
+ * may not narrow across symlinked workspace boundaries — in those cases
+ * fall back to plain `err instanceof HttpResponseError && err.status === N`,
+ * which TypeScript narrows universally.
  */
 export function isHttpStatus(
     err: unknown,

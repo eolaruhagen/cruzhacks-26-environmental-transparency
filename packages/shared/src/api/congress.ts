@@ -30,6 +30,7 @@ import {
   type FetchResponseLike,
   getValidated as sharedGetValidated,
 } from "../utils/http/get-validated.ts";
+import { buildQuery } from "../utils/http/query.ts";
 import { type RetryOptions, withRetry } from "../utils/http/with-retry.ts";
 
 const DEFAULT_BASE_URL = "https://api.congress.gov/v3";
@@ -82,7 +83,7 @@ export class CongressClient {
 
   /** Fetch one page of bills. Returns the raw envelope including `pagination`. */
   listBills(params: ListBillsParams = {}): Promise<BillListResponse> {
-    const qs = buildQuery(params as Record<string, string | number | undefined>);
+    const qs = buildQuery(params);
     return this.getValidated(`/bill${qs}`, BillListResponseSchema);
   }
 
@@ -229,12 +230,5 @@ export class BillScope {
   titles(): Promise<BillTitlesResponse> {
     return this.client.getValidated(`${this.path}/titles`, BillTitlesResponseSchema);
   }
-}
-
-function buildQuery(params: Record<string, string | number | undefined>): string {
-  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== "");
-  if (entries.length === 0) return "";
-  const qs = entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");
-  return `?${qs}`;
 }
 
