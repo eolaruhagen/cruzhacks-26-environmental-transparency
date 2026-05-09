@@ -18,6 +18,21 @@ import {
     upsertRepresentatives,
 } from "./bill-write.ts";
 
+// One-to-one mapping from the persisted legislation_type enum (uppercase, no
+// dots — what we store and what the queue carries) to the URL-param form
+// CongressClient expects (lowercase). Keeping it as a typed Record means
+// the lookup itself is type-safe; no `as` cast.
+const LEGISLATION_TO_PARAM = {
+    HR: "hr",
+    S: "s",
+    HJRES: "hjres",
+    SJRES: "sjres",
+    HCONRES: "hconres",
+    SCONRES: "sconres",
+    HRES: "hres",
+    SRES: "sres",
+} as const satisfies Record<HouseBillQueueMessage["bill_type"], BillTypeAsParam>;
+
 /**
  * Per-bill unit of work for the worker.
  *
@@ -45,7 +60,7 @@ export async function processBill(
             `processBill: bill_number "${message.bill_number}" is not a valid integer`,
         );
     }
-    const billTypeParam = message.bill_type.toLowerCase() as BillTypeAsParam;
+    const billTypeParam = LEGISLATION_TO_PARAM[message.bill_type];
     const scope = deps.congressClient.bill(message.congress, billTypeParam, billNumberInt);
 
     const [detail, actions, cosponsors, summaries, textVersions, subjects, committees] =

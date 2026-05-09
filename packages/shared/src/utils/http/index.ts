@@ -1,4 +1,4 @@
-export { HttpResponseError } from "./error.ts";
+export { HttpResponseError, isHttpStatus } from "./error.ts";
 export { type HttpResult, type HttpSuccess, isHttpSuccess } from "./result.ts";
 export { getValidated } from "./get-validated.ts";
 // FetchLike / FetchResponseLike not re-exported here because CongressClient

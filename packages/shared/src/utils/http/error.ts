@@ -29,3 +29,16 @@ export class HttpResponseError extends Error {
 function truncate(s: string, max: number): string {
     return s.length <= max ? s : `${s.slice(0, max)}…`;
 }
+
+/**
+ * Type guard: true iff `err` is an HttpResponseError with the given status.
+ * Lets consumers write `if (isHttpStatus(err, 429))` without doing a manual
+ * `instanceof + .status` check at every site, and removes the need to import
+ * the class itself when only the predicate is needed.
+ */
+export function isHttpStatus(
+    err: unknown,
+    status: number,
+): err is HttpResponseError {
+    return err instanceof HttpResponseError && err.status === status;
+}

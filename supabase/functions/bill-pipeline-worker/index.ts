@@ -3,7 +3,7 @@ import { z } from "zod";
 import {
     CongressClient,
     DiscordSink,
-    HttpResponseError,
+    isHttpStatus,
     mapConcurrent,
     ObservabilityProvider,
 } from "../lib/shared/index.ts";
@@ -196,12 +196,9 @@ Deno.serve(async (req: Request) => {
                             `[bill-pipeline-worker] msg ${msg.msg_id} failed (read_ct=${msg.read_ct}): ${reason}`,
                         );
                         totalFailed++;
-                        // Typed-error check: HttpResponseError survives any
-                        // future change to the message format.
-                        if (
-                            r.reason instanceof HttpResponseError &&
-                            r.reason.status === 429
-                        ) {
+                        // Typed predicate; narrows `r.reason` to
+                        // HttpResponseError if matched.
+                        if (isHttpStatus(r.reason, 429)) {
                             rateLimited = true;
                         }
                     }

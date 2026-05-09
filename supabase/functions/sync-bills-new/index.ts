@@ -4,7 +4,7 @@ import {
     type BillListResponse,
     CongressClient,
     DiscordSink,
-    HttpResponseError,
+    isHttpStatus,
     ObservabilityProvider,
 } from "../lib/shared/index.ts";
 import { supabase } from "../lib/local/supabase-client.ts";
@@ -208,9 +208,10 @@ Deno.serve(async (req: Request) => {
                     last_error: null,
                 });
             } catch (err) {
-                // Typed-error check: HttpResponseError carries .status so we
-                // never depend on the message string format.
-                if (err instanceof HttpResponseError && err.status === 429) {
+                // Typed predicate: isHttpStatus narrows `err` to
+                // HttpResponseError inside the branch — no instanceof + manual
+                // status check, no class import needed at the call site.
+                if (isHttpStatus(err, 429)) {
                     const resetAt = new Date(Date.now() + RATE_LIMIT_FALLBACK_MS).toISOString();
                     await syncStateClient.update({
                         api_rate_limit_reset_at: resetAt,
