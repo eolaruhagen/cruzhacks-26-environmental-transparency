@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./api/congress": "./src/api/congress.ts",
-    "./observability": "./src/observability/index.ts"
+    "./observability": "./src/observability/index.ts",
+    "./utils/http": "./src/utils/http/index.ts",
+    "./utils/concurrency": "./src/utils/concurrency.ts"
   },
   "scripts": {
     "test": "bun test"

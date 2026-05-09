@@ -202,13 +202,12 @@ export function buildBillRows(input: {
 
     const bill: HouseBillUpsert = {
         congress: detail.congress,
-        bill_type: detail.type as HouseBillUpsert["bill_type"],
+        bill_type: detail.type,
         bill_number: billNumberInt,
         title: detail.title ?? "",
         url: detail.legislationUrl ?? null,
         bill_text: textUrl ?? null,
-        origin_chamber: (detail.originChamber as "House" | "Senate" | "Joint") ??
-            (role === "House" ? "House" : "Senate"),
+        origin_chamber: detail.originChamber ?? (role === "House" ? "House" : "Senate"),
         date_of_introduction: detail.introducedDate ?? null,
         congress_start_year: yrs.start,
         congress_end_year: yrs.end,

@@ -171,12 +171,21 @@ test("getValidated parses the schema and returns typed data", async () => {
 });
 
 test("throws when the response shape doesn't match the schema", async () => {
+  // ZodError thrown inside getValidated propagates through withRetry. Disable
+  // retries here so the test runs instantly (otherwise we eat 750ms of
+  // backoff sleeps trying to recover from a non-transient validation error).
   const { fetchImpl } = recorder(() => fakeOk({ unexpected: true }));
-  const client = new CongressClient({ apiKey: "K", fetchImpl });
+  const client = new CongressClient({
+    apiKey: "K",
+    fetchImpl,
+    retryOptions: { maxAttempts: 1 },
+  });
   await expect(client.bill(119, "hr", 1).detail()).rejects.toThrow();
 });
 
 test("throws when fetch returns non-2xx", async () => {
+  // 429 is non-retryable so withRetry bails after attempt 1 — no need to
+  // override retryOptions here.
   const { fetchImpl } = recorder(() => fakeErr(429));
   const client = new CongressClient({ apiKey: "K", fetchImpl });
   await expect(client.listBills()).rejects.toThrow(/HTTP 429/);

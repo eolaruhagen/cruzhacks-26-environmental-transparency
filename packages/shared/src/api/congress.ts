@@ -24,26 +24,35 @@ import {
   BillTitlesResponseSchema,
   type BillTypeAsParam,
 } from "./congress.types.ts";
+import { HttpResponseError } from "../utils/http/error.ts";
+import {
+  type FetchLike,
+  type FetchResponseLike,
+  getValidated as sharedGetValidated,
+} from "../utils/http/get-validated.ts";
+import { type RetryOptions, withRetry } from "../utils/http/with-retry.ts";
 
 const DEFAULT_BASE_URL = "https://api.congress.gov/v3";
 
 /**
- * Narrow contract for what CongressClient needs from a fetch-like function.
- * Avoids depending on the runtime's full `typeof fetch`, which varies between
- * environments (Bun's `@types/bun` adds `preconnect`, etc.).
+ * Re-export the canonical fetch-shape types so existing CongressClient
+ * consumers keep working without importing from a new path.
  */
-export interface FetchResponseLike {
-  readonly ok: boolean;
-  readonly status: number;
-  json(): Promise<unknown>;
-  text(): Promise<string>;
-}
-export type CongressFetch = (url: string) => Promise<FetchResponseLike>;
+export type { FetchResponseLike };
+export type CongressFetch = FetchLike;
 
 export interface CongressClientOptions {
   apiKey: string;
   baseUrl?: string;
   fetchImpl?: CongressFetch;
+  /**
+   * Retry policy applied to every CongressClient request. Defaults to the
+   * shared retry options (3 attempts, 5s timeout, exponential backoff
+   * 250→500ms with jitter, capped at 1.5s). Pass `{ maxAttempts: 1 }` to
+   * disable retries entirely (useful in tests that want deterministic
+   * fail-fast behavior).
+   */
+  retryOptions?: RetryOptions;
 }
 
 export interface ListBillsParams {
@@ -61,11 +70,13 @@ export class CongressClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly fetchImpl: CongressFetch;
+  private readonly retryOptions?: RetryOptions;
 
   constructor(opts: CongressClientOptions) {
     this.apiKey = opts.apiKey;
     this.baseUrl = opts.baseUrl ?? DEFAULT_BASE_URL;
-    this.fetchImpl = opts.fetchImpl ?? ((url) => globalThis.fetch(url));
+    this.fetchImpl = opts.fetchImpl ?? ((url, init) => globalThis.fetch(url, init));
+    this.retryOptions = opts.retryOptions;
   }
 
 
@@ -110,7 +121,15 @@ export class CongressClient {
   /** Download the actual bill text from a `textVersions[].formats[].url` value. */
   async fetchBillText(textUrl: string): Promise<string> {
     const response = await this.fetchImpl(textUrl);
-    if (!response.ok) throw httpError("bill text", response.status);
+    if (!response.ok) {
+      let body: string | undefined;
+      try {
+        body = await response.text();
+      } catch {
+        body = undefined;
+      }
+      throw new HttpResponseError(response.status, textUrl, body);
+    }
     return response.text();
   }
 
@@ -139,13 +158,24 @@ export class CongressClient {
   // Internals — used by BillScope as well, hence not private.
   // -------------------------------------------------------------------------
 
-  /** @internal */
+  /**
+   * @internal
+   * Wraps the shared `getValidated` (which returns `HttpResult<T>`) with
+   * `withRetry` (which retries 5xx + thrown errors, NOT 429/4xx), then
+   * collapses the Result back to a throw on the outer surface so existing
+   * callers (`scope.detail()` etc.) keep their try/catch ergonomics.
+   *
+   * The 429 path: bails after attempt 1 with HttpResponseError(429, ...).
+   * Caller catches it and updates rate-limit cooldown state.
+   */
   async getValidated<T>(urlOrPath: string, schema: z.ZodType<T>): Promise<T> {
     const url = this.resolveUrl(urlOrPath);
-    const response = await this.fetchImpl(url);
-    if (!response.ok) throw httpError(urlOrPath, response.status);
-    const raw = await response.json();
-    return schema.parse(raw);
+    const result = await withRetry(
+      (signal) => sharedGetValidated(this.fetchImpl, url, schema, { signal }),
+      this.retryOptions,
+    );
+    if (result instanceof HttpResponseError) throw result;
+    return result.data;
   }
 
   private resolveUrl(urlOrPath: string): string {
@@ -208,6 +238,3 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return `?${qs}`;
 }
 
-function httpError(target: string, status: number): Error {
-  return new Error(`Congress API error for ${target}: HTTP ${status}`);
-}

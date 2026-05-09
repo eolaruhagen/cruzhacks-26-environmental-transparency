@@ -2,13 +2,16 @@
  * Bounded-concurrency map. Like Promise.allSettled, but never has more than
  * `limit` tasks in-flight at once.
  *
- * Why settled (not rejecting): the bills worker processes N items per batch
- * and we want a single bill failure to leave its message in-queue for retry
- * while siblings continue. With Promise.all, one rejection aborts the whole
- * batch and we'd lose visibility into which items succeeded.
+ * Why settled (not rejecting): callers commonly process N items per batch
+ * and want a single failure to leave the others' results visible. With
+ * Promise.all, one rejection aborts the whole batch.
  *
  * Returns results in INPUT order (by index), regardless of completion order,
- * so callers can correlate results back to the message they popped.
+ * so callers can correlate results back to their input items.
+ *
+ * Generic in `T` and `R`; nothing about HTTP, fetch, or any specific async
+ * domain leaks in. Callers wire whatever async operation they need —
+ * including operations that return HttpResult<T> if they want the union.
  */
 export async function mapConcurrent<T, R>(
     items: readonly T[],
@@ -24,7 +27,7 @@ export async function mapConcurrent<T, R>(
     let cursor = 0;
     const workerCount = Math.min(limit, items.length);
 
-    async function worker() {
+    const worker = async () => {
         while (true) {
             const i = cursor++;
             if (i >= items.length) return;
@@ -35,7 +38,7 @@ export async function mapConcurrent<T, R>(
                 results[i] = { status: "rejected", reason };
             }
         }
-    }
+    };
 
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
     return results;

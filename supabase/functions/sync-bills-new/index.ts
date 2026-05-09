@@ -4,6 +4,7 @@ import {
     type BillListResponse,
     CongressClient,
     DiscordSink,
+    HttpResponseError,
     ObservabilityProvider,
 } from "../lib/shared/index.ts";
 import { supabase } from "../lib/local/supabase-client.ts";
@@ -55,7 +56,7 @@ function billListItemToMessage(
 ): HouseBillQueueMessage | null {
     // Filter out items that don't carry the natural key. Rare but seen in
     // the wild when the API returns a stub during data refreshes.
-    const congress = item.congress;
+    const { congress } = item;
     const billType = item.type;
     const number = typeof item.number === "number" ? String(item.number) : item.number;
     if (!congress || !billType || !number) return null;
@@ -207,13 +208,13 @@ Deno.serve(async (req: Request) => {
                     last_error: null,
                 });
             } catch (err) {
-                const msg = err instanceof Error ? err.message : String(err);
-                if (msg.includes("HTTP 429")) {
-                    // Rolling-hour rate-limit window — back off until then.
+                // Typed-error check: HttpResponseError carries .status so we
+                // never depend on the message string format.
+                if (err instanceof HttpResponseError && err.status === 429) {
                     const resetAt = new Date(Date.now() + RATE_LIMIT_FALLBACK_MS).toISOString();
                     await syncStateClient.update({
                         api_rate_limit_reset_at: resetAt,
-                        last_error: msg.slice(0, 500),
+                        last_error: err.message.slice(0, 500),
                     });
                     session.set("rate_limited_until", resetAt);
                 }

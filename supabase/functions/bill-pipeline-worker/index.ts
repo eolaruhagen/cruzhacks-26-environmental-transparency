@@ -1,13 +1,18 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { z } from "zod";
-import { CongressClient, DiscordSink, ObservabilityProvider } from "../lib/shared/index.ts";
+import {
+    CongressClient,
+    DiscordSink,
+    HttpResponseError,
+    mapConcurrent,
+    ObservabilityProvider,
+} from "../lib/shared/index.ts";
 import { supabase } from "../lib/local/supabase-client.ts";
 import { runEdgeInvocation } from "../lib/local/edge-invocation.ts";
 import { PgmqInteraction } from "../lib/local/pgmq-interactions.ts";
 import { CongressSyncStateClient } from "../lib/local/congress-sync-state.ts";
 import type { BillWriteBackend } from "../lib/local/bill-write.ts";
 import { processBill } from "../lib/local/process-bill.ts";
-import { mapConcurrent } from "../lib/local/concurrency.ts";
 import { isRunningLow } from "../lib/local/time-budget.ts";
 import { selfInvoke } from "../lib/local/self-chain.ts";
 
@@ -97,7 +102,7 @@ Deno.serve(async (req: Request) => {
         schema: WorkerInvocationSchema,
     });
     if (gate.kind === "deny") return gate.response;
-    const invocation = gate.invocation;
+    const {invocation} = gate;
 
     // Blackout — skip silently (no Discord noise on routine skips).
     if (isInBlackout(invocation.invalidTimeWindows)) {
@@ -191,7 +196,14 @@ Deno.serve(async (req: Request) => {
                             `[bill-pipeline-worker] msg ${msg.msg_id} failed (read_ct=${msg.read_ct}): ${reason}`,
                         );
                         totalFailed++;
-                        if (reason.includes("HTTP 429")) rateLimited = true;
+                        // Typed-error check: HttpResponseError survives any
+                        // future change to the message format.
+                        if (
+                            r.reason instanceof HttpResponseError &&
+                            r.reason.status === 429
+                        ) {
+                            rateLimited = true;
+                        }
                     }
                 }
 
