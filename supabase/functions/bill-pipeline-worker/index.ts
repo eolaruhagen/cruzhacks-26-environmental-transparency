@@ -15,6 +15,8 @@ import type { BillWriteBackend } from "../lib/local/bill-write.ts";
 import { processBill } from "../lib/local/process-bill.ts";
 import { isRunningLow } from "../lib/local/time-budget.ts";
 import { selfInvoke } from "../lib/local/self-chain.ts";
+import { isInBlackout, type TimeWindow } from "../lib/local/blackout.ts";
+import { partitionPoisonMessages } from "../lib/local/queue-partition.ts";
 
 // ---------------------------------------------------------------------------
 // Body schema
@@ -27,8 +29,7 @@ import { selfInvoke } from "../lib/local/self-chain.ts";
 const TimeWindowSchema = z.object({
     startPt: z.string().regex(/^\d{2}:\d{2}$/),
     endPt: z.string().regex(/^\d{2}:\d{2}$/),
-});
-type TimeWindow = z.infer<typeof TimeWindowSchema>;
+}) satisfies z.ZodType<TimeWindow>;
 
 const WorkerInvocationSchema = z.discriminatedUnion("kind", [
     z.object({
@@ -48,23 +49,6 @@ const QUEUE_BATCH_SIZE = 20;
 const VISIBILITY_TIMEOUT_SEC = 300;
 const PER_BATCH_CONCURRENCY = 10;
 const RATE_LIMIT_FALLBACK_MS = 60 * 60 * 1000;
-
-function isInBlackout(windows: TimeWindow[]): boolean {
-    if (windows.length === 0) return false;
-    const fmt = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/Los_Angeles",
-        hour12: false,
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date());
-    const [hh, mm] = fmt.split(":").map(Number);
-    const nowMin = hh * 60 + mm;
-    return windows.some((w) => {
-        const [sH, sM] = w.startPt.split(":").map(Number);
-        const [eH, eM] = w.endPt.split(":").map(Number);
-        return nowMin >= sH * 60 + sM && nowMin < eH * 60 + eM;
-    });
-}
 
 function getDiscordSink(): DiscordSink {
     const webhookUrl = Deno.env.get("DISCORD_WEBHOOK_URL");
@@ -165,18 +149,15 @@ Deno.serve(async (req: Request) => {
                 // Drop poison messages first — anything that's been retried
                 // beyond `maxReads` gets archived with a log line. This keeps
                 // a single bad bill from holding up the queue forever.
-                const fresh: typeof messages = [];
-                for (const m of messages) {
-                    if (m.read_ct >= invocation.maxReads) {
-                        console.warn(
-                            `[bill-pipeline-worker] dropping msg ${m.msg_id} (read_ct=${m.read_ct} >= maxReads=${invocation.maxReads})`,
-                        );
-                        await queue.archive(m.msg_id);
-                        totalDropped++;
-                    } else {
-                        fresh.push(m);
-                    }
-                }
+                // Helper survives a transient archive() throw (logs, leaves
+                // for next-tick retry) so a flaky DB blip can't stall us.
+                const { fresh, droppedCount } = await partitionPoisonMessages(
+                    messages,
+                    queue,
+                    invocation.maxReads,
+                    "bill-pipeline-worker",
+                );
+                totalDropped += droppedCount;
                 if (fresh.length === 0) continue;
 
                 session.stage(`process-${fresh.length}`);
