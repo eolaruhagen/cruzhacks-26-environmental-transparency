@@ -184,7 +184,9 @@ Deno.serve(async (req: Request) => {
                         if (!next) break;
                         if (isRunningLow(startedAt)) {
                             session.stage("self-chain");
-                            await selfInvoke({
+                            // Fire-and-forget: do NOT await. See bill-pipeline-worker
+                            // for the same pattern + reasoning.
+                            selfInvoke({
                                 fnName: "sync-bills-new",
                                 body: { ...invocation, nextUrl: next },
                                 secretApiKey: envSecretKey,

@@ -4,6 +4,13 @@
     "lib": ["deno.window"],
     "strict": true
   },
+  "lint": {
+    "rules": {
+      "include": ["no-deprecated-deno-api", "no-explicit-any"],
+      "tags": ["recommended"]
+
+    }
+  },
   "imports": {
     "@supabase/functions-js/edge-runtime.d.ts": "jsr:@supabase/functions-js@2/edge-runtime.d.ts",
     "@supabase/supabase-js": "jsr:@supabase/supabase-js@2",

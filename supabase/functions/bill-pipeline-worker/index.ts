@@ -144,7 +144,11 @@ Deno.serve(async (req: Request) => {
             while (true) {
                 if (isRunningLow(startedAt)) {
                     session.stage("self-chain");
-                    await selfInvoke({
+                    // Fire-and-forget: do NOT await. The chained invocation
+                    // owns its own wall-clock budget; awaiting would compound
+                    // timeouts. selfInvoke kicks off the request and logs
+                    // any reach failure via console.warn.
+                    selfInvoke({
                         fnName: "bill-pipeline-worker",
                         body: invocation,
                         secretApiKey: envSecretKey,
