@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { isRunningLow } from "../time-budget.ts";
+import { getTimeBudgetMs, isRunningLow } from "../time-budget.ts";
 
 // All tests inject `now` explicitly so they don't depend on the wall clock.
 // Pretend startedAt = 0 throughout — elapsed time equals the `now` value.
@@ -38,4 +38,31 @@ Deno.test("returns false if now < startedAt (clock skew safety)", () => {
     // If the caller's `now` is somehow earlier than startedAt (clock skew,
     // monotonic vs. wall confusion), elapsed is negative — should not trip.
     assertEquals(isRunningLow(1000, 100, 500), false);
+});
+
+// ---------------------------------------------------------------------------
+// getTimeBudgetMs — env-var resolution
+// ---------------------------------------------------------------------------
+
+Deno.test("getTimeBudgetMs: undefined env returns 120s default", () => {
+    assertEquals(getTimeBudgetMs(undefined), 120_000);
+});
+
+Deno.test("getTimeBudgetMs: empty string returns default", () => {
+    assertEquals(getTimeBudgetMs(""), 120_000);
+});
+
+Deno.test("getTimeBudgetMs: valid integer string is honored", () => {
+    assertEquals(getTimeBudgetMs("20000"), 20_000);
+});
+
+Deno.test("getTimeBudgetMs: malformed env returns default (fail-safe)", () => {
+    // A typo'd env var must not silently uncap the budget — we fall back
+    // to the production-safe 120s default.
+    assertEquals(getTimeBudgetMs("not-a-number"), 120_000);
+});
+
+Deno.test("getTimeBudgetMs: zero / negative env returns default", () => {
+    assertEquals(getTimeBudgetMs("0"), 120_000);
+    assertEquals(getTimeBudgetMs("-5000"), 120_000);
 });

@@ -1,10 +1,9 @@
 /**
  * Pure helper for "is this edge function approaching its hard timeout?"
  *
- * Supabase edge functions have a hard ~150s wall-clock limit. We aim to
- * self-chain (re-invoke ourselves with the next cursor) before crossing
- * 120s so there's runway for the chained invocation to be queued and
- * for the current one to complete its session/cleanup work cleanly.
+ * Supabase edge functions have a hard ~150s wall-clock limit in production.
+ * with 30s of hard cpu limit
+ * We aim to self-chain
  *
  * Both arguments are millisecond epochs. `now` defaults to Date.now() so
  * the call site reads naturally (`isRunningLow(startedAt)`) but tests can
@@ -18,4 +17,16 @@ export function isRunningLow(
     const elapsed = now - startedAt;
     if (elapsed < 0) return false;
     return elapsed >= budgetMs;
+}
+
+/**
+ * Resolve the wall-clock budget from `TIME_BUDGET_MS` env, falling back
+ * to 120_000 (120s — the production setting). Pass to `isRunningLow` as
+ * the `budgetMs` argument.
+ */
+export function getTimeBudgetMs(envValue: string | undefined): number {
+    if (!envValue) return 120_000;
+    const n = Number(envValue);
+    if (!Number.isFinite(n) || n <= 0) return 120_000;
+    return n;
 }
