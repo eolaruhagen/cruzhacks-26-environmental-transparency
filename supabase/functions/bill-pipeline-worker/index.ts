@@ -2,6 +2,7 @@ import "@supabase/functions-js/edge-runtime.d.ts";
 import { z } from "zod";
 import {
     CongressClient,
+    createCoordinatedGroup,
     DiscordSink,
     HttpResponseError,
     mapConcurrent,
@@ -12,15 +13,12 @@ import { runEdgeInvocation } from "../lib/local/edge-invocation.ts";
 import { PgmqInteraction } from "../lib/local/pgmq-interactions.ts";
 import { CongressSyncStateClient } from "../lib/local/congress-sync-state.ts";
 import type { BillWriteBackend } from "../lib/local/bill-write.ts";
-import { processBill } from "../lib/local/process-bill.ts";
-import { isRunningLow } from "../lib/local/time-budget.ts";
+import { processBill, TextThrottleRetry } from "../lib/local/process-bill.ts";
+import { getTimeBudgetMs, isRunningLow } from "../lib/local/time-budget.ts";
 import { selfInvoke } from "../lib/local/self-chain.ts";
 import { isInBlackout, type TimeWindow } from "../lib/local/blackout.ts";
 import { partitionPoisonMessages } from "../lib/local/queue-partition.ts";
 
-// ---------------------------------------------------------------------------
-// Body schema
-// ---------------------------------------------------------------------------
 // `invalidTimeWindows` is interpreted in PT inside isInBlackout. Format is
 // "HH:MM" (24-hour). Cron supplies the windows so they're tunable without
 // redeploy. `maxReads` is the PGMQ visibility-retry threshold — at read_ct
@@ -78,6 +76,7 @@ Deno.serve(async (req: Request) => {
     const envSecretKey = Deno.env.get("SECRET_API_KEY") ?? "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const congressApiKey = Deno.env.get("CONGRESS_API_KEY") ?? "";
+    const budgetMs = getTimeBudgetMs(Deno.env.get("TIME_BUDGET_MS"));
     if (!congressApiKey) throw new Error("Missing CONGRESS_API_KEY env var");
 
     const gate = await runEdgeInvocation({
@@ -120,13 +119,19 @@ Deno.serve(async (req: Request) => {
             const congressClient = new CongressClient({ apiKey: congressApiKey });
             const billBackend = makeBillWriteBackend();
 
+            const textGroup = createCoordinatedGroup<TextThrottleRetry>({
+                shouldTrip: (err) =>
+                    err instanceof HttpResponseError && err.status === 403,
+                retryError: (ctx) => new TextThrottleRetry(ctx),
+            });
+
             let totalProcessed = 0;
             let totalFailed = 0;
             let totalDropped = 0;
             let rateLimited = false;
 
             while (true) {
-                if (isRunningLow(startedAt)) {
+                if (isRunningLow(startedAt, budgetMs)) {
                     session.stage("self-chain");
                     // Fire-and-forget: do NOT await. The chained invocation
                     // owns its own wall-clock budget; awaiting would compound
@@ -146,11 +151,6 @@ Deno.serve(async (req: Request) => {
                 const messages = await queue.readBatch(QUEUE_BATCH_SIZE, VISIBILITY_TIMEOUT_SEC);
                 if (messages.length === 0) break;
 
-                // Drop poison messages first — anything that's been retried
-                // beyond `maxReads` gets archived with a log line. This keeps
-                // a single bad bill from holding up the queue forever.
-                // Helper survives a transient archive() throw (logs, leaves
-                // for next-tick retry) so a flaky DB blip can't stall us.
                 const { fresh, droppedCount } = await partitionPoisonMessages(
                     messages,
                     queue,
@@ -164,7 +164,7 @@ Deno.serve(async (req: Request) => {
                 const results = await mapConcurrent(
                     fresh,
                     PER_BATCH_CONCURRENCY,
-                    (m) => processBill(m.message, { congressClient, backend: billBackend }),
+                    (m) => processBill(m.message, { congressClient, backend: billBackend, textGroup }),
                 );
 
                 for (let i = 0; i < results.length; i++) {
@@ -173,6 +173,8 @@ Deno.serve(async (req: Request) => {
                     if (r.status === "fulfilled") {
                         await queue.archive(msg.msg_id);
                         totalProcessed++;
+                    } else if (r.reason instanceof TextThrottleRetry) {
+                        // Throttled bills get left in the queue —> rate limited break will happen here
                     } else {
                         const reason = r.reason instanceof Error
                             ? r.reason.message
@@ -191,18 +193,23 @@ Deno.serve(async (req: Request) => {
                     }
                 }
 
-                if (rateLimited) break; // don't keep hammering the API
+                if (textGroup.tripped) rateLimited = true;
+                if (rateLimited) break; // don't keep hammering congress.gov
             }
 
             session.set("processed", String(totalProcessed));
             session.set("failed", String(totalFailed));
             session.set("dropped", String(totalDropped));
+            if (textGroup.tripped) session.set("text_blacked_out", "true");
 
             if (rateLimited) {
                 const resetAt = new Date(Date.now() + RATE_LIMIT_FALLBACK_MS).toISOString();
+                const reason = textGroup.tripped
+                    ? "congress.gov text host HTTP 403 (rate-limited)"
+                    : "Congress API HTTP 429 detected during batch processing";
                 await syncStateClient.update({
                     api_rate_limit_reset_at: resetAt,
-                    last_error: "Congress API HTTP 429 detected during batch processing",
+                    last_error: reason,
                 });
                 session.set("rate_limited_until", resetAt);
                 throw new Error(

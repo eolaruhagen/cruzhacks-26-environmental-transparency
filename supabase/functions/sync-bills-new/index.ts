@@ -15,7 +15,7 @@ import {
 } from "../lib/local/pgmq-interactions.ts";
 import { CongressSyncStateClient } from "../lib/local/congress-sync-state.ts";
 import { csvBillSource, type CsvSource } from "../lib/local/csv-bill-source.ts";
-import { isRunningLow } from "../lib/local/time-budget.ts";
+import { getTimeBudgetMs, isRunningLow } from "../lib/local/time-budget.ts";
 import { selfInvoke } from "../lib/local/self-chain.ts";
 
 // ---------------------------------------------------------------------------
@@ -86,8 +86,9 @@ Deno.serve(async (req: Request) => {
     const envSecretKey = Deno.env.get("SECRET_API_KEY") ?? "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const congressApiKey = Deno.env.get("CONGRESS_API_KEY") ?? "";
-    if (!congressApiKey) throw new Error("Missing CONGRESS_API_KEY env var");
-
+    const budgetMs = getTimeBudgetMs(Deno.env.get("TIME_BUDGET_MS"));
+    if (!congressApiKey || !envSecretKey || !supabaseUrl) throw new Error("Missing env vars");
+    
     const gate = await runEdgeInvocation({
         req,
         envSecretKey,
@@ -142,7 +143,7 @@ Deno.serve(async (req: Request) => {
                             await queue.sendBatch(buffer);
                             totalEnqueued += buffer.length;
                             buffer = [];
-                            if (isRunningLow(startedAt)) {
+                            if (isRunningLow(startedAt, budgetMs)) {
                                 stoppedEarly = true;
                                 break;
                             }
@@ -182,7 +183,7 @@ Deno.serve(async (req: Request) => {
                         }
                         const next = page.pagination?.next;
                         if (!next) break;
-                        if (isRunningLow(startedAt)) {
+                        if (isRunningLow(startedAt, budgetMs)) {
                             session.stage("self-chain");
                             // Fire-and-forget: do NOT await. See bill-pipeline-worker
                             // for the same pattern + reasoning.

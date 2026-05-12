@@ -8,6 +8,7 @@ import {
     type BillTextResponse,
     type BillTypeAsParam,
     CongressClient,
+    type CoordinatedRequestGroup,
 } from "../shared/index.ts";
 import type { HouseBillQueueMessage } from "./pgmq-interactions.ts";
 import {
@@ -17,6 +18,7 @@ import {
     upsertHouseBill,
     upsertRepresentatives,
 } from "./bill-write.ts";
+import { tryFetchBillText } from "./bill-text-fetch.ts";
 
 // One-to-one mapping from the persisted legislation_type enum (uppercase, no
 // dots — what we store and what the queue carries) to the URL-param form
@@ -61,6 +63,34 @@ export function isEnvironmentalBill(detail: BillDetailResponse["bill"]): boolean
     return ENVIRONMENTAL_POLICY_AREAS.has(name);
 }
 
+
+/**
+ * Sentinel thrown when text fetch is aborted by the throttle group. Worker
+ * recognizes this class and leaves the message in queue (no archive, no
+ * "failed" counter bump, no warn log). After the cooldown elapses, PGMQ vt
+ * re-delivery picks the bill back up and the retry runs all 7 API calls +
+ * text fetch fresh — idempotent on the metadata.
+ */
+export class TextThrottleRetry extends Error {
+    constructor(public readonly billRef: string) {
+        super(`bill_text throttled; bill ${billRef} left in queue for retry`);
+        this.name = "TextThrottleRetry";
+    }
+}
+
+export interface ProcessBillDeps {
+    congressClient: CongressClient;
+    backend: BillWriteBackend;
+    /**
+     * Optional. Coordinated request group shared across all bills in a
+     * `mapConcurrent` batch. The first 403 from congress.gov text host
+     * trips the group, which aborts in-flight siblings and signals the
+     * worker to back off. Omit in tests that don't exercise the throttle.
+     */
+    textGroup?: CoordinatedRequestGroup<TextThrottleRetry>;
+}
+
+
 /**
  * Per-bill unit of work for the worker.
  *
@@ -69,20 +99,10 @@ export function isEnvironmentalBill(detail: BillDetailResponse["bill"]): boolean
  * API calls, no DB writes. The worker still archives the message because
  * processing succeeded ("we looked, it didn't apply").
  *
- * For in-scope bills, fetches the remaining 6 endpoints in parallel, maps
- * to normalized representative + house_bills_2 rows, and upserts in best-
- * effort order: reps first, then the bill (which has an FK on
- * sponsor.bioguide_id). If reps fails the bill upsert is skipped; if bill
- * fails the orphan rep rows are tolerated.
  *
  * Throws on any failure so the worker leaves the message in the PGMQ queue
  * (visibility timeout will re-surface it for retry).
  */
-export interface ProcessBillDeps {
-    congressClient: CongressClient;
-    backend: BillWriteBackend;
-}
-
 export async function processBill(
     message: HouseBillQueueMessage,
     deps: ProcessBillDeps,
@@ -112,6 +132,14 @@ export async function processBill(
             scope.committees(),
         ]);
 
+    const billRef = `${message.bill_type}-${message.bill_number} (congress ${message.congress})`;
+    const billTextContent = await tryFetchBillText({
+        url: CongressClient.getMostRecentTextUrl(textVersions.textVersions),
+        congressClient: deps.congressClient,
+        group: deps.textGroup,
+        billRef,
+    });
+
     const { reps, bill } = buildBillRows({
         message,
         detail,
@@ -121,6 +149,7 @@ export async function processBill(
         textVersions,
         subjects,
         committees,
+        billTextContent,
     });
 
     // Reps before bill — bill has FK on sponsor_bioguide_id, so reps must
@@ -197,6 +226,8 @@ export function buildBillRows(input: {
     textVersions: BillTextResponse;
     subjects: BillSubjectsResponse;
     committees: BillCommitteesResponse;
+    /** Already-fetched bill text content. Caller resolves the URL + downloads. */
+    billTextContent?: string | null;
 }): { reps: RepresentativeUpsert[]; bill: HouseBillUpsert } {
     const { detail: { bill: detail }, message } = input;
     const role = billChamberFromType(message.bill_type);
@@ -245,7 +276,6 @@ export function buildBillRows(input: {
     const billNumberInt = typeof detail.number === "number"
         ? detail.number
         : parseInt(detail.number, 10);
-    const textUrl = CongressClient.getMostRecentTextUrl(input.textVersions.textVersions);
     const latestSummary = input.summaries.summaries
         .slice()
         .sort((a, b) => (b.updateDate ?? "").localeCompare(a.updateDate ?? ""))[0];
@@ -259,7 +289,7 @@ export function buildBillRows(input: {
         bill_number: billNumberInt,
         title: detail.title ?? "",
         url: detail.legislationUrl ?? null,
-        bill_text: textUrl ?? null,
+        bill_text: input.billTextContent ?? null,
         origin_chamber: detail.originChamber ?? (role === "House" ? "House" : "Senate"),
         date_of_introduction: detail.introducedDate ?? null,
         congress_start_year: yrs.start,

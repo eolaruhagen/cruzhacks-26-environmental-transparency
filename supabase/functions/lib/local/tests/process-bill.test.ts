@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { CongressClient } from "../../shared/index.ts";
+import { CongressClient, createCoordinatedGroup, HttpResponseError } from "../../shared/index.ts";
 import {
     type BillWriteBackend,
     type HouseBillUpsert,
@@ -15,6 +15,7 @@ import {
     mapParty,
     processBill,
     type ProcessBillDeps,
+    TextThrottleRetry,
 } from "../process-bill.ts";
 
 // ---------------------------------------------------------------------------
@@ -203,6 +204,12 @@ function committeesResponse(): unknown {
     };
 }
 
+// Sample HTML the text host (www.congress.gov/.../BILLS-...htm) returns.
+// Strings in FIXTURE_RESPONSES are served as raw text() bodies; objects are
+// JSON-encoded. The fetchBillText path reads response.text() directly.
+const SAMPLE_BILL_TEXT_HTML =
+    "<html><body><pre>\n[Congressional Bills 119th Congress]\n<DOC>\nA BILL\n<all>\n</pre></body></html>";
+
 const FIXTURE_RESPONSES: Record<string, unknown> = {
     "/bill/119/hr/1": detailResponse(),
     "/bill/119/hr/1/actions": actionsResponse(),
@@ -211,6 +218,7 @@ const FIXTURE_RESPONSES: Record<string, unknown> = {
     "/bill/119/hr/1/text": textVersionsResponse(),
     "/bill/119/hr/1/subjects": subjectsResponse(),
     "/bill/119/hr/1/committees": committeesResponse(),
+    "BILLS-119hr1eh.htm": SAMPLE_BILL_TEXT_HTML,
 };
 
 function fakeFetch(responses: Record<string, unknown>) {
@@ -220,11 +228,14 @@ function fakeFetch(responses: Record<string, unknown>) {
                 url.endsWith(path) ||
                 url.includes(path + "?")
             )) {
+                // String bodies are served as raw text (for HTML endpoints
+                // like the bill-text host). Object bodies are JSON.
+                const isString = typeof body === "string";
                 return Promise.resolve({
                     ok: true,
                     status: 200,
-                    json: () => Promise.resolve(body),
-                    text: () => Promise.resolve(JSON.stringify(body)),
+                    json: () => Promise.resolve(isString ? JSON.parse(body) : body),
+                    text: () => Promise.resolve(isString ? body : JSON.stringify(body)),
                 });
             }
         }
@@ -326,6 +337,7 @@ Deno.test("buildBillRows: bill row maps detail + summaries + subjects + committe
     const { bill } = buildBillRows({
         message: { congress: 119, bill_type: "HR", bill_number: "1" },
         ...responses,
+        billTextContent: "<p>Sample bill text content.</p>",
     });
     assertEquals(bill.congress, 119);
     assertEquals(bill.bill_type, "HR");
@@ -347,7 +359,7 @@ Deno.test("buildBillRows: bill row maps detail + summaries + subjects + committe
     ]);
     assertEquals(bill.committees.length, 2);
     assertEquals(bill.url, "https://www.congress.gov/bill/119th-congress/house-bill/1");
-    assertEquals(bill.bill_text, "https://www.congress.gov/119/bills/hr1/BILLS-119hr1eh.htm");
+    assertEquals(bill.bill_text, "<p>Sample bill text content.</p>");
     assertEquals(bill.is_law, false);
 });
 
@@ -601,6 +613,84 @@ Deno.test(
         // No DB writes attempted.
         assertEquals(fake.repsCalls.length, 0);
         assertEquals(fake.billCalls.length, 0);
+    },
+);
+
+// Test-side strategy mirrors what the worker injects in production.
+function makeTextGroup() {
+    return createCoordinatedGroup<TextThrottleRetry>({
+        shouldTrip: (err) => err instanceof HttpResponseError && err.status === 403,
+        retryError: (ctx) => new TextThrottleRetry(ctx),
+    });
+}
+
+Deno.test(
+    "processBill: 403 from text host trips group + throws TextThrottleRetry; nothing upserts",
+    async () => {
+        // Text URL hits a 403 (congress.gov anonymous throttle). Expectation:
+        //   - group.tripped flipped
+        //   - signal aborted (siblings cancelled)
+        //   - TextThrottleRetry thrown so the worker leaves the message for retry
+        //   - NO upserts (we don't want to land partial data)
+        const textUrlPath = "BILLS-119hr1eh.htm";
+        const fetch403OnText = (url: string) => {
+            if (url.includes(textUrlPath)) {
+                return Promise.resolve({
+                    ok: false,
+                    status: 403,
+                    json: () => Promise.resolve({}),
+                    text: () => Promise.resolve("Forbidden"),
+                });
+            }
+            return fakeFetch(FIXTURE_RESPONSES)(url);
+        };
+        const client = new CongressClient({ apiKey: "test", fetchImpl: fetch403OnText });
+        const fake = makeBackend();
+        const textGroup = makeTextGroup();
+
+        await assertRejects(
+            () =>
+                processBill(
+                    { congress: 119, bill_type: "HR", bill_number: "1" },
+                    { congressClient: client, backend: fake.backend, textGroup },
+                ),
+            TextThrottleRetry,
+        );
+
+        assertEquals(textGroup.tripped, true);
+        assertEquals(textGroup.signal.aborted, true);
+        // Bill is left for retry — nothing was written.
+        assertEquals(fake.repsCalls.length, 0);
+        assertEquals(fake.billCalls.length, 0);
+    },
+);
+
+Deno.test(
+    "processBill: bails immediately with TextThrottleRetry when group is already tripped",
+    async () => {
+        // Pre-condition: textGroup is already tripped (a sibling did it).
+        // We bail right after the API metadata calls, BEFORE attempting the
+        // text fetch. Verified by fixture absence on the text URL — if we
+        // tried the fetch, fakeFetch would 404 and the error would be
+        // HttpResponseError, not TextThrottleRetry.
+        const client = new CongressClient({ apiKey: "test", fetchImpl: fakeFetch(FIXTURE_RESPONSES) });
+        const fake = makeBackend();
+        const textGroup = makeTextGroup();
+        textGroup.trip();
+
+        await assertRejects(
+            () =>
+                processBill(
+                    { congress: 119, bill_type: "HR", bill_number: "1" },
+                    { congressClient: client, backend: fake.backend, textGroup },
+                ),
+            TextThrottleRetry,
+        );
+
+        // Nothing landed; flag stays flipped (we didn't accidentally reset it).
+        assertEquals(fake.repsCalls.length, 0);
+        assertEquals(fake.billCalls.length, 0);
+        assertEquals(textGroup.tripped, true);
     },
 );
 
