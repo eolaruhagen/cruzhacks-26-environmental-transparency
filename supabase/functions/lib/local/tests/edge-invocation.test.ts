@@ -19,7 +19,7 @@ function reqWith(headers: Record<string, string>, body: string): Request {
 
 Deno.test("happy path: returns ok with parsed invocation", async () => {
     const req = reqWith(
-        { Authorization: `Bearer ${SECRET}`, "Content-Type": "application/json" },
+        { apikey: SECRET, "Content-Type": "application/json" },
         JSON.stringify({ kind: "manual", reason: "smoke" }),
     );
     const result = await runEdgeInvocation({
@@ -35,7 +35,7 @@ Deno.test("happy path: returns ok with parsed invocation", async () => {
 
 Deno.test("auth failure: deny with 401", async () => {
     const req = reqWith(
-        { Authorization: "Bearer wrong" },
+        { apikey: "wrong" },
         JSON.stringify({ kind: "manual", reason: "smoke" }),
     );
     const result = await runEdgeInvocation({
@@ -47,7 +47,7 @@ Deno.test("auth failure: deny with 401", async () => {
     if (result.kind === "deny") assertEquals(result.response.status, 401);
 });
 
-Deno.test("missing Authorization header: deny with 401", async () => {
+Deno.test("missing apikey header: deny with 401", async () => {
     const req = reqWith({}, JSON.stringify({ kind: "manual", reason: "smoke" }));
     const result = await runEdgeInvocation({
         req,
@@ -59,7 +59,7 @@ Deno.test("missing Authorization header: deny with 401", async () => {
 });
 
 Deno.test("malformed JSON body: deny with 400 and informative body", async () => {
-    const req = reqWith({ Authorization: `Bearer ${SECRET}` }, "{not json}");
+    const req = reqWith({ apikey: SECRET }, "{not json}");
     const result = await runEdgeInvocation({
         req,
         envSecretKey: SECRET,
@@ -77,7 +77,7 @@ Deno.test("malformed JSON body: deny with 400 and informative body", async () =>
 
 Deno.test("schema rejection: deny with 400 and validation message", async () => {
     const req = reqWith(
-        { Authorization: `Bearer ${SECRET}` },
+        { apikey: SECRET },
         JSON.stringify({ kind: "scheduled" }), // missing 'reason' for manual
     );
     const result = await runEdgeInvocation({
@@ -99,7 +99,7 @@ Deno.test("schema rejection: deny with 400 and validation message", async () => 
 Deno.test("auth check runs before body parse — bad auth + bad json still 401", async () => {
     // Reasoning: if both fail, we want to surface 401 (not leak parse errors
     // to unauthorized callers). Auth gate is the outermost layer.
-    const req = reqWith({ Authorization: "Bearer wrong" }, "{not json}");
+    const req = reqWith({ apikey: "wrong" }, "{not json}");
     const result = await runEdgeInvocation({
         req,
         envSecretKey: SECRET,
