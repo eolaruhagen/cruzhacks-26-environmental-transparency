@@ -88,6 +88,41 @@ test("listBills builds a /bill URL with query params and appends api_key + forma
   expect(calls[0]!.url).toContain("format=json");
 });
 
+test("listBills strips milliseconds + offset on fromDateTime to match Congress format", async () => {
+  // Congress.gov rejects `2025-...+00:00` and `2025-...123Z`. The client
+  // normalizes both to the bare `YYYY-MM-DDTHH:MM:SSZ` shape.
+  const { fetchImpl, calls } = recorder(() => fakeOk(FIX_BILL_LIST));
+  const client = new CongressClient({ apiKey: "K", fetchImpl });
+  await client.listBills({
+    fromDateTime: "2026-05-09T06:19:00.488+00:00", // PostgREST timestamptz form
+    toDateTime: "2026-05-10T12:00:00.123Z", // Date.toISOString() form
+  });
+  // URL params are URL-encoded; the colon in HH:MM:SS becomes %3A.
+  expect(calls[0]!.url).toContain("fromDateTime=2026-05-09T06%3A19%3A00Z");
+  expect(calls[0]!.url).toContain("toDateTime=2026-05-10T12%3A00%3A00Z");
+  expect(calls[0]!.url).not.toContain(".488");
+  expect(calls[0]!.url).not.toContain("%2B00%3A00"); // no `+00:00`
+});
+
+test("CongressClient.toApiDateTime strips millis + normalizes offset to Z", () => {
+  // Standalone helper — exercised separately so misuse from outside the
+  // listBills path is also covered.
+  expect(CongressClient.toApiDateTime("2026-05-09T06:19:00.488+00:00"))
+    .toBe("2026-05-09T06:19:00Z");
+  expect(CongressClient.toApiDateTime("2026-05-09T06:19:00.488Z"))
+    .toBe("2026-05-09T06:19:00Z");
+  expect(CongressClient.toApiDateTime("2026-05-09T06:19:00Z"))
+    .toBe("2026-05-09T06:19:00Z");
+  // Non-UTC offsets get converted to UTC, then formatted.
+  expect(CongressClient.toApiDateTime("2026-05-09T08:19:00.488-04:00"))
+    .toBe("2026-05-09T12:19:00Z");
+  // Date instance also accepted.
+  expect(CongressClient.toApiDateTime(new Date("2026-05-09T06:19:00.488Z")))
+    .toBe("2026-05-09T06:19:00Z");
+  // Invalid input throws (caller bug).
+  expect(() => CongressClient.toApiDateTime("not-a-date")).toThrow(/invalid date/);
+});
+
 test("listBills with no params still appends api_key and format", async () => {
   const { fetchImpl, calls } = recorder(() => fakeOk(FIX_BILL_LIST));
   const client = new CongressClient({ apiKey: "K", fetchImpl });

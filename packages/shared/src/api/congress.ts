@@ -83,7 +83,20 @@ export class CongressClient {
 
   /** Fetch one page of bills. Returns the raw envelope including `pagination`. */
   listBills(params: ListBillsParams = {}): Promise<BillListResponse> {
-    const qs = buildQuery(params);
+    // Congress.gov insists on `%Y-%m-%dT%H:%M:%SZ` (no millis, no offset).
+    // Normalize at the client layer so callers can pass any ISO string —
+    // including `timestamptz` rounds-tripped through PostgREST, which come
+    // back as `2025-...+00:00`.
+    const normalized: ListBillsParams = {
+      ...params,
+      fromDateTime: params.fromDateTime
+        ? CongressClient.toApiDateTime(params.fromDateTime)
+        : undefined,
+      toDateTime: params.toDateTime
+        ? CongressClient.toApiDateTime(params.toDateTime)
+        : undefined,
+    };
+    const qs = buildQuery(normalized);
     return this.getValidated(`/bill${qs}`, BillListResponseSchema);
   }
 
@@ -119,9 +132,15 @@ export class CongressClient {
   // Bill text (an unauthenticated endpoint at congress.gov, not /v3)
   // -------------------------------------------------------------------------
 
-  /** Download the actual bill text from a `textVersions[].formats[].url` value. */
-  async fetchBillText(textUrl: string): Promise<string> {
-    const response = await this.fetchImpl(textUrl);
+  /**
+   * Download the actual bill text from a `textVersions[].formats[].url` value.
+   *
+   * Accepts an optional AbortSignal so callers can cancel in-flight requests
+   * (e.g. when a sibling concurrent call has hit a 403 throttle and there's
+   * no point waiting on the rest of the batch).
+   */
+  async fetchBillText(textUrl: string, signal?: AbortSignal): Promise<string> {
+    const response = await this.fetchImpl(textUrl, signal ? { signal } : undefined);
     if (!response.ok) {
       let body: string | undefined;
       try {
@@ -132,6 +151,24 @@ export class CongressClient {
       throw new HttpResponseError(response.status, textUrl, body);
     }
     return response.text();
+  }
+
+  /**
+   * Format an ISO-ish date string or Date to the exact format Congress.gov
+   * expects on `fromDateTime` / `toDateTime`: `YYYY-MM-DDTHH:MM:SSZ`. The
+   * API rejects millisecond precision and explicit timezone offsets (e.g.
+   * `+00:00`), so we strip both via UTC ISO + a millis trim.
+   *
+   * Throws on inputs that don't parse — caller passed something other than
+   * an ISO string or Date.
+   */
+  static toApiDateTime(input: string | Date): string {
+    const d = typeof input === "string" ? new Date(input) : input;
+    if (isNaN(d.getTime())) {
+      throw new Error(`CongressClient.toApiDateTime: invalid date "${String(input)}"`);
+    }
+    // toISOString returns `YYYY-MM-DDTHH:MM:SS.sssZ` always in UTC.
+    return d.toISOString().replace(/\.\d{3}Z$/, "Z");
   }
 
   /**
