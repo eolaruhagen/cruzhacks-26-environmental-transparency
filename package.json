@@ -14,7 +14,9 @@
     "check": "bun run check:shared && bun run check:edge",
     "check:shared": "cd packages/shared && bunx tsc --noEmit -p .",
     "check:edge": "~/.deno/bin/deno check --config supabase/functions/deno.json supabase/functions/sync-bills-new/index.ts supabase/functions/bill-pipeline-worker/index.ts supabase/functions/csv-parser/index.ts",
-    "check:edge:reload": "~/.deno/bin/deno check --reload --config supabase/functions/deno.json supabase/functions/sync-bills-new/index.ts supabase/functions/bill-pipeline-worker/index.ts supabase/functions/csv-parser/index.ts"
+    "check:edge:reload": "~/.deno/bin/deno check --reload --config supabase/functions/deno.json supabase/functions/sync-bills-new/index.ts supabase/functions/bill-pipeline-worker/index.ts supabase/functions/csv-parser/index.ts",
+    "supabase:sync-shared": "rm -rf supabase/functions/lib/shared && cp -R packages/shared/src supabase/functions/lib/shared",
+    "supabase:functions:serve": "bun run supabase:sync-shared && supabase functions serve --env-file supabase/functions/.env.local"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
