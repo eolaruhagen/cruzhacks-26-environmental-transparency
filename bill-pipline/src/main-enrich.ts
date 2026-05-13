@@ -1,15 +1,11 @@
 import pino from "pino";
-import {
-    createCoordinatedGroup,
-    DiscordSink,
-    mapConcurrent,
-    ObservabilityProvider,
-} from "@cruzhacks/shared";
+import { createCoordinatedGroup, mapConcurrent } from "@cruzhacks/shared";
 import { loadConfig } from "./config.ts";
 import { fetchCorpusMean, fetchUnenrichedBills } from "./lib/bill-fetch.ts";
 import { makeBillFetchBackend } from "./lib/make-fetch-backend.ts";
 import { makeClassify } from "./lib/make-classify.ts";
 import { makeEmbed } from "./lib/make-embed.ts";
+import { makeObservability } from "./lib/observability.ts";
 import {
     LLMThrottleRetry,
     processBillEnrichment,
@@ -28,10 +24,7 @@ async function run(): Promise<void> {
     const embed = makeEmbed(cfg.OPENROUTER_API_KEY);
     const fetchBackend = makeBillFetchBackend(supabase);
 
-    const sinks = cfg.DISCORD_WEBHOOK_URL
-        ? [new DiscordSink({ webhookUrl: cfg.DISCORD_WEBHOOK_URL, username: "bill-enrich" })]
-        : [];
-    const obs = new ObservabilityProvider(sinks);
+    const obs = makeObservability("bill-enrich");
 
     await obs.withSession("bill-enrich", async (session) => {
         session.stage("fetch-corpus-mean");

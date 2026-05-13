@@ -57,8 +57,3 @@ analytics
 # Bulk seed CSVs — too large to commit, downloaded from Congress.gov per backfill
 supabase/seeds/*.csv
 
-# Materialized copy of @cruzhacks/shared for the local edge-runtime container,
-# which only mounts supabase/functions/ and can't follow a symlink that points
-# outside the mount. Source of truth: packages/shared/src.
-# Regenerate via `bun run supabase:sync-shared`.
-supabase/functions/lib/shared/

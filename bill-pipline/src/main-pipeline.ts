@@ -2,10 +2,8 @@ import pino from "pino";
 import {
     CongressClient,
     createCoordinatedGroup,
-    DiscordSink,
     HttpResponseError,
     mapConcurrent,
-    ObservabilityProvider,
 } from "@cruzhacks/shared";
 import { makeSupabase } from "./lib/supabase-client.ts";
 import { PgmqInteraction } from "./lib/pgmq-interactions.ts";
@@ -15,6 +13,7 @@ import { getTimeBudgetMs, isRunningLow } from "./lib/time-budget.ts";
 import { isInBlackout, type TimeWindow } from "./lib/blackout.ts";
 import { partitionPoisonMessages } from "./lib/queue-partition.ts";
 import { makeBillWriteBackend } from "./lib/make-bill-write-backend.ts";
+import { makeObservability } from "./lib/observability.ts";
 
 const logger = pino({ name: "bill-pipeline" });
 
@@ -38,7 +37,6 @@ function parseBlackoutWindows(raw: string | undefined): TimeWindow[] {
 async function runPipeline(): Promise<void> {
     const startedAt = Date.now();
     const congressApiKey = process.env.CONGRESS_API_KEY;
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
     const budgetMs = getTimeBudgetMs(process.env.TIME_BUDGET_MS);
     const maxReads = Number(process.env.MAX_READS) || DEFAULT_MAX_READS;
     const invalidTimeWindows = parseBlackoutWindows(process.env.BLACKOUT_WINDOWS);
@@ -60,10 +58,7 @@ async function runPipeline(): Promise<void> {
         return;
     }
 
-    const sinks = webhookUrl
-        ? [new DiscordSink({ webhookUrl, username: "bill-pipeline" })]
-        : [];
-    const obs = new ObservabilityProvider(sinks);
+    const obs = makeObservability("bill-pipeline");
 
     await obs.withSession("bill-pipeline", async (session) => {
         session.set("max_reads", String(maxReads));

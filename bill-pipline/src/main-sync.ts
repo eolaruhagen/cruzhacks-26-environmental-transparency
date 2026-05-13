@@ -2,14 +2,13 @@ import pino from "pino";
 import {
     type BillListResponse,
     CongressClient,
-    DiscordSink,
     HttpResponseError,
-    ObservabilityProvider,
 } from "@cruzhacks/shared";
 import { makeSupabase } from "./lib/supabase-client.ts";
 import { type HouseBillQueueMessage, PgmqInteraction } from "./lib/pgmq-interactions.ts";
 import { CongressSyncStateClient } from "./lib/congress-sync-state.ts";
 import { csvBillSource, type CsvSource } from "./lib/csv-bill-source.ts";
+import { makeObservability } from "./lib/observability.ts";
 import { getTimeBudgetMs, isRunningLow } from "./lib/time-budget.ts";
 
 const logger = pino({ name: "bill-sync" });
@@ -48,7 +47,6 @@ function billListItemToMessage(
 async function runSync(): Promise<void> {
     const startedAt = Date.now();
     const congressApiKey = process.env.CONGRESS_API_KEY;
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
     const budgetMs = getTimeBudgetMs(process.env.TIME_BUDGET_MS);
     if (!congressApiKey) throw new Error("Missing CONGRESS_API_KEY");
 
@@ -56,10 +54,7 @@ async function runSync(): Promise<void> {
     const manualReason = process.env.SYNC_REASON;
 
     const supabase = makeSupabase();
-    const sinks = webhookUrl
-        ? [new DiscordSink({ webhookUrl, username: "bill-sync" })]
-        : [];
-    const obs = new ObservabilityProvider(sinks);
+    const obs = makeObservability("bill-sync");
 
     await obs.withSession("bill-sync", async (session) => {
         session.set("source", source);
