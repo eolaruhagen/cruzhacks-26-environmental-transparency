@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database, Json } from "../../database.types.ts";
+import type { Database, Json } from "../shared/database.types.ts";
 import { LegislationTypeEnum } from "./bill-write.ts";
 
 /**

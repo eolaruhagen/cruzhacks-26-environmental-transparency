@@ -1,6 +1,6 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { z } from "zod";
-import type { Database } from "../database.types.ts";
+import type { Database } from "../lib/shared/database.types.ts";
 import {
     createCoordinatedGroup,
     DiscordSink,

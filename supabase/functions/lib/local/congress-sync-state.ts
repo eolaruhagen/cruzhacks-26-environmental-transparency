@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "../../database.types.ts";
+import type { Database } from "../shared/database.types.ts";
 
 // ---------------------------------------------------------------------------
 // Schemas — single source of truth for what the table looks like to the app

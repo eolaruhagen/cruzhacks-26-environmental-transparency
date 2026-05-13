@@ -38,8 +38,11 @@ dashboard.
   `YYYYMMDDHHMMSS_<kebab-name>.sql` and live in `supabase/migrations/`. Don't
   edit a migration after applying it — write a new migration to fix or revert.
 - **Re-generate types after schema-touching migrations**:
-  `supabase gen types --lang=typescript --local --schema public > supabase/functions/database.types.ts`.
-  Deno edge functions type-check against this file; stale types are why
+  `supabase gen types --lang=typescript --local --schema public > packages/shared/src/database.types.ts`.
+  This is the single source of truth for the schema; both Bun-side pipelines
+  and Deno edge functions import from `packages/shared/src/database.types.ts`
+  (edge functions via the materialised `supabase/functions/lib/shared/`
+  copy that `bun run supabase:sync-shared` writes). Stale types are why
   `supabase-js` calls start complaining about "column does not exist."
 - **Verify on apply.** After `supabase migration up --local` succeeds, confirm
   the version was recorded:

@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../../database.types.ts";
+import type { Database } from "../shared/database.types.ts";
 
 // Secret-API-key-backed singleton. Bypasses RLS — only safe inside edge
 // functions that the project trusts (i.e. invoked by cron or by trusted
