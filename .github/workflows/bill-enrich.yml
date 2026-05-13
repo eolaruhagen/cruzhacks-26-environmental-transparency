@@ -28,4 +28,5 @@ jobs:
           SECRET_API_KEY:      ${{ secrets.SECRET_API_KEY }}
           OPENROUTER_API_KEY:  ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TIME_BUDGET_MS:      '540000'
         run: bun run enrich

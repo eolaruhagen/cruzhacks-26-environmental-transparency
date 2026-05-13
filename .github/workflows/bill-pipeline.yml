@@ -29,4 +29,5 @@ jobs:
           CONGRESS_API_KEY:    ${{ secrets.CONGRESS_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           BLACKOUT_WINDOWS:    '06:30-09:00;15:30-18:30'
+          TIME_BUDGET_MS:      '540000'
         run: bun run pipeline

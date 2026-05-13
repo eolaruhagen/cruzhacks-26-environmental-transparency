@@ -14,7 +14,7 @@ test("returns false just under default 120s budget", () => {
 
 test("returns true exactly at the budget boundary", () => {
     // Boundary semantics: ">=" not ">". When elapsed hits the budget, we want
-    // to self-chain rather than risk a cross-tick overrun.
+    // to exit and let the next cron tick pick up rather than risk a cross-tick overrun.
     expect(isRunningLow(0, 120_000, 120_000)).toEqual(true);
 });
 

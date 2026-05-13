@@ -38,4 +38,5 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SYNC_SOURCE:         ${{ inputs.source || 'api' }}
           SYNC_REASON:         ${{ inputs.reason }}
+          TIME_BUDGET_MS:      '1500000'
         run: bun run sync

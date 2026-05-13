@@ -1,13 +1,10 @@
 /**
- * Pure helper for "is this edge function approaching its hard timeout?"
+ * Pure helper to bound a worker's wall-clock so it exits cleanly before the
+ * next cron tick fires. Each worker sizes `budgetMs` to be comfortably under
+ * its cron interval; on hitting it the loop exits and we trust the next tick
+ * to pick up where we left off.
  *
- * Supabase edge functions have a hard ~150s wall-clock limit in production.
- * with 30s of hard cpu limit
- * We aim to self-chain
- *
- * Both arguments are millisecond epochs. `now` defaults to Date.now() so
- * the call site reads naturally (`isRunningLow(startedAt)`) but tests can
- * inject any clock value to exercise edge cases without mocking time.
+ * Tests inject `now` to exercise edge cases without mocking time.
  */
 export function isRunningLow(
     startedAt: number,
@@ -19,11 +16,6 @@ export function isRunningLow(
     return elapsed >= budgetMs;
 }
 
-/**
- * Resolve the wall-clock budget from `TIME_BUDGET_MS` env, falling back
- * to 120_000 (120s — the production setting). Pass to `isRunningLow` as
- * the `budgetMs` argument.
- */
 export function getTimeBudgetMs(envValue: string | undefined): number {
     if (!envValue) return 120_000;
     const n = Number(envValue);

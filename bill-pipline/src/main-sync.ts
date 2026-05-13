@@ -133,9 +133,8 @@ async function runSync(): Promise<void> {
                     const next = page.pagination?.next;
                     if (!next) break;
                     if (isRunningLow(startedAt, budgetMs)) {
-                        // No self-chain on Bun: time-budget hit means the next
-                        // cron tick continues from where Congress's cursor left
-                        // off (last_sync_at gets updated only on a clean drain).
+                        // last_sync_at only bumps on a clean drain, so the next
+                        // tick re-reads from the same fromDateTime and continues.
                         session.set("total_enqueued", String(totalEnqueued));
                         session.set("stopped_early", "api_time_budget");
                         logger.warn("time budget exhausted; next cron picks up");

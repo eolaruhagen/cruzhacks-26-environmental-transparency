@@ -2,10 +2,9 @@ import { HttpResponseError } from "./error.ts";
 import type { HttpResult } from "./result.ts";
 
 /**
- * Retry policy for `withRetry`. Defaults are tuned for an edge-runtime
- * worker with a ~120s self-chain budget — light enough that worst-case
- * 3-attempt failure for one HTTP call is ~16s, leaving room for many
- * batches per invocation.
+ * Retry policy for `withRetry`. Defaults are tuned for a per-cron-tick
+ * worker — worst-case 3-attempt failure for one HTTP call is ~16s, leaving
+ * room for many batches per invocation before the time budget runs out.
  *
  *   timeoutMs:     5_000   → per-attempt timeout via AbortController
  *   maxAttempts:   3       → initial + up to 2 retries
