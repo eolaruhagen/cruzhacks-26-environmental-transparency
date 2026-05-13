@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1";
+import { test, expect } from "bun:test";
 import {
     type BillEnrichmentWrite,
     type BillFetchBackend,
@@ -152,54 +152,50 @@ const validEnrichment: BillEnrichmentWrite = {
 // fetchUnenrichedBills
 // ---------------------------------------------------------------------------
 
-Deno.test("fetchUnenrichedBills: batchSize=0 → no backend call, returns []", async () => {
+test("fetchUnenrichedBills: batchSize=0 → no backend call, returns []", async () => {
     const fake = makeBackend();
     const result = await fetchUnenrichedBills(fake.backend, 0);
-    assertEquals(result, []);
-    assertEquals(fake.calls, []);
+    expect(result).toEqual([]);
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("fetchUnenrichedBills: negative batchSize → no backend call, returns []", async () => {
+test("fetchUnenrichedBills: negative batchSize → no backend call, returns []", async () => {
     const fake = makeBackend();
     const result = await fetchUnenrichedBills(fake.backend, -5);
-    assertEquals(result, []);
-    assertEquals(fake.calls, []);
+    expect(result).toEqual([]);
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("fetchUnenrichedBills: returns parsed rows on happy path", async () => {
+test("fetchUnenrichedBills: returns parsed rows on happy path", async () => {
     const fake = makeBackend();
     fake.nextRowsResult = { data: [validRow], error: null };
     const result = await fetchUnenrichedBills(fake.backend, 10);
-    assertEquals(result.length, 1);
-    assertEquals(result[0], validRow);
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "fetchUnenrichedBills");
-    assertEquals(fake.calls[0].payload, 10);
+    expect(result.length).toEqual(1);
+    expect(result[0]).toEqual(validRow);
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("fetchUnenrichedBills");
+    expect(fake.calls[0].payload).toEqual(10);
 });
 
-Deno.test("fetchUnenrichedBills: rejects schema-invalid row from backend", async () => {
+test("fetchUnenrichedBills: rejects schema-invalid row from backend", async () => {
     const fake = makeBackend();
     const badRow = { id: "11111111-1111-4111-8111-111111111111" };
     fake.nextRowsResult = {
         data: [badRow] as unknown as BillFetchRow[],
         error: null,
     };
-    await assertRejects(
-        () => fetchUnenrichedBills(fake.backend, 10),
-        Error,
+    await expect(fetchUnenrichedBills(fake.backend, 10)).rejects.toThrow(
         "fetchUnenrichedBills",
     );
 });
 
-Deno.test("fetchUnenrichedBills: throws with backend error context", async () => {
+test("fetchUnenrichedBills: throws with backend error context", async () => {
     const fake = makeBackend();
     fake.nextRowsResult = {
         data: null,
         error: { message: "connection refused" },
     };
-    await assertRejects(
-        () => fetchUnenrichedBills(fake.backend, 10),
-        Error,
+    await expect(fetchUnenrichedBills(fake.backend, 10)).rejects.toThrow(
         "fetchUnenrichedBills",
     );
 });
@@ -208,42 +204,38 @@ Deno.test("fetchUnenrichedBills: throws with backend error context", async () =>
 // fetchCorpusMean
 // ---------------------------------------------------------------------------
 
-Deno.test("fetchCorpusMean: returns null on cold start (data === null)", async () => {
+test("fetchCorpusMean: returns null on cold start (data === null)", async () => {
     const fake = makeBackend();
     fake.nextMeanResult = { data: null, error: null };
     const result = await fetchCorpusMean(fake.backend, "bill");
-    assertEquals(result, null);
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "fetchCorpusMean");
-    assertEquals(fake.calls[0].payload, "bill");
+    expect(result).toEqual(null);
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("fetchCorpusMean");
+    expect(fake.calls[0].payload).toEqual("bill");
 });
 
-Deno.test("fetchCorpusMean: returns array on happy path", async () => {
+test("fetchCorpusMean: returns array on happy path", async () => {
     const fake = makeBackend();
     fake.nextMeanResult = { data: mean1536, error: null };
     const result = await fetchCorpusMean(fake.backend, "bill");
-    assertEquals(result?.length, 1536);
+    expect(result?.length).toEqual(1536);
 });
 
-Deno.test("fetchCorpusMean: throws on wrong-length data", async () => {
+test("fetchCorpusMean: throws on wrong-length data", async () => {
     const fake = makeBackend();
     fake.nextMeanResult = { data: [0.1, 0.2, 0.3], error: null };
-    await assertRejects(
-        () => fetchCorpusMean(fake.backend, "bill"),
-        Error,
+    await expect(fetchCorpusMean(fake.backend, "bill")).rejects.toThrow(
         "fetchCorpusMean",
     );
 });
 
-Deno.test("fetchCorpusMean: throws with backend error context", async () => {
+test("fetchCorpusMean: throws with backend error context", async () => {
     const fake = makeBackend();
     fake.nextMeanResult = {
         data: null,
         error: { message: "rpc not found" },
     };
-    await assertRejects(
-        () => fetchCorpusMean(fake.backend, "bill"),
-        Error,
+    await expect(fetchCorpusMean(fake.backend, "bill")).rejects.toThrow(
         "fetchCorpusMean",
     );
 });
@@ -252,156 +244,132 @@ Deno.test("fetchCorpusMean: throws with backend error context", async () => {
 // writeEnrichment
 // ---------------------------------------------------------------------------
 
-Deno.test("writeEnrichment: forwards validated payload to backend", async () => {
+test("writeEnrichment: forwards validated payload to backend", async () => {
     const fake = makeBackend();
     await writeEnrichment(fake.backend, validRow.id, validEnrichment);
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "writeEnrichment");
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("writeEnrichment");
     const payload = fake.calls[0].payload as {
         id: string;
         payload: BillEnrichmentWrite;
     };
-    assertEquals(payload.id, validRow.id);
-    assertEquals(payload.payload.category, "energy_and_resources");
-    assertEquals(payload.payload.embedding?.length, 1536);
+    expect(payload.id).toEqual(validRow.id);
+    expect(payload.payload.category).toEqual("energy_and_resources");
+    expect(payload.payload.embedding?.length).toEqual(1536);
 });
 
-Deno.test("writeEnrichment: accepts partial payload (category-only)", async () => {
+test("writeEnrichment: accepts partial payload (category-only)", async () => {
     const fake = makeBackend();
     await writeEnrichment(fake.backend, validRow.id, {
         category: "climate_and_emissions",
     });
-    assertEquals(fake.calls.length, 1);
+    expect(fake.calls.length).toEqual(1);
 });
 
-Deno.test("writeEnrichment: rejects unknown columns (typo guard)", async () => {
+test("writeEnrichment: rejects unknown columns (typo guard)", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () =>
-            writeEnrichment(fake.backend, validRow.id, {
-                ...validEnrichment,
-                catgory: "energy_and_resources",
-            }),
-        Error,
-        "writeEnrichment",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        writeEnrichment(fake.backend, validRow.id, {
+            ...validEnrichment,
+            catgory: "energy_and_resources",
+        }),
+    ).rejects.toThrow("writeEnrichment");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("writeEnrichment: rejects empty id", async () => {
+test("writeEnrichment: rejects empty id", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () => writeEnrichment(fake.backend, "", validEnrichment),
-        Error,
-        "writeEnrichment",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        writeEnrichment(fake.backend, "", validEnrichment),
+    ).rejects.toThrow("writeEnrichment");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("writeEnrichment: rejects non-string id", async () => {
+test("writeEnrichment: rejects non-string id", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () => writeEnrichment(fake.backend, 42, validEnrichment),
-        Error,
-        "writeEnrichment",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        writeEnrichment(fake.backend, 42, validEnrichment),
+    ).rejects.toThrow("writeEnrichment");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("writeEnrichment: rejects wrong-length embedding", async () => {
+test("writeEnrichment: rejects wrong-length embedding", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () =>
-            writeEnrichment(fake.backend, validRow.id, {
-                embedding: [0.1, 0.2, 0.3],
-            }),
-        Error,
-        "writeEnrichment",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        writeEnrichment(fake.backend, validRow.id, {
+            embedding: [0.1, 0.2, 0.3],
+        }),
+    ).rejects.toThrow("writeEnrichment");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("writeEnrichment: rejects category outside the bill_type enum", async () => {
+test("writeEnrichment: rejects category outside the bill_type enum", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () =>
-            writeEnrichment(fake.backend, validRow.id, {
-                category: "not_a_real_category",
-            } as unknown as BillEnrichmentWrite),
-        Error,
-        "writeEnrichment",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        writeEnrichment(fake.backend, validRow.id, {
+            category: "not_a_real_category",
+        } as unknown as BillEnrichmentWrite),
+    ).rejects.toThrow("writeEnrichment");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("writeEnrichment: throws with id=... backend error context", async () => {
+test("writeEnrichment: throws with id=... backend error context", async () => {
     const fake = makeBackend();
     fake.nextWriteResult = {
         error: { message: "unique violation" },
     };
-    await assertRejects(
-        () => writeEnrichment(fake.backend, validRow.id, validEnrichment),
-        Error,
-        `writeEnrichment: backend error (id=${validRow.id})`,
-    );
+    await expect(
+        writeEnrichment(fake.backend, validRow.id, validEnrichment),
+    ).rejects.toThrow(`writeEnrichment: backend error (id=${validRow.id})`);
 });
 
 // ---------------------------------------------------------------------------
 // markInsufficientInfo
 // ---------------------------------------------------------------------------
 
-Deno.test("markInsufficientInfo: forwards id+reason to backend on happy path", async () => {
+test("markInsufficientInfo: forwards id+reason to backend on happy path", async () => {
     const fake = makeBackend();
     await markInsufficientInfo(fake.backend, validRow.id, "no bill text");
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "markInsufficientInfo");
-    assertEquals(fake.calls[0].payload, {
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("markInsufficientInfo");
+    expect(fake.calls[0].payload).toEqual({
         id: validRow.id,
         reason: "no bill text",
     });
 });
 
-Deno.test("markInsufficientInfo: rejects empty id", async () => {
+test("markInsufficientInfo: rejects empty id", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () => markInsufficientInfo(fake.backend, "", "no bill text"),
-        Error,
-        "markInsufficientInfo",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        markInsufficientInfo(fake.backend, "", "no bill text"),
+    ).rejects.toThrow("markInsufficientInfo");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("markInsufficientInfo: rejects non-string id", async () => {
+test("markInsufficientInfo: rejects non-string id", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () => markInsufficientInfo(fake.backend, 42, "no bill text"),
-        Error,
-        "markInsufficientInfo",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        markInsufficientInfo(fake.backend, 42, "no bill text"),
+    ).rejects.toThrow("markInsufficientInfo");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("markInsufficientInfo: rejects empty reason", async () => {
+test("markInsufficientInfo: rejects empty reason", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () => markInsufficientInfo(fake.backend, validRow.id, ""),
-        Error,
-        "markInsufficientInfo",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        markInsufficientInfo(fake.backend, validRow.id, ""),
+    ).rejects.toThrow("markInsufficientInfo");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("markInsufficientInfo: throws with id=... backend error context", async () => {
+test("markInsufficientInfo: throws with id=... backend error context", async () => {
     const fake = makeBackend();
     fake.nextMarkResult = {
         error: { message: "row not found" },
     };
-    await assertRejects(
-        () =>
-            markInsufficientInfo(fake.backend, validRow.id, "no bill text"),
-        Error,
-        `markInsufficientInfo: backend error (id=${validRow.id})`,
-    );
+    await expect(
+        markInsufficientInfo(fake.backend, validRow.id, "no bill text"),
+    ).rejects.toThrow(`markInsufficientInfo: backend error (id=${validRow.id})`);
 });
 
 // ---------------------------------------------------------------------------
@@ -418,29 +386,29 @@ const validSubcategoryRow: SubcategoryEmbeddingRow = {
     embedding: subcategoryEmbedding1536,
 };
 
-Deno.test("fetchSubcategoryEmbeddings: returns [] when backend data is empty array", async () => {
+test("fetchSubcategoryEmbeddings: returns [] when backend data is empty array", async () => {
     const fake = makeBackend();
     fake.nextSubcategoryResult = { data: [], error: null };
     const result = await fetchSubcategoryEmbeddings(fake.backend, "HR");
-    assertEquals(result, []);
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "fetchSubcategoryEmbeddings");
-    assertEquals(fake.calls[0].payload, "HR");
+    expect(result).toEqual([]);
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("fetchSubcategoryEmbeddings");
+    expect(fake.calls[0].payload).toEqual("HR");
 });
 
-Deno.test("fetchSubcategoryEmbeddings: returns parsed rows on happy path", async () => {
+test("fetchSubcategoryEmbeddings: returns parsed rows on happy path", async () => {
     const fake = makeBackend();
     fake.nextSubcategoryResult = {
         data: [validSubcategoryRow],
         error: null,
     };
     const result = await fetchSubcategoryEmbeddings(fake.backend, "HR");
-    assertEquals(result.length, 1);
-    assertEquals(result[0].subcategory, "renewable");
-    assertEquals(result[0].embedding.length, 1536);
+    expect(result.length).toEqual(1);
+    expect(result[0].subcategory).toEqual("renewable");
+    expect(result[0].embedding.length).toEqual(1536);
 });
 
-Deno.test("fetchSubcategoryEmbeddings: rejects schema-invalid row (wrong-length embedding)", async () => {
+test("fetchSubcategoryEmbeddings: rejects schema-invalid row (wrong-length embedding)", async () => {
     const fake = makeBackend();
     fake.nextSubcategoryResult = {
         data: [
@@ -451,22 +419,18 @@ Deno.test("fetchSubcategoryEmbeddings: rejects schema-invalid row (wrong-length 
         ] as unknown as SubcategoryEmbeddingRow[],
         error: null,
     };
-    await assertRejects(
-        () => fetchSubcategoryEmbeddings(fake.backend, "HR"),
-        Error,
-        "fetchSubcategoryEmbeddings",
-    );
+    await expect(
+        fetchSubcategoryEmbeddings(fake.backend, "HR"),
+    ).rejects.toThrow("fetchSubcategoryEmbeddings");
 });
 
-Deno.test("fetchSubcategoryEmbeddings: throws on backend error", async () => {
+test("fetchSubcategoryEmbeddings: throws on backend error", async () => {
     const fake = makeBackend();
     fake.nextSubcategoryResult = {
         data: null,
         error: { message: "rpc failed" },
     };
-    await assertRejects(
-        () => fetchSubcategoryEmbeddings(fake.backend, "HR"),
-        Error,
-        "fetchSubcategoryEmbeddings: backend error",
-    );
+    await expect(
+        fetchSubcategoryEmbeddings(fake.backend, "HR"),
+    ).rejects.toThrow("fetchSubcategoryEmbeddings: backend error");
 });

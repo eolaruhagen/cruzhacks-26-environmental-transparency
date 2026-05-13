@@ -372,9 +372,6 @@ verify_jwt = false
 [functions.bill-pipeline-worker]
 verify_jwt = false
 
-[functions.bill-enrich-worker]
-verify_jwt = false
-
 [analytics]
 enabled = true
 port = 54327

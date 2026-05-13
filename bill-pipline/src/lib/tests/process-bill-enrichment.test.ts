@@ -1,5 +1,5 @@
-import { assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
-import type { CoordinatedRequestGroup } from "../../shared/index.ts";
+import { test, expect } from "bun:test";
+import type { CoordinatedRequestGroup } from "../../../../packages/shared/src/index.ts";
 import {
     type BillEnrichmentWrite,
     type BillFetchBackend,
@@ -156,7 +156,7 @@ function withCapturedWarn<T>(fn: () => Promise<T>): Promise<{ value: T; warnings
 // processBillEnrichment
 // ---------------------------------------------------------------------------
 
-Deno.test("processBillEnrichment: classified happy path writes enrichment with scores", async () => {
+test("processBillEnrichment: classified happy path writes enrichment with scores", async () => {
     const classify = makeClassify(() =>
         Promise.resolve({
             kind: "classified",
@@ -180,20 +180,20 @@ Deno.test("processBillEnrichment: classified happy path writes enrichment with s
 
     await processBillEnrichment(sampleRow, deps);
 
-    assertEquals(fake.writes.length, 1);
+    expect(fake.writes.length).toEqual(1);
     const write = fake.writes[0];
-    assertEquals(write.id, sampleRow.id);
-    assertEquals(write.payload.category, "water_resources");
-    assertEquals(write.payload.embedding?.length, 1536);
-    assertEquals(write.payload.embedding?.[0], 0.4);
+    expect(write.id).toEqual(sampleRow.id);
+    expect(write.payload.category).toEqual("water_resources");
+    expect(write.payload.embedding?.length).toEqual(1536);
+    expect(write.payload.embedding?.[0]).toEqual(0.4);
     const scores = write.payload.subcategory_scores as Record<string, number>;
-    assertEquals(Object.keys(scores), ["drinking_water"]);
-    assertEquals(Math.abs(scores.drinking_water - 1) < 1e-9, true);
-    assertEquals(fake.marks.length, 0);
-    assertEquals(fake.subcategoryCalls, ["water_resources"]);
+    expect(Object.keys(scores)).toEqual(["drinking_water"]);
+    expect(Math.abs(scores.drinking_water - 1) < 1e-9).toEqual(true);
+    expect(fake.marks.length).toEqual(0);
+    expect(fake.subcategoryCalls).toEqual(["water_resources"]);
 });
 
-Deno.test("processBillEnrichment: insufficient_info marks row and skips embed", async () => {
+test("processBillEnrichment: insufficient_info marks row and skips embed", async () => {
     const classify = makeClassify(() =>
         Promise.resolve({ kind: "insufficient_info", reason: "missing summary" })
     );
@@ -207,17 +207,17 @@ Deno.test("processBillEnrichment: insufficient_info marks row and skips embed", 
         corpusMean: v1536(0.1),
     });
 
-    assertEquals(embed.calls.length, 0);
-    assertEquals(fake.subcategoryCalls.length, 0);
-    assertEquals(fake.writes.length, 0);
-    assertEquals(fake.marks.length, 1);
-    assertEquals(fake.marks[0], {
+    expect(embed.calls.length).toEqual(0);
+    expect(fake.subcategoryCalls.length).toEqual(0);
+    expect(fake.writes.length).toEqual(0);
+    expect(fake.marks.length).toEqual(1);
+    expect(fake.marks[0]).toEqual({
         id: sampleRow.id,
         reason: "missing summary",
     });
 });
 
-Deno.test("processBillEnrichment: cold-start (null corpusMean) skips reduction and warns", async () => {
+test("processBillEnrichment: cold-start (null corpusMean) skips reduction and warns", async () => {
     const classify = makeClassify(() =>
         Promise.resolve({
             kind: "classified",
@@ -237,15 +237,15 @@ Deno.test("processBillEnrichment: cold-start (null corpusMean) skips reduction a
         })
     );
 
-    assertEquals(fake.writes.length, 1);
-    assertEquals(fake.writes[0].payload.embedding?.[0], 0.7);
-    assertEquals(warnings.length, 1);
+    expect(fake.writes.length).toEqual(1);
+    expect(fake.writes[0].payload.embedding?.[0]).toEqual(0.7);
+    expect(warnings.length).toEqual(1);
     const joined = warnings[0].map((a) => String(a)).join(" ");
-    assertStringIncludes(joined, "cold start");
-    assertStringIncludes(joined, "HR-1 (congress 119)");
+    expect(joined).toContain("cold start");
+    expect(joined).toContain("HR-1 (congress 119)");
 });
 
-Deno.test("processBillEnrichment: classify rejection propagates and skips downstream work", async () => {
+test("processBillEnrichment: classify rejection propagates and skips downstream work", async () => {
     // After the refactor, schema validation lives in the adapter. The
     // orchestrator's job is just to surface whatever classify throws.
     const classify = makeClassify(() =>
@@ -254,48 +254,43 @@ Deno.test("processBillEnrichment: classify rejection propagates and skips downst
     const embed = makeEmbed(() => Promise.resolve(v1536(0)));
     const fake = makeFetchBackend();
 
-    await assertRejects(
-        () =>
-            processBillEnrichment(sampleRow, {
-                classify: classify.fn,
-                embed: embed.fn,
-                fetchBackend: fake.backend,
-                corpusMean: v1536(0),
-            }),
-        Error,
-        "classify: invalid LLM response",
-    );
+    await expect(
+        processBillEnrichment(sampleRow, {
+            classify: classify.fn,
+            embed: embed.fn,
+            fetchBackend: fake.backend,
+            corpusMean: v1536(0),
+        }),
+    ).rejects.toThrow("classify: invalid LLM response");
 
-    assertEquals(embed.calls.length, 0);
-    assertEquals(fake.writes.length, 0);
-    assertEquals(fake.marks.length, 0);
+    expect(embed.calls.length).toEqual(0);
+    expect(fake.writes.length).toEqual(0);
+    expect(fake.marks.length).toEqual(0);
 });
 
-Deno.test("processBillEnrichment: LLM 429 trips group + throws LLMThrottleRetry", async () => {
+test("processBillEnrichment: LLM 429 trips group + throws LLMThrottleRetry", async () => {
     const classify = makeClassify(() => Promise.reject(new Error("HTTP 429")));
     const embed = makeEmbed(() => Promise.resolve(v1536(0)));
     const fake = makeFetchBackend();
     const helper = makeAlwaysTripGroup();
 
-    await assertRejects(
-        () =>
-            processBillEnrichment(sampleRow, {
-                classify: classify.fn,
-                embed: embed.fn,
-                fetchBackend: fake.backend,
-                corpusMean: v1536(0),
-                group: helper.group,
-            }),
-        LLMThrottleRetry,
-    );
+    await expect(
+        processBillEnrichment(sampleRow, {
+            classify: classify.fn,
+            embed: embed.fn,
+            fetchBackend: fake.backend,
+            corpusMean: v1536(0),
+            group: helper.group,
+        }),
+    ).rejects.toBeInstanceOf(LLMThrottleRetry);
 
-    assertEquals(helper.tripCount, 1);
-    assertEquals(helper.group.tripped, true);
-    assertEquals(fake.writes.length, 0);
-    assertEquals(fake.marks.length, 0);
+    expect(helper.tripCount).toEqual(1);
+    expect(helper.group.tripped).toEqual(true);
+    expect(fake.writes.length).toEqual(0);
+    expect(fake.marks.length).toEqual(0);
 });
 
-Deno.test(
+test(
     "processBillEnrichment: bails immediately with LLMThrottleRetry when group is already tripped",
     async () => {
         const controller = new AbortController();
@@ -323,27 +318,25 @@ Deno.test(
         const embed = makeEmbed(() => Promise.resolve(v1536(0)));
         const fake = makeFetchBackend();
 
-        await assertRejects(
-            () =>
-                processBillEnrichment(sampleRow, {
-                    classify: classify.fn,
-                    embed: embed.fn,
-                    fetchBackend: fake.backend,
-                    corpusMean: v1536(0),
-                    group,
-                }),
-            LLMThrottleRetry,
-        );
+        await expect(
+            processBillEnrichment(sampleRow, {
+                classify: classify.fn,
+                embed: embed.fn,
+                fetchBackend: fake.backend,
+                corpusMean: v1536(0),
+                group,
+            }),
+        ).rejects.toBeInstanceOf(LLMThrottleRetry);
 
-        assertEquals(classify.calls.length, 0);
-        assertEquals(embed.calls.length, 0);
-        assertEquals(fake.writes.length, 0);
-        assertEquals(fake.marks.length, 0);
-        assertEquals(tripCount, 0);
+        expect(classify.calls.length).toEqual(0);
+        expect(embed.calls.length).toEqual(0);
+        expect(fake.writes.length).toEqual(0);
+        expect(fake.marks.length).toEqual(0);
+        expect(tripCount).toEqual(0);
     },
 );
 
-Deno.test("processBillEnrichment: embedding dimension mismatch throws", async () => {
+test("processBillEnrichment: embedding dimension mismatch throws", async () => {
     const classify = makeClassify(() =>
         Promise.resolve({
             kind: "classified",
@@ -354,22 +347,19 @@ Deno.test("processBillEnrichment: embedding dimension mismatch throws", async ()
     const embed = makeEmbed(() => Promise.resolve(Array.from({ length: 100 }, () => 0)));
     const fake = makeFetchBackend();
 
-    await assertRejects(
-        () =>
-            processBillEnrichment(sampleRow, {
-                classify: classify.fn,
-                embed: embed.fn,
-                fetchBackend: fake.backend,
-                corpusMean: v1536(0),
-            }),
-        Error,
-        "dimension mismatch (got 100, expected 1536)",
-    );
+    await expect(
+        processBillEnrichment(sampleRow, {
+            classify: classify.fn,
+            embed: embed.fn,
+            fetchBackend: fake.backend,
+            corpusMean: v1536(0),
+        }),
+    ).rejects.toThrow("dimension mismatch (got 100, expected 1536)");
 
-    assertEquals(fake.writes.length, 0);
+    expect(fake.writes.length).toEqual(0);
 });
 
-Deno.test(
+test(
     "processBillEnrichment: empty subcategory list writes empty scores object",
     async () => {
         const classify = makeClassify(() =>
@@ -390,7 +380,7 @@ Deno.test(
             corpusMean: v1536(0.1),
         });
 
-        assertEquals(fake.writes.length, 1);
-        assertEquals(fake.writes[0].payload.subcategory_scores, {});
+        expect(fake.writes.length).toEqual(1);
+        expect(fake.writes[0].payload.subcategory_scores).toEqual({});
     },
 );
