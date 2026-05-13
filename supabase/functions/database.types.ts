@@ -355,6 +355,8 @@ export type Database = {
           embedding: unknown
           id: string
           is_law: boolean
+          last_categorization_attempt_at: string | null
+          last_categorization_reason: string | null
           latest_action: string | null
           latest_action_code: string | null
           latest_action_date: string | null
@@ -364,6 +366,7 @@ export type Database = {
           law_type: string | null
           num_cosponsors: number
           origin_chamber: Database["public"]["Enums"]["chamber"]
+          search_vector: unknown
           sponsor_bioguide_id: string | null
           subcategory_scores: Json | null
           subject_terms: string[]
@@ -389,6 +392,8 @@ export type Database = {
           embedding?: unknown
           id?: string
           is_law?: boolean
+          last_categorization_attempt_at?: string | null
+          last_categorization_reason?: string | null
           latest_action?: string | null
           latest_action_code?: string | null
           latest_action_date?: string | null
@@ -398,6 +403,7 @@ export type Database = {
           law_type?: string | null
           num_cosponsors?: number
           origin_chamber: Database["public"]["Enums"]["chamber"]
+          search_vector?: unknown
           sponsor_bioguide_id?: string | null
           subcategory_scores?: Json | null
           subject_terms?: string[]
@@ -423,6 +429,8 @@ export type Database = {
           embedding?: unknown
           id?: string
           is_law?: boolean
+          last_categorization_attempt_at?: string | null
+          last_categorization_reason?: string | null
           latest_action?: string | null
           latest_action_code?: string | null
           latest_action_date?: string | null
@@ -432,6 +440,7 @@ export type Database = {
           law_type?: string | null
           num_cosponsors?: number
           origin_chamber?: Database["public"]["Enums"]["chamber"]
+          search_vector?: unknown
           sponsor_bioguide_id?: string | null
           subcategory_scores?: Json | null
           subject_terms?: string[]
@@ -619,6 +628,10 @@ export type Database = {
     }
     Functions: {
       check_and_reset_daily_limit: { Args: never; Returns: undefined }
+      get_corpus_mean: {
+        Args: { p_type: Database["public"]["Enums"]["artifact_type"] }
+        Returns: number[]
+      }
       get_current_sync_state: {
         Args: never
         Returns: {
@@ -643,6 +656,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      house_bills_search_vector: {
+        Args: {
+          p_bill_policy_area: string
+          p_bill_text: string
+          p_committees: string[]
+          p_latest_summary: string
+          p_subject_terms: string[]
+          p_title: string
+        }
+        Returns: unknown
       }
       increment_api_request_count: {
         Args: { p_increment: number }
@@ -701,7 +725,7 @@ export type Database = {
       }
     }
     Enums: {
-      artifact_type: "article" | "social_post"
+      artifact_type: "article" | "social_post" | "bill"
       bill_type:
         | "air_and_atmosphere"
         | "water_resources"
@@ -853,7 +877,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      artifact_type: ["article", "social_post"],
+      artifact_type: ["article", "social_post", "bill"],
       bill_type: [
         "air_and_atmosphere",
         "water_resources",
