@@ -1,5 +1,5 @@
-import { expect, test } from "bun:test";
-import { createCoordinatedGroup } from "../src/utils/coordinated-group.ts";
+import { describe, expect, test } from "bun:test";
+import { callOrTrip, createCoordinatedGroup } from "../src/utils/coordinated-group.ts";
 
 class MyRetryError extends Error {
     constructor(public readonly ctx: string) {
@@ -205,4 +205,155 @@ test("shouldTripOn is fail-safe: strategy throwing returns false (no propagation
     // their catch's else branch and rethrow the original error.
     expect(g.tripped).toBe(false);
     expect(g.signal.aborted).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// callOrTrip
+// ---------------------------------------------------------------------------
+
+function makeStrategy() {
+    return {
+        shouldTrip: (err: unknown) =>
+            err instanceof Error && /trip/i.test(err.message),
+        retryError: (ctx: string) => new Error("RETRY:" + ctx),
+    };
+}
+
+describe("callOrTrip", () => {
+    test("happy path: returns op value, group untouched", async () => {
+        const g = createCoordinatedGroup(makeStrategy());
+        const result = await callOrTrip(async () => 42, g, "ctx");
+        expect(result).toBe(42);
+        expect(g.tripped).toBe(false);
+        expect(g.signal.aborted).toBe(false);
+    });
+
+    test("no group: error from op rethrows untouched", async () => {
+        const original = new Error("anything");
+        let thrown: unknown;
+        try {
+            await callOrTrip(async () => {
+                throw original;
+            }, undefined, "ctx");
+        } catch (e) {
+            thrown = e;
+        }
+        expect(thrown).toBe(original);
+    });
+
+    test("pre-check: tripped group short-circuits without invoking op", async () => {
+        const g = createCoordinatedGroup(makeStrategy());
+        g.trip();
+        let tripCalls = 0;
+        const wrapped = {
+            ...g,
+            trip() {
+                tripCalls++;
+                g.trip();
+            },
+            get tripped() {
+                return g.tripped;
+            },
+            shouldTripOn: g.shouldTripOn.bind(g),
+            retryError: g.retryError.bind(g),
+            signal: g.signal,
+        };
+        let opCalls = 0;
+        let thrown: unknown;
+        try {
+            await callOrTrip(async () => {
+                opCalls++;
+                return "nope";
+            }, wrapped, "ctx-A");
+        } catch (e) {
+            thrown = e;
+        }
+        expect(opCalls).toBe(0);
+        expect(thrown).toBeInstanceOf(Error);
+        expect((thrown as Error).message).toBe("RETRY:ctx-A");
+        expect(g.tripped).toBe(true);
+        expect(tripCalls).toBe(0);
+    });
+
+    test("trip-on-error: trips group exactly once and throws retryError", async () => {
+        const g = createCoordinatedGroup(makeStrategy());
+        let tripCalls = 0;
+        const wrapped: typeof g = {
+            signal: g.signal,
+            get tripped() {
+                return g.tripped;
+            },
+            trip() {
+                tripCalls++;
+                g.trip();
+            },
+            shouldTripOn: (err) => g.shouldTripOn(err),
+            retryError: (ctx) => g.retryError(ctx),
+        };
+
+        let opCalls = 0;
+        let thrown: unknown;
+        try {
+            await callOrTrip(async () => {
+                opCalls++;
+                throw new Error("please trip");
+            }, wrapped, "ctx-T");
+        } catch (e) {
+            thrown = e;
+        }
+
+        expect(opCalls).toBe(1);
+        expect(tripCalls).toBe(1);
+        expect(g.tripped).toBe(true);
+        expect(thrown).toBeInstanceOf(Error);
+        expect((thrown as Error).message).toBe("RETRY:ctx-T");
+    });
+
+    test("sibling-abort: signal.aborted surfaces as retryError even on non-trip err", async () => {
+        const g = createCoordinatedGroup(makeStrategy());
+        let thrown: unknown;
+        try {
+            await callOrTrip(async () => {
+                g.trip(); // simulate sibling tripping mid-flight
+                throw new Error("AbortError");
+            }, g, "ctx-S");
+        } catch (e) {
+            thrown = e;
+        }
+        expect(thrown).toBeInstanceOf(Error);
+        expect((thrown as Error).message).toBe("RETRY:ctx-S");
+        expect(g.tripped).toBe(true);
+    });
+
+    test("non-trip error with no abort: rethrows original, group untripped", async () => {
+        const g = createCoordinatedGroup(makeStrategy());
+        const original = new Error("benign network blip");
+        let thrown: unknown;
+        try {
+            await callOrTrip(async () => {
+                throw original;
+            }, g, "ctx-N");
+        } catch (e) {
+            thrown = e;
+        }
+        expect(thrown).toBe(original);
+        expect(g.tripped).toBe(false);
+        expect(g.signal.aborted).toBe(false);
+    });
+
+    test("signal threading: op receives group.signal, or undefined when no group", async () => {
+        const g = createCoordinatedGroup(makeStrategy());
+        const seen: (AbortSignal | undefined)[] = [];
+        await callOrTrip(async (signal) => {
+            seen.push(signal);
+            return 1;
+        }, g, "ctx");
+        expect(seen[0]).toBe(g.signal);
+
+        await callOrTrip(async (signal) => {
+            seen.push(signal);
+            return 2;
+        }, undefined, "ctx");
+        expect(seen[1]).toBeUndefined();
+    });
 });

@@ -81,3 +81,29 @@ export function createCoordinatedGroup<RetryErr extends Error>(
         },
     };
 }
+
+/**
+ * Run `op` under the supervision of an optional coordinated group. If the
+ * group is already tripped on entry, `op` is not invoked. Errors are
+ * classified via the group's strategy: trip-worthy errors trip the group
+ * and surface as the strategy's retry error; an in-flight sibling abort
+ * (signal aborted but the error itself isn't trip-worthy) also surfaces
+ * as retry; everything else rethrows unchanged.
+ */
+export async function callOrTrip<T, E extends Error>(
+    op: (signal: AbortSignal | undefined) => Promise<T>,
+    group: CoordinatedRequestGroup<E> | undefined,
+    context: string,
+): Promise<T> {
+    if (group?.tripped) throw group.retryError(context);
+    try {
+        return await op(group?.signal);
+    } catch (err) {
+        if (group?.shouldTripOn(err)) {
+            group.trip();
+            throw group.retryError(context);
+        }
+        if (group?.signal.aborted) throw group.retryError(context);
+        throw err;
+    }
+}
