@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database, Json } from "../shared/database.types.ts";
+import type { Database, Json } from "@cruzhacks/shared";
 import { LegislationTypeEnum } from "./bill-write.ts";
 
 /**
@@ -152,4 +152,3 @@ export class PgmqInteraction<K extends QueueName> {
         console.log(`[pgmq:${this.queueName}] archived msg ${msgId}`);
     }
 }
-

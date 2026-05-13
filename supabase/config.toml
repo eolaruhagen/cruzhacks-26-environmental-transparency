@@ -366,12 +366,6 @@ deno_version = 2
 
 # Cron-invoked pipeline functions: gated by our own Bearer (SECRET_API_KEY)
 # via authenticateRequest, not by Supabase platform JWT.
-[functions.sync-bills-new]
-verify_jwt = false
-
-[functions.bill-pipeline-worker]
-verify_jwt = false
-
 [analytics]
 enabled = true
 port = 54327

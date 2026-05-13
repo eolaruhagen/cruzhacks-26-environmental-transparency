@@ -39,11 +39,10 @@ dashboard.
   edit a migration after applying it — write a new migration to fix or revert.
 - **Re-generate types after schema-touching migrations**:
   `supabase gen types --lang=typescript --local --schema public > packages/shared/src/database.types.ts`.
-  This is the single source of truth for the schema; both Bun-side pipelines
-  and Deno edge functions import from `packages/shared/src/database.types.ts`
-  (edge functions via the materialised `supabase/functions/lib/shared/`
-  copy that `bun run supabase:sync-shared` writes). Stale types are why
-  `supabase-js` calls start complaining about "column does not exist."
+  This is the single source of truth for the schema; the Bun-side
+  `bill-pipline/` service imports it via the `@cruzhacks/shared` alias.
+  Stale types are why `supabase-js` calls start complaining about
+  "column does not exist."
 - **Verify on apply.** After `supabase migration up --local` succeeds, confirm
   the version was recorded:
   `psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -c "SELECT version FROM supabase_migrations.schema_migrations WHERE version = '<ts>';"`

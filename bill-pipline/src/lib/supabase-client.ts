@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "../../../packages/shared/src/database.types.ts";
+import type { Database } from "@cruzhacks/shared";
 
 export function makeSupabase(): SupabaseClient<Database> {
     const url = process.env.SUPABASE_URL;

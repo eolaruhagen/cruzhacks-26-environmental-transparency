@@ -2,7 +2,7 @@ import {
     callOrTrip,
     CongressClient,
     type CoordinatedRequestGroup,
-} from "../shared/index.ts";
+} from "@cruzhacks/shared";
 import { cleanBillText } from "./bill-text-clean.ts";
 
 export async function tryFetchBillText(opts: {

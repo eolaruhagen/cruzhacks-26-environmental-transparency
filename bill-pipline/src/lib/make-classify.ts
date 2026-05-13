@@ -1,4 +1,4 @@
-import { ModelStream, getOpenRouter } from "../../../packages/shared/src/utils/llm.ts";
+import { ModelStream, getOpenRouter } from "@cruzhacks/shared";
 import { ClassifyResultSchema } from "./bill-enrich.ts";
 import type { ClassifyFn } from "./process-bill-enrichment.ts";
 

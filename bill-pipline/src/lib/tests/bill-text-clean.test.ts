@@ -1,14 +1,14 @@
-import { assertEquals } from "jsr:@std/assert@1";
+import { test, expect } from "bun:test";
 import { cleanBillText } from "../bill-text-clean.ts";
 
-Deno.test("returns null for null/undefined/empty", () => {
-    assertEquals(cleanBillText(null), null);
-    assertEquals(cleanBillText(undefined), null);
-    assertEquals(cleanBillText(""), null);
-    assertEquals(cleanBillText("   \n\n   "), null);
+test("returns null for null/undefined/empty", () => {
+    expect(cleanBillText(null)).toEqual(null);
+    expect(cleanBillText(undefined)).toEqual(null);
+    expect(cleanBillText("")).toEqual(null);
+    expect(cleanBillText("   \n\n   ")).toEqual(null);
 });
 
-Deno.test("strips <html><body><pre> wrapper and trailing markers", () => {
+test("strips <html><body><pre> wrapper and trailing markers", () => {
     const input =
         "<html><body><pre>\n" +
         "[Congressional Bills 119th Congress]\n" +
@@ -23,10 +23,10 @@ Deno.test("strips <html><body><pre> wrapper and trailing markers", () => {
         "</pre></body></html>\n";
 
     const cleaned = cleanBillText(input);
-    assertEquals(cleaned, "A BILL\nBe it enacted...");
+    expect(cleaned).toEqual("A BILL\nBe it enacted...");
 });
 
-Deno.test("decodes HTML entities (&lt; &gt; &amp; &quot; &#39; &nbsp;)", () => {
+test("decodes HTML entities (&lt; &gt; &amp; &quot; &#39; &nbsp;)", () => {
     const input =
         "<html><body><pre>\n" +
         "section &amp; subsection\n" +
@@ -35,26 +35,25 @@ Deno.test("decodes HTML entities (&lt; &gt; &amp; &quot; &#39; &nbsp;)", () => {
         "less &lt; greater &gt; than\n" +
         "</pre></body></html>";
     const cleaned = cleanBillText(input);
-    assertEquals(
-        cleaned,
+    expect(cleaned).toEqual(
         "section & subsection\nTom 'the man' said \"hi\"\nnon breaking\nless < greater > than",
     );
 });
 
-Deno.test("drops <DOC> and <all> sentinel lines (post-decode form)", () => {
+test("drops <DOC> and <all> sentinel lines (post-decode form)", () => {
     // Already-decoded input — should also be cleaned.
     const input = "<DOC>\n\nSEC. 1.\nText.\n<all>";
-    assertEquals(cleanBillText(input), "SEC. 1.\nText.");
+    expect(cleanBillText(input)).toEqual("SEC. 1.\nText.");
 });
 
-Deno.test("only drops sentinel when it's on its own line", () => {
+test("only drops sentinel when it's on its own line", () => {
     // Defensive: the strings "<all>" or "<DOC>" embedded mid-line in a
     // statute (unlikely but possible) must NOT be stripped.
     const input = "Section 1. Reference to <all> below.\n";
-    assertEquals(cleanBillText(input), "Section 1. Reference to <all> below.");
+    expect(cleanBillText(input)).toEqual("Section 1. Reference to <all> below.");
 });
 
-Deno.test("prelude stripping stops at first real line", () => {
+test("prelude stripping stops at first real line", () => {
     // Bracketed lines appearing AFTER bill content begins are real content
     // (e.g. a sub-section reference), so we don't strip them.
     const input =
@@ -62,25 +61,24 @@ Deno.test("prelude stripping stops at first real line", () => {
         "First real line.\n" +
         "[A bracketed reference inside the bill]\n" +
         "More text.\n";
-    assertEquals(
-        cleanBillText(input),
+    expect(cleanBillText(input)).toEqual(
         "First real line.\n[A bracketed reference inside the bill]\nMore text.",
     );
 });
 
-Deno.test("collapses 3+ blank lines into a single blank", () => {
+test("collapses 3+ blank lines into a single blank", () => {
     const input = "Line 1.\n\n\n\n\nLine 2.\n\nLine 3.";
-    assertEquals(cleanBillText(input), "Line 1.\n\nLine 2.\n\nLine 3.");
+    expect(cleanBillText(input)).toEqual("Line 1.\n\nLine 2.\n\nLine 3.");
 });
 
-Deno.test("missing wrapper still cleans correctly", () => {
+test("missing wrapper still cleans correctly", () => {
     // If congress.gov ever changes the wrapping (or someone hands us the
     // raw <pre> contents directly), we still apply the rest of the pipeline.
     const input = "[Congressional Bills 119]\n\n<DOC>\n\nA BILL\n\n<all>";
-    assertEquals(cleanBillText(input), "A BILL");
+    expect(cleanBillText(input)).toEqual("A BILL");
 });
 
-Deno.test("real sample (truncated) from house_bills_2.HR.6204", () => {
+test("real sample (truncated) from house_bills_2.HR.6204", () => {
     // Verbatim shape observed in production after the text-fetch fix landed.
     const input =
         "<html><body><pre>\n" +
@@ -107,10 +105,10 @@ Deno.test("real sample (truncated) from house_bills_2.HR.6204", () => {
     const cleaned = cleanBillText(input);
     // First/last lines of result; we don't pin every byte so future
     // tightening of whitespace doesn't constantly break this.
-    assertEquals(cleaned?.startsWith("119th CONGRESS"), true);
-    assertEquals(cleaned?.endsWith("Congress assembled,"), true);
-    assertEquals(cleaned?.includes("<DOC>"), false);
-    assertEquals(cleaned?.includes("<all>"), false);
-    assertEquals(cleaned?.includes("&lt;"), false);
-    assertEquals(cleaned?.includes("[Congressional Bills"), false);
+    expect(cleaned?.startsWith("119th CONGRESS")).toEqual(true);
+    expect(cleaned?.endsWith("Congress assembled,")).toEqual(true);
+    expect(cleaned?.includes("<DOC>")).toEqual(false);
+    expect(cleaned?.includes("<all>")).toEqual(false);
+    expect(cleaned?.includes("&lt;")).toEqual(false);
+    expect(cleaned?.includes("[Congressional Bills")).toEqual(false);
 });

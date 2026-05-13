@@ -5,6 +5,7 @@
     "": {
       "name": "bill-pipline",
       "dependencies": {
+        "@cruzhacks/shared": "file:../packages/shared",
         "@openrouter/sdk": "^0.10.2",
         "@supabase/supabase-js": "^2.49.4",
         "pino": "^10.3.1",
@@ -20,6 +21,8 @@
     },
   },
   "packages": {
+    "@cruzhacks/shared": ["@cruzhacks/shared@file:../packages/shared", { "dependencies": { "@openrouter/sdk": "^0.10.2", "zod": "^4" }, "devDependencies": { "@types/bun": "latest" } }],
+
     "@openrouter/sdk": ["@openrouter/sdk@0.10.2", "", { "dependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-od0aWkk+vhndEI78YyPvPgMxv2+32KO4MRrk8lFxro/YABKAHkozXugc+x3YeNf/d9KQaBO6M4Rut1uf+yeD2g=="],
 
     "@pinojs/redact": ["@pinojs/redact@0.4.0", "", {}, "sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg=="],

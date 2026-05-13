@@ -1,10 +1,11 @@
 {
   "name": "bill-pipline",
-  "module": "src/main.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun run src/main.ts",
+    "enrich": "bun run src/main-enrich.ts",
+    "sync": "bun run src/main-sync.ts",
+    "pipeline": "bun run src/main-pipeline.ts",
     "test": "bun test",
     "check": "bunx tsc --noEmit -p ."
   },
@@ -15,6 +16,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@cruzhacks/shared": "file:../packages/shared",
     "@openrouter/sdk": "^0.10.2",
     "@supabase/supabase-js": "^2.49.4",
     "pino": "^10.3.1",

@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1";
+import { test, expect } from "bun:test";
 import {
     type BillWriteBackend,
     type HouseBillUpsert,
@@ -83,79 +83,72 @@ const validBill: HouseBillUpsert = {
 // upsertRepresentatives
 // ---------------------------------------------------------------------------
 
-Deno.test("upsertRepresentatives: empty array → no backend call", async () => {
+test("upsertRepresentatives: empty array → no backend call", async () => {
     const fake = makeBackend();
     await upsertRepresentatives(fake.backend, []);
-    assertEquals(fake.calls, []);
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("upsertRepresentatives: forwards validated payload to backend", async () => {
+test("upsertRepresentatives: forwards validated payload to backend", async () => {
     const fake = makeBackend();
     await upsertRepresentatives(fake.backend, [validRep]);
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "upsertRepresentatives");
-    assertEquals(fake.calls[0].payload, [validRep]);
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("upsertRepresentatives");
+    expect(fake.calls[0].payload).toEqual([validRep]);
 });
 
-Deno.test("upsertRepresentatives: dedupes by bioguide_id, last write wins", async () => {
+test("upsertRepresentatives: dedupes by bioguide_id, last write wins", async () => {
     const fake = makeBackend();
     const repA = { ...validRep, first_name: "Old" };
     const repB = { ...validRep, first_name: "New" }; // same bioguide_id
     await upsertRepresentatives(fake.backend, [repA, repB]);
-    assertEquals(fake.calls.length, 1);
+    expect(fake.calls.length).toEqual(1);
     const sent = fake.calls[0].payload as RepresentativeUpsert[];
-    assertEquals(sent.length, 1);
-    assertEquals(sent[0].first_name, "New"); // last write wins
+    expect(sent.length).toEqual(1);
+    expect(sent[0].first_name).toEqual("New"); // last write wins
 });
 
-Deno.test("upsertRepresentatives: rejects invalid rep before backend call", async () => {
+test("upsertRepresentatives: rejects invalid rep before backend call", async () => {
     const fake = makeBackend();
     // Public signature is unknown[] (Zod validates), so this is a runtime-only
     // failure — no @ts-expect-error needed.
-    await assertRejects(
-        () => upsertRepresentatives(fake.backend, [{ role: "House" }]),
-        Error,
-        "upsertRepresentatives",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        upsertRepresentatives(fake.backend, [{ role: "House" }]),
+    ).rejects.toThrow("upsertRepresentatives");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("upsertRepresentatives: rejects unknown columns (typo guard)", async () => {
+test("upsertRepresentatives: rejects unknown columns (typo guard)", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () =>
-            upsertRepresentatives(fake.backend, [
-                { ...validRep, partyAffiliation: "Democrat" },
-            ]),
-        Error,
-        "upsertRepresentatives",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        upsertRepresentatives(fake.backend, [
+            { ...validRep, partyAffiliation: "Democrat" },
+        ]),
+    ).rejects.toThrow("upsertRepresentatives");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("upsertRepresentatives: throws with backend error context", async () => {
+test("upsertRepresentatives: throws with backend error context", async () => {
     const fake = makeBackend();
     fake.nextRepsResult = { error: { message: "FK violation: states" } };
-    await assertRejects(
-        () => upsertRepresentatives(fake.backend, [validRep]),
-        Error,
-        "upsertRepresentatives",
-    );
+    await expect(
+        upsertRepresentatives(fake.backend, [validRep]),
+    ).rejects.toThrow("upsertRepresentatives");
 });
 
 // ---------------------------------------------------------------------------
 // upsertHouseBill
 // ---------------------------------------------------------------------------
 
-Deno.test("upsertHouseBill: forwards validated payload to backend", async () => {
+test("upsertHouseBill: forwards validated payload to backend", async () => {
     const fake = makeBackend();
     await upsertHouseBill(fake.backend, validBill);
-    assertEquals(fake.calls.length, 1);
-    assertEquals(fake.calls[0].method, "upsertHouseBill");
-    assertEquals(fake.calls[0].payload, validBill);
+    expect(fake.calls.length).toEqual(1);
+    expect(fake.calls[0].method).toEqual("upsertHouseBill");
+    expect(fake.calls[0].payload).toEqual(validBill);
 });
 
-Deno.test("upsertHouseBill: applies defaults for missing array/bool fields", async () => {
+test("upsertHouseBill: applies defaults for missing array/bool fields", async () => {
     const fake = makeBackend();
     const minimal = {
         congress: 119,
@@ -168,45 +161,38 @@ Deno.test("upsertHouseBill: applies defaults for missing array/bool fields", asy
     };
     await upsertHouseBill(fake.backend, minimal);
     const sent = fake.calls[0].payload as HouseBillUpsert;
-    assertEquals(sent.cosponsor_bioguide_ids, []);
-    assertEquals(sent.subject_terms, []);
-    assertEquals(sent.committees, []);
-    assertEquals(sent.is_law, false);
-    assertEquals(sent.num_cosponsors, 0);
+    expect(sent.cosponsor_bioguide_ids).toEqual([]);
+    expect(sent.subject_terms).toEqual([]);
+    expect(sent.committees).toEqual([]);
+    expect(sent.is_law).toEqual(false);
+    expect(sent.num_cosponsors).toEqual(0);
 });
 
-Deno.test("upsertHouseBill: rejects invalid bill before backend call", async () => {
+test("upsertHouseBill: rejects invalid bill before backend call", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () => upsertHouseBill(fake.backend, { congress: 119 }),
-        Error,
-        "upsertHouseBill",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        upsertHouseBill(fake.backend, { congress: 119 }),
+    ).rejects.toThrow("upsertHouseBill");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("upsertHouseBill: rejects bill_type outside the legislation_type enum", async () => {
+test("upsertHouseBill: rejects bill_type outside the legislation_type enum", async () => {
     const fake = makeBackend();
-    await assertRejects(
-        () =>
-            upsertHouseBill(fake.backend, {
-                ...validBill,
-                bill_type: "INVALID",
-            }),
-        Error,
-        "upsertHouseBill",
-    );
-    assertEquals(fake.calls, []);
+    await expect(
+        upsertHouseBill(fake.backend, {
+            ...validBill,
+            bill_type: "INVALID",
+        }),
+    ).rejects.toThrow("upsertHouseBill");
+    expect(fake.calls).toEqual([]);
 });
 
-Deno.test("upsertHouseBill: throws with backend error context", async () => {
+test("upsertHouseBill: throws with backend error context", async () => {
     const fake = makeBackend();
     fake.nextBillResult = {
         error: { message: "FK violation: sponsor_bioguide_id" },
     };
-    await assertRejects(
-        () => upsertHouseBill(fake.backend, validBill),
-        Error,
-        "upsertHouseBill",
-    );
+    await expect(
+        upsertHouseBill(fake.backend, validBill),
+    ).rejects.toThrow("upsertHouseBill");
 });

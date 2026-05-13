@@ -8,3 +8,6 @@ export {
     createCoordinatedGroup,
     type TripStrategy,
 } from "./utils/coordinated-group.ts";
+export { embedText, EmbeddingResponseSchema } from "./utils/embeddings.ts";
+export { getOpenRouter, ModelStream } from "./utils/llm.ts";
+export type { Database, Json } from "./database.types.ts";

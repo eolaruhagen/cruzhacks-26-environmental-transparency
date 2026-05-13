@@ -1,4 +1,4 @@
-import { callOrTrip, type CoordinatedRequestGroup } from "../../../packages/shared/src/index.ts";
+import { callOrTrip, type CoordinatedRequestGroup } from "@cruzhacks/shared";
 import {
     type BillFetchBackend,
     type BillFetchRow,

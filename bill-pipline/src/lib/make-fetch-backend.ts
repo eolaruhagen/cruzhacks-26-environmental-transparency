@@ -1,4 +1,4 @@
-import type { Database } from "../../../packages/shared/src/database.types.ts";
+import type { Database } from "@cruzhacks/shared";
 import type {
     BillEnrichmentWrite,
     BillFetchBackend,

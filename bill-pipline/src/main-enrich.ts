@@ -4,7 +4,7 @@ import {
     DiscordSink,
     mapConcurrent,
     ObservabilityProvider,
-} from "../../packages/shared/src/index.ts";
+} from "@cruzhacks/shared";
 import { loadConfig } from "./config.ts";
 import { fetchCorpusMean, fetchUnenrichedBills } from "./lib/bill-fetch.ts";
 import { makeBillFetchBackend } from "./lib/make-fetch-backend.ts";

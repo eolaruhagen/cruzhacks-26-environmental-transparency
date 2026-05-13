@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import type { CoordinatedRequestGroup } from "../../../../packages/shared/src/index.ts";
+import type { CoordinatedRequestGroup } from "@cruzhacks/shared";
 import {
     type BillEnrichmentWrite,
     type BillFetchBackend,

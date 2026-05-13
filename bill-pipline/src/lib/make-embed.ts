@@ -1,4 +1,4 @@
-import { embedText } from "../../../packages/shared/src/utils/embeddings.ts";
+import { embedText } from "@cruzhacks/shared";
 import type { EmbedFn } from "./process-bill-enrichment.ts";
 
 const EMBEDDING_MODEL = "openai/text-embedding-3-small";

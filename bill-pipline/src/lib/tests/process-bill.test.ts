@@ -1,5 +1,5 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { CongressClient, createCoordinatedGroup, HttpResponseError } from "../../shared/index.ts";
+import { test, expect } from "bun:test";
+import { CongressClient, createCoordinatedGroup, HttpResponseError } from "@cruzhacks/shared";
 import {
     type BillWriteBackend,
     type HouseBillUpsert,
@@ -22,58 +22,58 @@ import {
 // Pure mapper tests — fast, no I/O
 // ---------------------------------------------------------------------------
 
-Deno.test("mapParty: 'D' / 'Democrat' → Democrat", () => {
-    assertEquals(mapParty("D"), "Democrat");
-    assertEquals(mapParty("Democrat"), "Democrat");
+test("mapParty: 'D' / 'Democrat' → Democrat", () => {
+    expect(mapParty("D")).toEqual("Democrat");
+    expect(mapParty("Democrat")).toEqual("Democrat");
 });
 
-Deno.test("mapParty: 'R' / 'Republican' → Republican", () => {
-    assertEquals(mapParty("R"), "Republican");
-    assertEquals(mapParty("Republican"), "Republican");
+test("mapParty: 'R' / 'Republican' → Republican", () => {
+    expect(mapParty("R")).toEqual("Republican");
+    expect(mapParty("Republican")).toEqual("Republican");
 });
 
-Deno.test("mapParty: 'I' / 'Independent' / 'ID' → Independent", () => {
-    assertEquals(mapParty("I"), "Independent");
-    assertEquals(mapParty("Independent"), "Independent");
-    assertEquals(mapParty("ID"), "Independent");
+test("mapParty: 'I' / 'Independent' / 'ID' → Independent", () => {
+    expect(mapParty("I")).toEqual("Independent");
+    expect(mapParty("Independent")).toEqual("Independent");
+    expect(mapParty("ID")).toEqual("Independent");
 });
 
-Deno.test("mapParty: unknown / undefined → null (never guess)", () => {
-    assertEquals(mapParty("L"), null);
-    assertEquals(mapParty("Libertarian"), null);
-    assertEquals(mapParty(undefined), null);
-    assertEquals(mapParty(""), null);
+test("mapParty: unknown / undefined → null (never guess)", () => {
+    expect(mapParty("L")).toEqual(null);
+    expect(mapParty("Libertarian")).toEqual(null);
+    expect(mapParty(undefined)).toEqual(null);
+    expect(mapParty("")).toEqual(null);
 });
 
-Deno.test("mapDistrict: number passes through", () => {
-    assertEquals(mapDistrict(16), 16);
+test("mapDistrict: number passes through", () => {
+    expect(mapDistrict(16)).toEqual(16);
 });
 
-Deno.test("mapDistrict: numeric string → int", () => {
-    assertEquals(mapDistrict("16"), 16);
-    assertEquals(mapDistrict("0"), 0);
+test("mapDistrict: numeric string → int", () => {
+    expect(mapDistrict("16")).toEqual(16);
+    expect(mapDistrict("0")).toEqual(0);
 });
 
-Deno.test("mapDistrict: undefined / non-numeric → null", () => {
-    assertEquals(mapDistrict(undefined), null);
-    assertEquals(mapDistrict("at-large"), null);
+test("mapDistrict: undefined / non-numeric → null", () => {
+    expect(mapDistrict(undefined)).toEqual(null);
+    expect(mapDistrict("at-large")).toEqual(null);
 });
 
-Deno.test("billChamberFromType: H* → House, S* → Senate", () => {
+test("billChamberFromType: H* → House, S* → Senate", () => {
     for (const t of ["HR", "HJRES", "HCONRES", "HRES"]) {
-        assertEquals(billChamberFromType(t), "House");
+        expect(billChamberFromType(t)).toEqual("House");
     }
     for (const t of ["S", "SJRES", "SCONRES", "SRES"]) {
-        assertEquals(billChamberFromType(t), "Senate");
+        expect(billChamberFromType(t)).toEqual("Senate");
     }
 });
 
-Deno.test("congressYears: 1st = 1789-1790", () => {
-    assertEquals(congressYears(1), { start: 1789, end: 1790 });
+test("congressYears: 1st = 1789-1790", () => {
+    expect(congressYears(1)).toEqual({ start: 1789, end: 1790 });
 });
 
-Deno.test("congressYears: 119th = 2025-2026", () => {
-    assertEquals(congressYears(119), { start: 2025, end: 2026 });
+test("congressYears: 119th = 2025-2026", () => {
+    expect(congressYears(119)).toEqual({ start: 2025, end: 2026 });
 });
 
 // ---------------------------------------------------------------------------
@@ -307,7 +307,7 @@ async function loadAllResponses(client: CongressClient) {
     };
 }
 
-Deno.test("buildBillRows: produces sponsor + 2 cosponsors as reps", async () => {
+test("buildBillRows: produces sponsor + 2 cosponsors as reps", async () => {
     const client = new CongressClient({
         apiKey: "test",
         fetchImpl: fakeFetch(FIXTURE_RESPONSES),
@@ -317,18 +317,18 @@ Deno.test("buildBillRows: produces sponsor + 2 cosponsors as reps", async () => 
         message: { congress: 119, bill_type: "HR", bill_number: "1" },
         ...responses,
     });
-    assertEquals(reps.length, 3); // 1 sponsor + 2 cosponsors
+    expect(reps.length).toEqual(3); // 1 sponsor + 2 cosponsors
 
     const sponsor = reps.find((r) => r.bioguide_id === "K000388")!;
-    assertEquals(sponsor.first_name, "Anna");
-    assertEquals(sponsor.last_name, "Eshoo");
-    assertEquals(sponsor.party, "Democrat");
-    assertEquals(sponsor.state, "CA");
-    assertEquals(sponsor.district, 16);
-    assertEquals(sponsor.role, "House");
+    expect(sponsor.first_name).toEqual("Anna");
+    expect(sponsor.last_name).toEqual("Eshoo");
+    expect(sponsor.party).toEqual("Democrat");
+    expect(sponsor.state).toEqual("CA");
+    expect(sponsor.district).toEqual(16);
+    expect(sponsor.role).toEqual("House");
 });
 
-Deno.test("buildBillRows: bill row maps detail + summaries + subjects + committees", async () => {
+test("buildBillRows: bill row maps detail + summaries + subjects + committees", async () => {
     const client = new CongressClient({
         apiKey: "test",
         fetchImpl: fakeFetch(FIXTURE_RESPONSES),
@@ -339,35 +339,35 @@ Deno.test("buildBillRows: bill row maps detail + summaries + subjects + committe
         ...responses,
         billTextContent: "<p>Sample bill text content.</p>",
     });
-    assertEquals(bill.congress, 119);
-    assertEquals(bill.bill_type, "HR");
-    assertEquals(bill.bill_number, 1);
-    assertEquals(bill.title, "Lower Energy Costs Act");
-    assertEquals(bill.origin_chamber, "House");
-    assertEquals(bill.date_of_introduction, "2025-01-09");
-    assertEquals(bill.congress_start_year, 2025);
-    assertEquals(bill.congress_end_year, 2026);
-    assertEquals(bill.sponsor_bioguide_id, "K000388");
-    assertEquals(bill.cosponsor_bioguide_ids.sort(), ["J000288", "P000034"]);
-    assertEquals(bill.num_cosponsors, 2);
-    assertEquals(bill.latest_action, "Passed House without amendment.");
-    assertEquals(bill.latest_action_date, "2025-03-15");
-    assertEquals(bill.bill_policy_area, "Energy");
-    assertEquals(bill.subject_terms.sort(), [
+    expect(bill.congress).toEqual(119);
+    expect(bill.bill_type).toEqual("HR");
+    expect(bill.bill_number).toEqual(1);
+    expect(bill.title).toEqual("Lower Energy Costs Act");
+    expect(bill.origin_chamber).toEqual("House");
+    expect(bill.date_of_introduction).toEqual("2025-01-09");
+    expect(bill.congress_start_year).toEqual(2025);
+    expect(bill.congress_end_year).toEqual(2026);
+    expect(bill.sponsor_bioguide_id).toEqual("K000388");
+    expect(bill.cosponsor_bioguide_ids.sort()).toEqual(["J000288", "P000034"]);
+    expect(bill.num_cosponsors).toEqual(2);
+    expect(bill.latest_action).toEqual("Passed House without amendment.");
+    expect(bill.latest_action_date).toEqual("2025-03-15");
+    expect(bill.bill_policy_area).toEqual("Energy");
+    expect(bill.subject_terms.sort()).toEqual([
         "Energy efficiency and conservation",
         "Greenhouse gases",
     ]);
-    assertEquals(bill.committees.length, 2);
-    assertEquals(bill.url, "https://www.congress.gov/bill/119th-congress/house-bill/1");
-    assertEquals(bill.bill_text, "<p>Sample bill text content.</p>");
-    assertEquals(bill.is_law, false);
+    expect(bill.committees.length).toEqual(2);
+    expect(bill.url).toEqual("https://www.congress.gov/bill/119th-congress/house-bill/1");
+    expect(bill.bill_text).toEqual("<p>Sample bill text content.</p>");
+    expect(bill.is_law).toEqual(false);
 });
 
 // ---------------------------------------------------------------------------
 // processBill — full integration with fake fetch + fake backend
 // ---------------------------------------------------------------------------
 
-Deno.test("processBill: happy path upserts reps then bill", async () => {
+test("processBill: happy path upserts reps then bill", async () => {
     const client = new CongressClient({
         apiKey: "test",
         fetchImpl: fakeFetch(FIXTURE_RESPONSES),
@@ -384,16 +384,16 @@ Deno.test("processBill: happy path upserts reps then bill", async () => {
     );
 
     // Reps upsert called exactly once with 3 rows.
-    assertEquals(fake.repsCalls.length, 1);
-    assertEquals(fake.repsCalls[0].length, 3);
+    expect(fake.repsCalls.length).toEqual(1);
+    expect(fake.repsCalls[0].length).toEqual(3);
 
     // Bill upsert called exactly once.
-    assertEquals(fake.billCalls.length, 1);
-    assertEquals(fake.billCalls[0].title, "Lower Energy Costs Act");
-    assertEquals(fake.billCalls[0].sponsor_bioguide_id, "K000388");
+    expect(fake.billCalls.length).toEqual(1);
+    expect(fake.billCalls[0].title).toEqual("Lower Energy Costs Act");
+    expect(fake.billCalls[0].sponsor_bioguide_id).toEqual("K000388");
 });
 
-Deno.test("processBill: skips bill upsert when reps upsert fails", async () => {
+test("processBill: skips bill upsert when reps upsert fails", async () => {
     const client = new CongressClient({
         apiKey: "test",
         fetchImpl: fakeFetch(FIXTURE_RESPONSES),
@@ -401,21 +401,18 @@ Deno.test("processBill: skips bill upsert when reps upsert fails", async () => {
     const fake = makeBackend();
     fake.nextRepsResult = { error: { message: "FK violation" } };
 
-    await assertRejects(
-        () =>
-            processBill(
-                { congress: 119, bill_type: "HR", bill_number: "1" },
-                { congressClient: client, backend: fake.backend },
-            ),
-        Error,
-        "upsertRepresentatives",
-    );
+    await expect(
+        processBill(
+            { congress: 119, bill_type: "HR", bill_number: "1" },
+            { congressClient: client, backend: fake.backend },
+        ),
+    ).rejects.toThrow("upsertRepresentatives");
 
-    assertEquals(fake.repsCalls.length, 1);
-    assertEquals(fake.billCalls.length, 0);
+    expect(fake.repsCalls.length).toEqual(1);
+    expect(fake.billCalls.length).toEqual(0);
 });
 
-Deno.test("processBill: throws when bill upsert fails (after reps succeeded)", async () => {
+test("processBill: throws when bill upsert fails (after reps succeeded)", async () => {
     const client = new CongressClient({
         apiKey: "test",
         fetchImpl: fakeFetch(FIXTURE_RESPONSES),
@@ -423,22 +420,19 @@ Deno.test("processBill: throws when bill upsert fails (after reps succeeded)", a
     const fake = makeBackend();
     fake.nextBillResult = { error: { message: "constraint violation" } };
 
-    await assertRejects(
-        () =>
-            processBill(
-                { congress: 119, bill_type: "HR", bill_number: "1" },
-                { congressClient: client, backend: fake.backend },
-            ),
-        Error,
-        "upsertHouseBill",
-    );
+    await expect(
+        processBill(
+            { congress: 119, bill_type: "HR", bill_number: "1" },
+            { congressClient: client, backend: fake.backend },
+        ),
+    ).rejects.toThrow("upsertHouseBill");
 
     // Reps did upsert successfully — orphan rows are tolerated by design.
-    assertEquals(fake.repsCalls.length, 1);
-    assertEquals(fake.billCalls.length, 1);
+    expect(fake.repsCalls.length).toEqual(1);
+    expect(fake.billCalls.length).toEqual(1);
 });
 
-Deno.test("processBill: propagates Congress API failure", async () => {
+test("processBill: propagates Congress API failure", async () => {
     const client = new CongressClient({
         apiKey: "test",
         // No fixtures registered for this URL → every call returns 404.
@@ -449,22 +443,19 @@ Deno.test("processBill: propagates Congress API failure", async () => {
     // The 404 is surfaced by CongressClient as `HTTP 404` in the message;
     // matching that substring forces processBill to actually run the fetch
     // (a stub `throw "not implemented"` cannot satisfy this).
-    await assertRejects(
-        () =>
-            processBill(
-                { congress: 119, bill_type: "HR", bill_number: "1" },
-                { congressClient: client, backend: fake.backend },
-            ),
-        Error,
-        "HTTP 404",
-    );
+    await expect(
+        processBill(
+            { congress: 119, bill_type: "HR", bill_number: "1" },
+            { congressClient: client, backend: fake.backend },
+        ),
+    ).rejects.toThrow("HTTP 404");
 
     // No DB writes attempted when the fetch failed.
-    assertEquals(fake.repsCalls.length, 0);
-    assertEquals(fake.billCalls.length, 0);
+    expect(fake.repsCalls.length).toEqual(0);
+    expect(fake.billCalls.length).toEqual(0);
 });
 
-Deno.test("processBill: dedupes a sponsor that also cosponsors", async () => {
+test("processBill: dedupes a sponsor that also cosponsors", async () => {
     // Edge case: the Congress API sometimes lists a bill's sponsor in its
     // cosponsor array too. The reps upsert must dedupe by bioguide_id.
     const responsesWithDupCosponsor = {
@@ -504,42 +495,42 @@ Deno.test("processBill: dedupes a sponsor that also cosponsors", async () => {
     );
 
     // 2 unique reps after dedupe (K000388 and P000034).
-    assertEquals(fake.repsCalls[0].length, 2);
+    expect(fake.repsCalls[0].length).toEqual(2);
 });
 
 // ---------------------------------------------------------------------------
 // Environmental policy-area filter
 // ---------------------------------------------------------------------------
 
-Deno.test("ENVIRONMENTAL_POLICY_AREAS contains the expected core 4", () => {
-    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Energy"), true);
-    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Environmental Protection"), true);
-    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Public Lands and Natural Resources"), true);
-    assertEquals(ENVIRONMENTAL_POLICY_AREAS.has("Water Resources Development"), true);
+test("ENVIRONMENTAL_POLICY_AREAS contains the expected core 4", () => {
+    expect(ENVIRONMENTAL_POLICY_AREAS.has("Energy")).toEqual(true);
+    expect(ENVIRONMENTAL_POLICY_AREAS.has("Environmental Protection")).toEqual(true);
+    expect(ENVIRONMENTAL_POLICY_AREAS.has("Public Lands and Natural Resources")).toEqual(true);
+    expect(ENVIRONMENTAL_POLICY_AREAS.has("Water Resources Development")).toEqual(true);
 });
 
-Deno.test("isEnvironmentalBill: true for each allowlisted policyArea", () => {
+test("isEnvironmentalBill: true for each allowlisted policyArea", () => {
     for (const area of ENVIRONMENTAL_POLICY_AREAS) {
         // Build a minimal BillDetail with just the policyArea set.
         // deno-lint-ignore no-explicit-any
         const detail = { policyArea: { name: area } } as any;
-        assertEquals(isEnvironmentalBill(detail), true);
+        expect(isEnvironmentalBill(detail)).toEqual(true);
     }
 });
 
-Deno.test("isEnvironmentalBill: false for unrelated policyAreas", () => {
+test("isEnvironmentalBill: false for unrelated policyAreas", () => {
     for (const area of ["Health", "Taxation", "Crime and Law Enforcement", ""]) {
         // deno-lint-ignore no-explicit-any
         const detail = { policyArea: { name: area } } as any;
-        assertEquals(isEnvironmentalBill(detail), false);
+        expect(isEnvironmentalBill(detail)).toEqual(false);
     }
 });
 
-Deno.test("isEnvironmentalBill: false (conservative skip) when policyArea is missing", () => {
+test("isEnvironmentalBill: false (conservative skip) when policyArea is missing", () => {
     // deno-lint-ignore no-explicit-any
-    assertEquals(isEnvironmentalBill({} as any), false);
+    expect(isEnvironmentalBill({} as any)).toEqual(false);
     // deno-lint-ignore no-explicit-any
-    assertEquals(isEnvironmentalBill({ policyArea: undefined } as any), false);
+    expect(isEnvironmentalBill({ policyArea: undefined } as any)).toEqual(false);
 });
 
 // Recording fake-fetch — counts calls per URL substring so we can prove the
@@ -576,7 +567,7 @@ function recordingFakeFetch(responses: Record<string, unknown>): {
     return { fetch, callsByPath };
 }
 
-Deno.test(
+test(
     "processBill: skips non-environmental bill — no further API calls, no upserts",
     async () => {
         // Detail fixture has policyArea "Health" — outside the allowlist.
@@ -596,7 +587,7 @@ Deno.test(
         );
 
         // detail() called exactly once.
-        assertEquals(callsByPath.get("/bill/119/hr/1"), 1);
+        expect(callsByPath.get("/bill/119/hr/1")).toEqual(1);
         // None of the other six endpoints were even attempted.
         for (
             const sub of [
@@ -608,11 +599,11 @@ Deno.test(
                 "/bill/119/hr/1/committees",
             ]
         ) {
-            assertEquals(callsByPath.get(sub) ?? 0, 0);
+            expect(callsByPath.get(sub) ?? 0).toEqual(0);
         }
         // No DB writes attempted.
-        assertEquals(fake.repsCalls.length, 0);
-        assertEquals(fake.billCalls.length, 0);
+        expect(fake.repsCalls.length).toEqual(0);
+        expect(fake.billCalls.length).toEqual(0);
     },
 );
 
@@ -624,7 +615,7 @@ function makeTextGroup() {
     });
 }
 
-Deno.test(
+test(
     "processBill: 403 from text host trips group + throws TextThrottleRetry; nothing upserts",
     async () => {
         // Text URL hits a 403 (congress.gov anonymous throttle). Expectation:
@@ -648,24 +639,22 @@ Deno.test(
         const fake = makeBackend();
         const textGroup = makeTextGroup();
 
-        await assertRejects(
-            () =>
-                processBill(
-                    { congress: 119, bill_type: "HR", bill_number: "1" },
-                    { congressClient: client, backend: fake.backend, textGroup },
-                ),
-            TextThrottleRetry,
-        );
+        await expect(
+            processBill(
+                { congress: 119, bill_type: "HR", bill_number: "1" },
+                { congressClient: client, backend: fake.backend, textGroup },
+            ),
+        ).rejects.toBeInstanceOf(TextThrottleRetry);
 
-        assertEquals(textGroup.tripped, true);
-        assertEquals(textGroup.signal.aborted, true);
+        expect(textGroup.tripped).toEqual(true);
+        expect(textGroup.signal.aborted).toEqual(true);
         // Bill is left for retry — nothing was written.
-        assertEquals(fake.repsCalls.length, 0);
-        assertEquals(fake.billCalls.length, 0);
+        expect(fake.repsCalls.length).toEqual(0);
+        expect(fake.billCalls.length).toEqual(0);
     },
 );
 
-Deno.test(
+test(
     "processBill: bails immediately with TextThrottleRetry when group is already tripped",
     async () => {
         // Pre-condition: textGroup is already tripped (a sibling did it).
@@ -678,23 +667,21 @@ Deno.test(
         const textGroup = makeTextGroup();
         textGroup.trip();
 
-        await assertRejects(
-            () =>
-                processBill(
-                    { congress: 119, bill_type: "HR", bill_number: "1" },
-                    { congressClient: client, backend: fake.backend, textGroup },
-                ),
-            TextThrottleRetry,
-        );
+        await expect(
+            processBill(
+                { congress: 119, bill_type: "HR", bill_number: "1" },
+                { congressClient: client, backend: fake.backend, textGroup },
+            ),
+        ).rejects.toBeInstanceOf(TextThrottleRetry);
 
         // Nothing landed; flag stays flipped (we didn't accidentally reset it).
-        assertEquals(fake.repsCalls.length, 0);
-        assertEquals(fake.billCalls.length, 0);
-        assertEquals(textGroup.tripped, true);
+        expect(fake.repsCalls.length).toEqual(0);
+        expect(fake.billCalls.length).toEqual(0);
+        expect(textGroup.tripped).toEqual(true);
     },
 );
 
-Deno.test(
+test(
     "processBill: bill with no policyArea is treated as non-environmental",
     async () => {
         const detailWithoutPolicyArea = {
@@ -712,8 +699,8 @@ Deno.test(
             { congressClient: client, backend: fake.backend },
         );
 
-        assertEquals(callsByPath.get("/bill/119/hr/1"), 1);
-        assertEquals(fake.repsCalls.length, 0);
-        assertEquals(fake.billCalls.length, 0);
+        expect(callsByPath.get("/bill/119/hr/1")).toEqual(1);
+        expect(fake.repsCalls.length).toEqual(0);
+        expect(fake.billCalls.length).toEqual(0);
     },
 );
