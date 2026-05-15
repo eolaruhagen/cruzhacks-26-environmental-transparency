@@ -32,11 +32,11 @@ const HouseBillMessageSchema = z.object({
     bill_number: z.string(),
 });
 
-export const QueueRegistry = {
+const QueueRegistry = {
     house_bills_queue_new: HouseBillMessageSchema,
 } as const satisfies Record<string, z.ZodType>;
 
-export type QueueName = keyof typeof QueueRegistry;
+type QueueName = keyof typeof QueueRegistry;
 
 // Direct z.infer off each schema (rather than indexing through QueueRegistry)
 // because the `satisfies Record<string, z.ZodType>` widens the registry
@@ -44,7 +44,7 @@ export type QueueName = keyof typeof QueueRegistry;
 // the narrow types intact for consumers (process-bill iterates HouseBillQueueMessage,
 // so its bill_type stays strongly typed as the legislation_type enum).
 export type HouseBillQueueMessage = z.infer<typeof HouseBillMessageSchema>;
-export type QueueMessage<K extends QueueName> = K extends "house_bills_queue_new"
+type QueueMessage<K extends QueueName> = K extends "house_bills_queue_new"
     ? HouseBillQueueMessage
     : never;
 

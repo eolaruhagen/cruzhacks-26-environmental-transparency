@@ -17,7 +17,7 @@
 
 import type { BillType } from "@cruzhacks/shared";
 
-export type LegislationType = BillType;
+type LegislationType = BillType;
 
 /**
  * Parse a single CSV line, honoring double-quoted fields. Doesn't handle
