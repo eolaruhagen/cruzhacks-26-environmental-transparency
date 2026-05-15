@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database, Json } from "@cruzhacks/shared";
-import { LegislationTypeEnum } from "./bill-domain.ts";
+import { BillTypeSchema, type Database, type Json } from "@cruzhacks/shared";
 
 /**
  * One message popped from a PGMQ queue. The `message` field is the validated
@@ -29,7 +28,7 @@ const HouseBillMessageSchema = z.object({
     congress: z.number(),
     // Validate against the legislation_type enum so consumers (e.g. process-bill)
     // get a typed value out of the queue and don't need a string cast.
-    bill_type: LegislationTypeEnum,
+    bill_type: BillTypeSchema,
     bill_number: z.string(),
 });
 

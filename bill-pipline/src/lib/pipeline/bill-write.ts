@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ChamberEnum, LegislationTypeEnum, PartyEnum } from "../runtime/bill-domain.ts";
+import { BillTypeSchema, ChamberSchema } from "@cruzhacks/shared";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -9,6 +9,11 @@ import { ChamberEnum, LegislationTypeEnum, PartyEnum } from "../runtime/bill-dom
 // embedding, subcategory_scores) and audit columns (created_at, updated_at)
 // are managed elsewhere or by triggers.
 
+// Local-only: Congress returns `party` as a raw string; we normalise to this
+// 3-value enum for our DB column. Not shared because the Congress-side type
+// in @cruzhacks/shared is just `string`.
+const PartyEnum = z.enum(["Democrat", "Republican", "Independent"]);
+
 export const RepresentativeUpsertSchema = z.strictObject({
     bioguide_id: z.string().min(1),
     first_name: z.string().nullable().optional(),
@@ -17,7 +22,7 @@ export const RepresentativeUpsertSchema = z.strictObject({
     party: PartyEnum.nullable().optional(),
     state: z.string().nullable().optional(),
     district: z.number().int().nullable().optional(),
-    role: ChamberEnum,
+    role: ChamberSchema,
     url: z.string().nullable().optional(),
     last_seen_in_congress: z.number().int().nullable().optional(),
 });
@@ -25,12 +30,12 @@ export type RepresentativeUpsert = z.infer<typeof RepresentativeUpsertSchema>;
 
 export const HouseBillUpsertSchema = z.strictObject({
     congress: z.number().int(),
-    bill_type: LegislationTypeEnum,
+    bill_type: BillTypeSchema,
     bill_number: z.number().int(),
     title: z.string().min(1),
     url: z.string().nullable().optional(),
     bill_text: z.string().nullable().optional(),
-    origin_chamber: ChamberEnum,
+    origin_chamber: ChamberSchema,
     date_of_introduction: z.string().nullable().optional(),
     congress_start_year: z.number().int(),
     congress_end_year: z.number().int(),
@@ -101,7 +106,10 @@ export async function upsertRepresentatives(
     // and Postgres ON CONFLICT cannot affect the same row twice in one statement.
     const byId = new Map<string, RepresentativeUpsert>();
     for (const r of validated) byId.set(r.bioguide_id, r);
-    const deduped = Array.from(byId.values());
+    // Sort by bioguide_id so concurrent processBill workers acquire row locks
+    // in the same order — eliminates the deadlock cycle on shared cosponsors.
+    const deduped = Array.from(byId.values())
+        .sort((a, b) => a.bioguide_id.localeCompare(b.bioguide_id));
 
     const { error } = await backend.upsertRepresentatives(deduped);
     if (error) {
