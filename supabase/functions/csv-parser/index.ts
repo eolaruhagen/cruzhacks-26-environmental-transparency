@@ -25,11 +25,40 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "../lib/shared/database.types.ts";
-import {
-  parseCSVLine,
-  parseCongressNumber,
-  parseLegislationNumber,
-} from "../lib/local/csv-parse.ts";
+
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      result.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseLegislationNumber(
+  legNum: string,
+): { billType: string; billNumber: string } | null {
+  if (!legNum) return null;
+  const match = legNum.match(/^([A-Z][A-Za-z.]*\.(?:\s*[A-Za-z]+\.)*)\s*(\d+)$/i);
+  if (!match) return null;
+  return { billType: match[1].trim(), billNumber: match[2] };
+}
+
+function parseCongressNumber(congress: string): string | null {
+  if (!congress) return null;
+  const match = congress.match(/^(\d+)/);
+  return match ? match[1] : null;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
