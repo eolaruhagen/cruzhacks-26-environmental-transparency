@@ -28,6 +28,8 @@ jobs:
           SECRET_API_KEY:      ${{ secrets.SECRET_API_KEY }}
           CONGRESS_API_KEY:    ${{ secrets.CONGRESS_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          BLACKOUT_WINDOWS:    '06:30-09:00;15:30-18:30'
+          # Legacy pipeline runs ~18:00 PT, occasionally drifting to 19:00 PT.
+          # Buffer +/-15 min so an in-flight legacy run never collides with us.
+          BLACKOUT_WINDOWS:    '17:45-19:15'
           TIME_BUDGET_MS:      '540000'
         run: bun run pipeline
