@@ -519,10 +519,6 @@ export const BillSubjectsContainerSchema = z.object({
 });
 export type BillSubjectsContainer = z.infer<typeof BillSubjectsContainerSchema>;
 
-/** Re-exported single-item alias matching the task spec naming. */
-export const BillSubjectSchema = LegislativeSubjectSchema;
-export type BillSubject = LegislativeSubject;
-
 export const BillSubjectsResponseSchema = z.object({
   subjects: BillSubjectsContainerSchema,
   pagination: PaginationSchema.optional(),

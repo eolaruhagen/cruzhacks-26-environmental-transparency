@@ -56,6 +56,3 @@ export async function getValidated<T>(
     const raw = await response.json();
     return { kind: "ok", status: response.status, data: schema.parse(raw) };
 }
-
-// Re-export so callers don't need a second import.
-export { HttpResponseError };

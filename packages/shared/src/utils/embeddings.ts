@@ -6,7 +6,6 @@ export const EmbeddingResponseSchema = z.object({
     })).min(1, "Embedding API returned empty data array"),
 });
 
-export type EmbeddingResponse = z.infer<typeof EmbeddingResponseSchema>;
 export async function embedText(text: string, apiKey: string, embeddingDims: number, embeddingModel: string, embeddingUrl: string): Promise<number[]> {
     const response = await fetch(embeddingUrl, {
         method: "POST",

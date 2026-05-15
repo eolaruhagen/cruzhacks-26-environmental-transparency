@@ -17,10 +17,8 @@
  * For empty input or all-skipped values, returns `""` so the same
  * concatenation produces `${baseUrl}/bill` without a trailing `?`.
  */
-export type QueryValue = string | number | boolean | null | undefined;
-
 /**
- * Param type uses bare `object` rather than `Record<string, QueryValue>`
+ * Param type uses bare `object` rather than `Record<string, string|number|boolean>`
  * so a strictly-typed input (e.g. `{ fromDateTime?: string; limit?: number }`)
  * is assignable without a cast — `Record<string, ...>` requires an explicit
  * index signature that typed object literals don't carry, even when their

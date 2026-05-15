@@ -114,6 +114,3 @@ export async function withRetry<T>(
 export function isRetryableStatus(status: number): boolean {
     return status >= 500 && status < 600;
 }
-
-// Re-export type so callers can `instanceof` test without a second import.
-export { HttpResponseError };
