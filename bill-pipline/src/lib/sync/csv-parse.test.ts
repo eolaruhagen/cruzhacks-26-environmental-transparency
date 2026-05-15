@@ -4,7 +4,7 @@ import {
     parseCSVLine,
     parseCongressNumber,
     parseLegislationNumber,
-} from "../csv-parse.ts";
+} from "./csv-parse.ts";
 
 // ---------------------------------------------------------------------------
 // parseCSVLine

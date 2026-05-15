@@ -1,5 +1,5 @@
 import type { BillWriteBackend } from "./bill-write.ts";
-import type { SupabaseDb } from "./supabase-client.ts";
+import type { SupabaseDb } from "../runtime/supabase-client.ts";
 
 export function makeBillWriteBackend(supabase: SupabaseDb): BillWriteBackend {
     return {

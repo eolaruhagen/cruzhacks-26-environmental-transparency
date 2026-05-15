@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ChamberEnum, LegislationTypeEnum, PartyEnum } from "../runtime/bill-domain.ts";
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -7,19 +8,6 @@ import { z } from "zod";
 // columns the worker writes are listed; ML-enrichment columns (category,
 // embedding, subcategory_scores) and audit columns (created_at, updated_at)
 // are managed elsewhere or by triggers.
-
-export const PartyEnum = z.enum(["Democrat", "Republican", "Independent"]);
-export const ChamberEnum = z.enum(["House", "Senate", "Joint"]);
-export const LegislationTypeEnum = z.enum([
-    "HR",
-    "S",
-    "HJRES",
-    "SJRES",
-    "HCONRES",
-    "SCONRES",
-    "HRES",
-    "SRES",
-]);
 
 export const RepresentativeUpsertSchema = z.strictObject({
     bioguide_id: z.string().min(1),

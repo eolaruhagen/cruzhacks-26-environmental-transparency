@@ -9,7 +9,7 @@ import {
     markInsufficientInfo,
     type SubcategoryEmbeddingRow,
     writeEnrichment,
-} from "../bill-fetch.ts";
+} from "./bill-fetch.ts";
 
 interface RecordedCall {
     method:

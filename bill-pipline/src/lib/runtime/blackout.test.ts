@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { isMinuteInAnyWindow, type TimeWindow } from "../blackout.ts";
+import { isMinuteInAnyWindow, type TimeWindow } from "./blackout.ts";
 
 const min = (h: number, m: number) => h * 60 + m;
 

@@ -4,7 +4,7 @@ import {
     type BillWriteBackend,
     type HouseBillUpsert,
     type RepresentativeUpsert,
-} from "../bill-write.ts";
+} from "./bill-write.ts";
 import {
     billChamberFromType,
     buildBillRows,
@@ -16,7 +16,7 @@ import {
     processBill,
     type ProcessBillDeps,
     TextThrottleRetry,
-} from "../process-bill.ts";
+} from "./process-bill.ts";
 
 // ---------------------------------------------------------------------------
 // Pure mapper tests — fast, no I/O

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database, Json } from "@cruzhacks/shared";
-import { LegislationTypeEnum } from "./bill-write.ts";
+import { LegislationTypeEnum } from "./bill-domain.ts";
 
 /**
  * One message popped from a PGMQ queue. The `message` field is the validated

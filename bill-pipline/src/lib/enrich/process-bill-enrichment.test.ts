@@ -5,15 +5,15 @@ import {
     type BillFetchBackend,
     type BillFetchRow,
     type SubcategoryEmbeddingRow,
-} from "../bill-fetch.ts";
-import type { ClassifyResult } from "../bill-enrich.ts";
+} from "./bill-fetch.ts";
+import type { ClassifyResult } from "./bill-enrich.ts";
 import {
     type ClassifyFn,
     type EmbedFn,
     LLMThrottleRetry,
     processBillEnrichment,
     type ProcessBillEnrichmentDeps,
-} from "../process-bill-enrichment.ts";
+} from "./process-bill-enrichment.ts";
 
 // ---------------------------------------------------------------------------
 // Fixtures + closure-recording fakes

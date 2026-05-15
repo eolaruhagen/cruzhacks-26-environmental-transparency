@@ -4,12 +4,12 @@ import {
     CongressClient,
     HttpResponseError,
 } from "@cruzhacks/shared";
-import { makeSupabase } from "./lib/supabase-client.ts";
-import { type HouseBillQueueMessage, PgmqInteraction } from "./lib/pgmq-interactions.ts";
-import { CongressSyncStateClient } from "./lib/congress-sync-state.ts";
-import { csvBillSource, type CsvSource } from "./lib/csv-bill-source.ts";
-import { makeObservability } from "./lib/observability.ts";
-import { getTimeBudgetMs, isRunningLow } from "./lib/time-budget.ts";
+import { makeSupabase } from "./lib/runtime/supabase-client.ts";
+import { type HouseBillQueueMessage, PgmqInteraction } from "./lib/runtime/pgmq-interactions.ts";
+import { CongressSyncStateClient } from "./lib/runtime/congress-sync-state.ts";
+import { csvBillSource, type CsvSource } from "./lib/sync/csv-bill-source.ts";
+import { makeObservability } from "./lib/runtime/observability.ts";
+import { getTimeBudgetMs, isRunningLow } from "./lib/runtime/time-budget.ts";
 
 const logger = pino({ name: "bill-sync" });
 

@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
-import { csvBillSource, type CsvSource } from "../csv-bill-source.ts";
-import type { HouseBillQueueMessage } from "../pgmq-interactions.ts";
+import { csvBillSource, type CsvSource } from "./csv-bill-source.ts";
+import type { HouseBillQueueMessage } from "../runtime/pgmq-interactions.ts";
 
 function fromString(text: string): CsvSource {
     return { readText: () => Promise.resolve(text) };

@@ -5,8 +5,8 @@ import {
     ClassifyResultSchema,
     computeSubcategoryScores,
     cosineSimilarity,
-} from "../bill-enrich.ts";
-import type { SubcategoryEmbeddingRow } from "../bill-fetch.ts";
+} from "./bill-enrich.ts";
+import type { SubcategoryEmbeddingRow } from "./bill-fetch.ts";
 
 // ---------------------------------------------------------------------------
 // ClassifyResultSchema

@@ -5,15 +5,15 @@ import {
     HttpResponseError,
     mapConcurrent,
 } from "@cruzhacks/shared";
-import { makeSupabase } from "./lib/supabase-client.ts";
-import { PgmqInteraction } from "./lib/pgmq-interactions.ts";
-import { CongressSyncStateClient } from "./lib/congress-sync-state.ts";
-import { processBill, TextThrottleRetry } from "./lib/process-bill.ts";
-import { getTimeBudgetMs, isRunningLow } from "./lib/time-budget.ts";
-import { isInBlackout, type TimeWindow } from "./lib/blackout.ts";
-import { partitionPoisonMessages } from "./lib/queue-partition.ts";
-import { makeBillWriteBackend } from "./lib/make-bill-write-backend.ts";
-import { makeObservability } from "./lib/observability.ts";
+import { makeSupabase } from "./lib/runtime/supabase-client.ts";
+import { PgmqInteraction } from "./lib/runtime/pgmq-interactions.ts";
+import { CongressSyncStateClient } from "./lib/runtime/congress-sync-state.ts";
+import { processBill, TextThrottleRetry } from "./lib/pipeline/process-bill.ts";
+import { getTimeBudgetMs, isRunningLow } from "./lib/runtime/time-budget.ts";
+import { isInBlackout, type TimeWindow } from "./lib/runtime/blackout.ts";
+import { partitionPoisonMessages } from "./lib/runtime/queue-partition.ts";
+import { makeBillWriteBackend } from "./lib/pipeline/make-bill-write-backend.ts";
+import { makeObservability } from "./lib/runtime/observability.ts";
 
 const logger = pino({ name: "bill-pipeline" });
 

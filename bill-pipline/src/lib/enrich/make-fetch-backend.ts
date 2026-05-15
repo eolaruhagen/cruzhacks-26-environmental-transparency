@@ -4,7 +4,7 @@ import type {
     BillFetchBackend,
     SubcategoryEmbeddingRow,
 } from "./bill-fetch.ts";
-import type { SupabaseDb } from "./supabase-client.ts";
+import type { SupabaseDb } from "../runtime/supabase-client.ts";
 
 function serializeHalfvec(v: number[]): string {
     return `[${v.join(",")}]`;

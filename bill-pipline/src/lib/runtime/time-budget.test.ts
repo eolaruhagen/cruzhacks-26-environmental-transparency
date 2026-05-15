@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { getTimeBudgetMs, isRunningLow } from "../time-budget.ts";
+import { getTimeBudgetMs, isRunningLow } from "./time-budget.ts";
 
 // All tests inject `now` explicitly so they don't depend on the wall clock.
 // Pretend startedAt = 0 throughout — elapsed time equals the `now` value.

@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { cleanBillText } from "../bill-text-clean.ts";
+import { cleanBillText } from "./bill-text-clean.ts";
 
 test("returns null for null/undefined/empty", () => {
     expect(cleanBillText(null)).toEqual(null);

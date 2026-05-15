@@ -1,17 +1,17 @@
 import pino from "pino";
 import { createCoordinatedGroup, mapConcurrent } from "@cruzhacks/shared";
 import { loadConfig } from "./config.ts";
-import { fetchCorpusMean, fetchUnenrichedBills } from "./lib/bill-fetch.ts";
-import { makeBillFetchBackend } from "./lib/make-fetch-backend.ts";
-import { makeClassify } from "./lib/make-classify.ts";
-import { makeEmbed } from "./lib/make-embed.ts";
-import { makeObservability } from "./lib/observability.ts";
+import { fetchCorpusMean, fetchUnenrichedBills } from "./lib/enrich/bill-fetch.ts";
+import { makeBillFetchBackend } from "./lib/enrich/make-fetch-backend.ts";
+import { makeClassify } from "./lib/enrich/make-classify.ts";
+import { makeEmbed } from "./lib/enrich/make-embed.ts";
+import { makeObservability } from "./lib/runtime/observability.ts";
 import {
     LLMThrottleRetry,
     processBillEnrichment,
-} from "./lib/process-bill-enrichment.ts";
-import { makeSupabase } from "./lib/supabase-client.ts";
-import { getTimeBudgetMs, isRunningLow } from "./lib/time-budget.ts";
+} from "./lib/enrich/process-bill-enrichment.ts";
+import { makeSupabase } from "./lib/runtime/supabase-client.ts";
+import { getTimeBudgetMs, isRunningLow } from "./lib/runtime/time-budget.ts";
 
 const logger = pino({ name: "bill-enrich" });
 

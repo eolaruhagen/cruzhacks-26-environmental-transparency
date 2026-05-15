@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { partitionPoisonMessages } from "../queue-partition.ts";
+import { partitionPoisonMessages } from "./queue-partition.ts";
 
 interface FakeMessage {
     msg_id: number;

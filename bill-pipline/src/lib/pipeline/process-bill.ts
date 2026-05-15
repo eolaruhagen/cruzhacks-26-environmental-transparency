@@ -10,7 +10,7 @@ import {
     CongressClient,
     type CoordinatedRequestGroup,
 } from "@cruzhacks/shared";
-import type { HouseBillQueueMessage } from "./pgmq-interactions.ts";
+import type { HouseBillQueueMessage } from "../runtime/pgmq-interactions.ts";
 import {
     type BillWriteBackend,
     type HouseBillUpsert,

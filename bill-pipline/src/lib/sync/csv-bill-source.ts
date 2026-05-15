@@ -1,4 +1,4 @@
-import type { HouseBillQueueMessage } from "./pgmq-interactions.ts";
+import type { HouseBillQueueMessage } from "../runtime/pgmq-interactions.ts";
 import {
     normalizeCsvBillType,
     parseCSVLine,

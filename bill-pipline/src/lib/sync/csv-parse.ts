@@ -16,7 +16,7 @@
  */
 
 import type { z } from "zod";
-import { LegislationTypeEnum } from "./bill-write.ts";
+import { LegislationTypeEnum } from "../runtime/bill-domain.ts";
 
 export type LegislationType = z.infer<typeof LegislationTypeEnum>;
 
