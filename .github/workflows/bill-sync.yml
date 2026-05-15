@@ -35,8 +35,8 @@ jobs:
           SUPABASE_URL:        ${{ secrets.SUPABASE_URL }}
           SECRET_API_KEY:      ${{ secrets.SECRET_API_KEY }}
           CONGRESS_API_KEY:    ${{ secrets.CONGRESS_API_KEY }}
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL_BILLS }}
           SYNC_SOURCE:         ${{ inputs.source || 'api' }}
           SYNC_REASON:         ${{ inputs.reason }}
-          TIME_BUDGET_MS:      '1500000'
+          TIME_BUDGET_MS:      '1800000'
         run: bun run sync
