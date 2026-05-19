@@ -1,8 +1,8 @@
 name: Bill Enrich
 
 on:
-  schedule:
-    - cron: '*/20 * * * *'
+  # Cron disabled — re-enable when the related-bills follow-up PR ships and
+  # the frontend cuts over to house_bills_2.
   workflow_dispatch:
 
 jobs:
