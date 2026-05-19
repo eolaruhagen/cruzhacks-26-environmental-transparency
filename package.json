@@ -2,8 +2,7 @@
   "private": true,
   "workspaces": [
     "client",
-    "packages/*",
-    "supabase/maintenance"
+    "packages/*"
   ],
   "scripts": {
     "test": "bun run test:shared && bun run test:bills",
