@@ -1,0 +1,35 @@
+name: Bill Pipeline
+
+on:
+  # Cron disabled — re-enable when the related-bills follow-up PR ships and
+  # the frontend cuts over to house_bills_2.
+  workflow_dispatch:
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: bill-pipline
+        run: bun install --frozen-lockfile
+
+      - name: Drain queue batch
+        working-directory: bill-pipline
+        env:
+          SUPABASE_URL:        ${{ secrets.SUPABASE_URL }}
+          SECRET_API_KEY:      ${{ secrets.SECRET_API_KEY }}
+          CONGRESS_API_KEY:    ${{ secrets.CONGRESS_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Legacy pipeline runs ~18:00 PT, occasionally drifting to 19:00 PT.
+          # Buffer +/-15 min so an in-flight legacy run never collides with us.
+          BLACKOUT_WINDOWS:    '17:45-19:15'
+          TIME_BUDGET_MS:      '540000'
+        run: bun run pipeline

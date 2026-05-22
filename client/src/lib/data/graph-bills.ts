@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
-import type { Database } from '../../../../supabase/functions/database.types'
+import type { Database } from '../../../../packages/shared/src/database.types'
 import type { BillWithScores, Subcategory, RadarBill } from '@/lib/types'
 
 export async function getGraphBills(): Promise<{

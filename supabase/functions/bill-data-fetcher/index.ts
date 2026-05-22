@@ -15,7 +15,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database, Json } from "../database.types.ts";
+import type { Database, Json } from "../lib/shared/database.types.ts";
 
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
 const BATCH_SIZE = 20;
@@ -46,7 +46,7 @@ interface BillData {
   // Optional fields for forcing updates
   category?: string | null;
   embedding?: string | null;
-  subcategory_scores?: any | null;
+  subcategory_scores?: Record<string, number> | null;
   bill_text: string;
 }
 

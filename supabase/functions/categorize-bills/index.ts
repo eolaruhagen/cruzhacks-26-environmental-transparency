@@ -25,7 +25,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../database.types.ts";
+import type { Database } from "../lib/shared/database.types.ts";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 const CATEGORIZATION_MODEL = "google/gemini-2.5-flash-lite";

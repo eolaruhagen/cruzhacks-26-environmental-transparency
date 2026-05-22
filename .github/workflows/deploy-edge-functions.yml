@@ -15,6 +15,12 @@ jobs:
         with:
           version: latest
 
+      # Materialize @cruzhacks/shared into the functions tree so the
+      # supabase bundler can resolve `../lib/shared/` imports. Source of
+      # truth lives in packages/shared/src; the destination is gitignored.
+      - name: Materialize shared package
+        run: cp -R packages/shared/src supabase/functions/lib/shared
+
       - name: Deploy edge functions
         id: deploy
         run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}

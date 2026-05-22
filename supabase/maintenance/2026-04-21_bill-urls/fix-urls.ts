@@ -1,39 +1,21 @@
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../../functions/database.types.js";
+import { markColumnFailed, reportFailedRows, supabase } from "../supabase-client.js";
 import { extractCongressNumber, mapLegislationType } from "./fix-urls-lib.js";
 
 // YOU MUST SPECIFY THE ENV FILE TO BE .env ON REPO ROOT BEFORE USING THIS.
 // Run: bun --env-file=../../.env run fix-urls.ts --env local
 
-
-
-/// All Env Parsing and Such
-const args = process.argv.slice(2);
-const env = args.includes("--env") ? args[args.indexOf("--env") + 1] : "local";
-const dropValues = args.includes("--drop-values") ? true : false;
+const dropValues = process.argv.includes("--drop-values");
 
 if (!process.env.CONGRESS_API_KEY) {
     console.error("CONGRESS_API_KEY not found in .env");
     process.exit(1);
 }
 
-if (!env || (env !== "local" && env !== "prod")) {
-    console.error("Invalid env flag. Use --env local or --env prod");
-    process.exit(1);
-}
-
-
-const supabase = createClient<Database>(
-    env === "local" ? "http://127.0.0.1:54321" : process.env.SUPABASE_API_URL!,
-    env === "local" ? process.env.LOCAL_SERVICE_ROLE_KEY! : process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
-
 
 /// CONFIG
 
 const BATCH_SIZE = 1000;
 const RATE_LIMIT_WAIT_MS = 70 * 60 * 1000;
-const FAILED_SENTINEL = "FAILED";
 const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 
 const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
@@ -90,14 +72,6 @@ async function wipeAllUrls(): Promise<number> {
     return count ?? 0;
 }
 
-async function markFailed(id: string) {
-    const { error } = await supabase
-        .from("house_bills")
-        .update({ url: FAILED_SENTINEL })
-        .eq("id", id);
-    if (error) console.error(`  ✗ ${id}: failed to mark as FAILED:`, error);
-}
-
 async function processBatch(): Promise<number> {
     const { data: bills, error } = await supabase
         .from("house_bills")
@@ -130,7 +104,7 @@ async function processBatch(): Promise<number> {
         }
 
         if (!fixedUrl) {
-            await markFailed(bill.id);
+            await markColumnFailed({ table: "house_bills", column: "url", idValue: bill.id });
             continue;
         }
 
@@ -174,15 +148,7 @@ async function main() {
         console.log(`  (batch ${batchNum} done — ${totalProcessed} total processed so far)\n`);
     }
 
-    const { count: failedCount } = await supabase
-        .from("house_bills")
-        .select("*", { count: "exact", head: true })
-        .eq("url", FAILED_SENTINEL);
-
-    if (failedCount && failedCount > 0) {
-        console.warn(`⚠ ${failedCount} rows marked as ${FAILED_SENTINEL} (permanent failures — inspect manually).`);
-        console.warn(`  Find them with: SELECT id, legislation_number, congress FROM house_bills WHERE url = '${FAILED_SENTINEL}';`);
-    }
+    await reportFailedRows({ table: "house_bills", column: "url" });
 }
 
 main();

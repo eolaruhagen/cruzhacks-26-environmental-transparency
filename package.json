@@ -1,4 +1,19 @@
 {
+  "private": true,
+  "workspaces": [
+    "client",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "bun run test:shared && bun run test:bills",
+    "test:shared": "bun test --cwd packages/shared",
+    "test:bills": "bun test --cwd bill-pipline",
+    "test:shared:watch": "bun test --cwd packages/shared --watch",
+    "test:bills:watch": "bun test --cwd bill-pipline --watch",
+    "check": "bun run check:shared && bun run check:bills",
+    "check:shared": "cd packages/shared && bunx tsc --noEmit -p .",
+    "check:bills": "cd bill-pipline && bunx tsc --noEmit -p ."
+  },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "shadcn": "^3.7.0",

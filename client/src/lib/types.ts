@@ -1,4 +1,4 @@
-import { Database } from '../../../supabase/functions/database.types'
+import { Database } from '../../../packages/shared/src/database.types'
 
 export type { Database }
 

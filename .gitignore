@@ -54,3 +54,6 @@ supabase/.temp
 analytics
 
 .agents
+# Bulk seed CSVs — too large to commit, downloaded from Congress.gov per backfill
+supabase/seeds/*.csv
+
