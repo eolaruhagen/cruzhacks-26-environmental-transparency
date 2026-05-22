@@ -704,6 +704,43 @@ export type Database = {
         Args: { msgs: Json[]; queue_name: string }
         Returns: number[]
       }
+      search_cosponsored_bills: {
+        Args: { cosponsor_name: string; max_results?: number }
+        Returns: {
+          bill_policy_area: string | null
+          bill_text: string
+          category: Database["public"]["Enums"]["bill_type"] | null
+          committees: string | null
+          congress: string
+          congress_number: number
+          congress_years: number[]
+          cosponsors: string[] | null
+          created_at: string
+          date_of_introduction: string | null
+          embedding: unknown
+          id: string
+          latest_action: string
+          latest_action_date: string | null
+          latest_summary: string | null
+          latest_tracker_stage: string
+          legislation_number: string
+          num_cosponsors: number | null
+          party_of_sponsor: string
+          sponsor: string
+          subcategory_scores: Json | null
+          subject_terms: string[] | null
+          title: string
+          updated_at: string
+          updated_category: Database["public"]["Enums"]["bill_type"] | null
+          url: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "house_bills"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       trigger_next_step_internal: {
         Args: {
           p_function_name: string
@@ -904,4 +941,3 @@ export const Constants = {
     },
   },
 } as const
-
