@@ -35,22 +35,9 @@ from lib.patterns import (
 )
 
 SPACY_TEXT_WINDOW: Final = 20_000
-
-_LEADING_CONNECTORS_RE: Final[re.Pattern[str]] = re.compile(
-    r"^(?:and|of|for|the|to|on|in|at|by|or|with)\s+",
-    re.IGNORECASE,
-)
+EO_FR_GLOSS_GAP_CHARS: Final = 60  # max gap to treat a Fed.Reg. as a parenthetical gloss on a nearby EO
 
 _NLP: Language | None = None
-
-
-def _strip_leading_connectors(name: str) -> str:
-    while True:
-        stripped = _LEADING_CONNECTORS_RE.sub("", name).strip()
-        if stripped == name:
-            break
-        name = stripped
-    return name
 
 
 def build_nlp() -> Language:
@@ -281,7 +268,7 @@ def extract_named_acts(text: str) -> list[ExtractedReference]:
     candidates: list[ExtractedReference] = []
 
     for m in NAMED_ACT_WITH_PL_RE.finditer(text):
-        raw_name = _strip_leading_connectors(clean_act_name(m.group("act_name")))
+        raw_name = clean_act_name(m.group("act_name"))
         if not raw_name:
             continue
         law_number = f"{m.group('pl_cong')}-{m.group('pl_num')}"
@@ -307,7 +294,7 @@ def extract_named_acts(text: str) -> list[ExtractedReference]:
     for m in NAMED_ACT_RE.finditer(text):
         if any(s <= m.start() and m.end() <= e for s, e in paired_spans):
             continue
-        raw_name = _strip_leading_connectors(clean_act_name(m.group("act_name")))
+        raw_name = clean_act_name(m.group("act_name"))
         if not raw_name or raw_name.lower() in ("act", "the act", "this act"):
             continue
         candidates.append(
@@ -332,7 +319,7 @@ def extract_named_acts(text: str) -> list[ExtractedReference]:
     for m in AMENDS_ACT_RE.finditer(text):
         if any(s <= m.start() and m.end() <= e for s, e in current_spans):
             continue
-        raw_name = _strip_leading_connectors(clean_act_name(m.group("act_name")))
+        raw_name = clean_act_name(m.group("act_name"))
         if not raw_name:
             continue
         candidates.append(
@@ -452,7 +439,7 @@ def resolve_overlaps(
         for fr in fr_matches:
             fr_span = _span_of(fr)
             if _spans_overlap(eo_span, fr_span) or (
-                eo_span[1] <= fr_span[0] <= eo_span[1] + 60
+                eo_span[1] <= fr_span[0] <= eo_span[1] + EO_FR_GLOSS_GAP_CHARS
             ):
                 nested_fr.add(id(fr))
 
@@ -479,7 +466,7 @@ def resolve_overlaps(
     for m in non_nested:
         m_span = _span_of(m)
         dominated = False
-        for kept in result:
+        for i, kept in enumerate(result):
             kept_span = _span_of(kept)
             if _spans_overlap(m_span, kept_span):
                 if kept_span[0] <= m_span[0] and m_span[1] <= kept_span[1]:
@@ -491,7 +478,7 @@ def resolve_overlaps(
                     dominated = True
                     break
                 else:
-                    result.remove(kept)
+                    result.pop(i)
                     break
         if not dominated:
             result.append(m)
@@ -536,6 +523,10 @@ def extract_references_from_text(
     named = extract_named_acts(text)
 
     nlp = get_nlp()
+    # spaCy is run on the leading SPACY_TEXT_WINDOW chars only; regex extractors
+    # still scan the full text. Trade-off: spaCy is the cost-dominant extractor
+    # and the highest-signal named acts almost always appear in the bill's
+    # first 20k chars (preamble, findings, definitions).
     doc = nlp(text[:SPACY_TEXT_WINDOW])
     named.extend(extract_spacy_named_laws(doc, text))
     named = dedup_named_laws(named)

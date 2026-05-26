@@ -16,7 +16,17 @@ def _emit(record: OutputRecord) -> None:
 
 
 def main() -> None:
-    get_nlp()  # warm the model before reading stdin
+    try:
+        get_nlp()  # warm the model before reading stdin
+    except Exception:
+        _emit(
+            {
+                "bill_id": None,
+                "references": [],
+                "error": f"fatal:spacy_load_failed:{traceback.format_exc(limit=3).strip()}",
+            }
+        )
+        sys.exit(1)
 
     for line in sys.stdin:
         line = line.strip()
