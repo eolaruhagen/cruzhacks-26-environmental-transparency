@@ -6,11 +6,13 @@
     "enrich": "bun run src/main-enrich.ts",
     "sync": "bun run src/main-sync.ts",
     "pipeline": "bun run src/main-pipeline.ts",
+    "references": "bun run src/main-references.ts",
     "test": "bun test",
     "check": "bunx tsc --noEmit -p .",
     "enrich-local": "bun --env-file=.env.local run src/main-enrich.ts",
     "sync-local": "bun --env-file=.env.local run src/main-sync.ts",
-    "pipeline-local": "bun --env-file=.env.local run src/main-pipeline.ts"
+    "pipeline-local": "bun --env-file=.env.local run src/main-pipeline.ts",
+    "references-local": "bun --env-file=.env.local run src/main-references.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"
