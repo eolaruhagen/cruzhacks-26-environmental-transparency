@@ -2,6 +2,7 @@ import type { Database } from "@cruzhacks/shared";
 import type { SupabaseDb } from "../runtime/supabase-client.ts";
 import type {
     CandidateBillRow,
+    CitedReferenceUpsert,
     ReferencesBackend,
 } from "./bill-references.ts";
 
@@ -31,11 +32,16 @@ export function makeReferencesBackend(supabase: SupabaseDb): ReferencesBackend {
             const { data, error } = await supabase
                 .from("cited_references")
                 .upsert(payload, { onConflict: "kind,normalized_key" })
-                .select("id, normalized_key");
+                .select("id, kind, normalized_key");
             return {
                 data:
-                    (data as { id: string; normalized_key: string }[] | null) ??
-                        null,
+                    (data as
+                        | {
+                            id: string;
+                            kind: CitedReferenceUpsert["kind"];
+                            normalized_key: string;
+                        }[]
+                        | null) ?? null,
                 error: error ? { message: error.message } : null,
             };
         },

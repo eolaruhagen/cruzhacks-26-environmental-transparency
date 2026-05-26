@@ -8,7 +8,13 @@ import {
     upsertCitedReferences,
     writeBillReferences,
 } from "../bill-references.ts";
-import type { ExtractedReference } from "../types.ts";
+import type { ExtractedReference, ReferenceKind } from "../types.ts";
+
+type UpsertReturnedRow = {
+    id: string;
+    kind: ReferenceKind;
+    normalized_key: string;
+};
 
 interface RecordedCall {
     method:
@@ -28,7 +34,7 @@ function makeBackend(): {
         error: { message: string } | null;
     };
     nextUpsertResult: {
-        data: { id: string; normalized_key: string }[] | null;
+        data: UpsertReturnedRow[] | null;
         error: { message: string } | null;
     };
     nextDeleteResult: { error: { message: string } | null };
@@ -42,7 +48,7 @@ function makeBackend(): {
             error: { message: string } | null;
         },
         nextUpsertResult: { data: [], error: null } as {
-            data: { id: string; normalized_key: string }[] | null;
+            data: UpsertReturnedRow[] | null;
             error: { message: string } | null;
         },
         nextDeleteResult: { error: null } as {
@@ -226,8 +232,12 @@ test("upsertCitedReferences: dedupes by (kind, normalized_key) before sending", 
     ];
     fake.nextUpsertResult = {
         data: [
-            { id: REF_ID_A, normalized_key: "usc:42:7401" },
-            { id: REF_ID_B, normalized_key: "named:clean air act" },
+            { id: REF_ID_A, kind: "usc", normalized_key: "usc:42:7401" },
+            {
+                id: REF_ID_B,
+                kind: "named_law",
+                normalized_key: "named:clean air act",
+            },
         ],
         error: null,
     };
@@ -238,10 +248,47 @@ test("upsertCitedReferences: dedupes by (kind, normalized_key) before sending", 
     const sent = fake.calls[0].payload as unknown[];
     expect(sent.length).toEqual(2);
 
-    // Map should contain entries for both unique keys, mapping to the two ids.
+    // Map should contain composite-key entries for both unique refs.
     expect(result.size).toEqual(2);
-    expect(result.get("usc:42:7401")).toEqual(REF_ID_A);
-    expect(result.get("named:clean air act")).toEqual(REF_ID_B);
+    expect(result.get("usc:usc:42:7401")).toEqual(REF_ID_A);
+    expect(result.get("named_law:named:clean air act")).toEqual(REF_ID_B);
+});
+
+test("upsertCitedReferences: cross-kind same-key returns distinct ids per kind", async () => {
+    const fake = makeBackend();
+    // Two refs sharing the same normalized_key but with different kinds —
+    // the DB's unique constraint is on the (kind, normalized_key) pair so
+    // both rows coexist with separate ids, and the wrapper must not collapse
+    // them.
+    const refs: ExtractedReference[] = [
+        makeExtractedRef({
+            kind: "named_law",
+            normalized_key: "collision",
+            normalized: { name: "Collision" },
+            raw: "Collision",
+        }),
+        makeExtractedRef({
+            kind: "public_law",
+            normalized_key: "collision",
+            normalized: { congress: 117, number: 58 },
+            raw: "Public Law 117-58",
+        }),
+    ];
+    fake.nextUpsertResult = {
+        data: [
+            { id: REF_ID_A, kind: "named_law", normalized_key: "collision" },
+            { id: REF_ID_B, kind: "public_law", normalized_key: "collision" },
+        ],
+        error: null,
+    };
+    const result = await upsertCitedReferences(fake.backend, refs);
+
+    expect(result.size).toEqual(2);
+    const idA = result.get("named_law:collision");
+    const idB = result.get("public_law:collision");
+    expect(idA).toEqual(REF_ID_A);
+    expect(idB).toEqual(REF_ID_B);
+    expect(idA).not.toEqual(idB);
 });
 
 test("upsertCitedReferences: throws when backend omits a key from results", async () => {
@@ -256,11 +303,11 @@ test("upsertCitedReferences: throws when backend omits a key from results", asyn
         }),
     ];
     fake.nextUpsertResult = {
-        data: [{ id: REF_ID_A, normalized_key: "usc:42:7401" }],
+        data: [{ id: REF_ID_A, kind: "usc", normalized_key: "usc:42:7401" }],
         error: null,
     };
     await expect(upsertCitedReferences(fake.backend, refs)).rejects.toThrow(
-        "upsertCitedReferences: backend returned no id for normalized_key=named:missing law",
+        "upsertCitedReferences: backend returned no id for named_law:named:missing law",
     );
 });
 

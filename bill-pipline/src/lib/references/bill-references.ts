@@ -49,7 +49,13 @@ export interface ReferencesBackend {
     }>;
 
     upsertCitedReferences(rows: CitedReferenceUpsert[]): Promise<{
-        data: { id: string; normalized_key: string }[] | null;
+        data:
+            | {
+                id: string;
+                kind: CitedReferenceUpsert["kind"];
+                normalized_key: string;
+            }[]
+            | null;
         error: { message: string } | null;
     }>;
 
@@ -98,15 +104,19 @@ export async function fetchReferenceCandidates(
     return validated;
 }
 
+/**
+ * De-duplicates rows by (kind, normalized_key) before sending to the backend.
+ * Returns a Map keyed by the composite `${kind}:${normalized_key}` so callers
+ * can disambiguate the (rare but legal) case where the same normalized_key
+ * appears under two different kinds — the DB's unique constraint is on the
+ * pair, so both rows coexist with distinct ids.
+ */
 export async function upsertCitedReferences(
     backend: ReferencesBackend,
     refs: ExtractedReference[],
 ): Promise<Map<string, string>> {
     if (refs.length === 0) return new Map();
 
-    // Dedupe by (kind, normalized_key) — the DIM table has a unique constraint
-    // on that pair, and we'd otherwise send the same row multiple times for a
-    // single bill that mentions the same statute repeatedly.
     const dedupedByKey = new Map<string, CitedReferenceUpsert>();
     for (const ref of refs) {
         const composite = `${ref.kind}:${ref.normalized_key}`;
@@ -130,18 +140,19 @@ export async function upsertCitedReferences(
     const returned = data ?? [];
     const keyToId = new Map<string, string>();
     for (const row of returned) {
-        keyToId.set(row.normalized_key, row.id);
+        keyToId.set(`${row.kind}:${row.normalized_key}`, row.id);
     }
 
     const result = new Map<string, string>();
     for (const ref of refs) {
-        const id = keyToId.get(ref.normalized_key);
+        const composite = `${ref.kind}:${ref.normalized_key}`;
+        const id = keyToId.get(composite);
         if (id === undefined) {
             throw new Error(
-                `upsertCitedReferences: backend returned no id for normalized_key=${ref.normalized_key}`,
+                `upsertCitedReferences: backend returned no id for ${composite}`,
             );
         }
-        result.set(ref.normalized_key, id);
+        result.set(composite, id);
     }
     return result;
 }
