@@ -157,34 +157,36 @@ export async function upsertCitedReferences(
     return result;
 }
 
-export async function writeBillReferences(
+export async function replaceBillReferences(
     backend: ReferencesBackend,
     billId: unknown,
     rows: BillReferenceInsert[],
 ): Promise<void> {
     if (typeof billId !== "string" || billId.length === 0) {
         throw new Error(
-            `writeBillReferences: invalid billId: expected non-empty string`,
+            `replaceBillReferences: invalid billId: expected non-empty string`,
         );
+    }
+
+    // Validate BEFORE the delete — a bad row mid-list would otherwise leave the
+    // bill with zero references and no marker that the write failed.
+    for (const [i, row] of rows.entries()) {
+        const parsed = BillReferenceInsertSchema.safeParse(row);
+        if (!parsed.success) {
+            throw new Error(
+                `replaceBillReferences: invalid row at index ${i} (bill_id=${billId}): ${parsed.error.message}`,
+            );
+        }
     }
 
     const { error: deleteError } = await backend.deleteBillReferences(billId);
     if (deleteError) {
         throw new Error(
-            `writeBillReferences: backend error (bill_id=${billId}): ${deleteError.message}`,
+            `replaceBillReferences: backend error (bill_id=${billId}): ${deleteError.message}`,
         );
     }
 
     if (rows.length === 0) return;
-
-    for (const [i, row] of rows.entries()) {
-        const parsed = BillReferenceInsertSchema.safeParse(row);
-        if (!parsed.success) {
-            throw new Error(
-                `writeBillReferences: invalid row at index ${i} (bill_id=${billId}): ${parsed.error.message}`,
-            );
-        }
-    }
 
     const { error: insertError } = await backend.insertBillReferences(
         billId,
@@ -192,7 +194,7 @@ export async function writeBillReferences(
     );
     if (insertError) {
         throw new Error(
-            `writeBillReferences: backend error (bill_id=${billId}): ${insertError.message}`,
+            `replaceBillReferences: backend error (bill_id=${billId}): ${insertError.message}`,
         );
     }
 }

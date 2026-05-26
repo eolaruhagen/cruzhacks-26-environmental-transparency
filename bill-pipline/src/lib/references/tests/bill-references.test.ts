@@ -6,7 +6,7 @@ import {
     markExtracted,
     type ReferencesBackend,
     upsertCitedReferences,
-    writeBillReferences,
+    replaceBillReferences,
 } from "../bill-references.ts";
 import type { ExtractedReference, ReferenceKind } from "../types.ts";
 
@@ -332,7 +332,7 @@ test("upsertCitedReferences: throws with count context on backend error", async 
 });
 
 // ---------------------------------------------------------------------------
-// writeBillReferences
+// replaceBillReferences
 // ---------------------------------------------------------------------------
 
 const validInsertRow: BillReferenceInsert = {
@@ -345,17 +345,17 @@ const validInsertRow: BillReferenceInsert = {
     is_self_ref: false,
 };
 
-test("writeBillReferences: empty rows → delete is still called, insert is NOT called", async () => {
+test("replaceBillReferences: empty rows → delete is still called, insert is NOT called", async () => {
     const fake = makeBackend();
-    await writeBillReferences(fake.backend, BILL_ID, []);
+    await replaceBillReferences(fake.backend, BILL_ID, []);
     expect(fake.calls.length).toEqual(1);
     expect(fake.calls[0].method).toEqual("deleteBillReferences");
     expect(fake.calls[0].payload).toEqual(BILL_ID);
 });
 
-test("writeBillReferences: non-empty rows → delete then insert with bill_id payload", async () => {
+test("replaceBillReferences: non-empty rows → delete then insert with bill_id payload", async () => {
     const fake = makeBackend();
-    await writeBillReferences(fake.backend, BILL_ID, [validInsertRow]);
+    await replaceBillReferences(fake.backend, BILL_ID, [validInsertRow]);
     expect(fake.calls.length).toEqual(2);
     expect(fake.calls[0].method).toEqual("deleteBillReferences");
     expect(fake.calls[0].payload).toEqual(BILL_ID);
@@ -368,42 +368,56 @@ test("writeBillReferences: non-empty rows → delete then insert with bill_id pa
     expect(insertPayload.rows).toEqual([validInsertRow]);
 });
 
-test("writeBillReferences: delete error → throws with bill_id context", async () => {
+test("replaceBillReferences: delete error → throws with bill_id context", async () => {
     const fake = makeBackend();
     fake.nextDeleteResult = { error: { message: "fk violation" } };
     await expect(
-        writeBillReferences(fake.backend, BILL_ID, [validInsertRow]),
+        replaceBillReferences(fake.backend, BILL_ID, [validInsertRow]),
     ).rejects.toThrow(
-        `writeBillReferences: backend error (bill_id=${BILL_ID})`,
+        `replaceBillReferences: backend error (bill_id=${BILL_ID})`,
     );
     // Insert should NOT have been issued after delete failure.
     expect(fake.calls.length).toEqual(1);
     expect(fake.calls[0].method).toEqual("deleteBillReferences");
 });
 
-test("writeBillReferences: insert error → throws with bill_id context", async () => {
+test("replaceBillReferences: insert error → throws with bill_id context", async () => {
     const fake = makeBackend();
     fake.nextInsertResult = { error: { message: "fk violation" } };
     await expect(
-        writeBillReferences(fake.backend, BILL_ID, [validInsertRow]),
+        replaceBillReferences(fake.backend, BILL_ID, [validInsertRow]),
     ).rejects.toThrow(
-        `writeBillReferences: backend error (bill_id=${BILL_ID})`,
+        `replaceBillReferences: backend error (bill_id=${BILL_ID})`,
     );
 });
 
-test("writeBillReferences: rejects empty billId without calling backend", async () => {
+test("replaceBillReferences: invalid row → no DELETE, no INSERT, throws with index", async () => {
+    const fake = makeBackend();
+    const badRow = {
+        // Missing reference_id, raw, etc. — fails BillReferenceInsertSchema.
+        source: "bill_text",
+    } as unknown as BillReferenceInsert;
+    await expect(
+        replaceBillReferences(fake.backend, BILL_ID, [validInsertRow, badRow]),
+    ).rejects.toThrow(
+        `replaceBillReferences: invalid row at index 1 (bill_id=${BILL_ID})`,
+    );
+    expect(fake.calls.length).toEqual(0);
+});
+
+test("replaceBillReferences: rejects empty billId without calling backend", async () => {
     const fake = makeBackend();
     await expect(
-        writeBillReferences(fake.backend, "", [validInsertRow]),
-    ).rejects.toThrow("writeBillReferences");
+        replaceBillReferences(fake.backend, "", [validInsertRow]),
+    ).rejects.toThrow("replaceBillReferences");
     expect(fake.calls).toEqual([]);
 });
 
-test("writeBillReferences: rejects non-string billId without calling backend", async () => {
+test("replaceBillReferences: rejects non-string billId without calling backend", async () => {
     const fake = makeBackend();
     await expect(
-        writeBillReferences(fake.backend, 42, [validInsertRow]),
-    ).rejects.toThrow("writeBillReferences");
+        replaceBillReferences(fake.backend, 42, [validInsertRow]),
+    ).rejects.toThrow("replaceBillReferences");
     expect(fake.calls).toEqual([]);
 });
 

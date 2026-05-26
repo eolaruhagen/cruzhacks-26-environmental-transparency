@@ -28,6 +28,9 @@ export function makeReferencesBackend(supabase: SupabaseDb): ReferencesBackend {
             };
         },
         upsertCitedReferences: async (rows) => {
+            // CitedReferenceUpsert.normalized is Record<string, unknown>, which is structurally
+            // a subset of the generated Json recursive type but TS can't prove it. Safe at
+            // runtime because Python only emits primitives + nested dicts/arrays.
             const payload = rows as unknown as CitedReferenceInsert[];
             const { data, error } = await supabase
                 .from("cited_references")
