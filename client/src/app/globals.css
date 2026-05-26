@@ -29,9 +29,51 @@
   --color-shadow: #3A5A40;
   /* Offset card shadow — solid accent green */
   --color-module: #ffffff;
-  /* White panels */
+  /* White panels — referenced by the `.dark .bg-white` override */
   --color-module-hover: #f5f5f5;
-  /* Hover state for modules */
+  /* Hover state for modules — referenced by the `.dark .hover:bg-gray-100` override */
+
+  /* Party identifiers — same across light/dark; convention is constant */
+  --color-party-d: #2563eb;
+  --color-party-r: #dc2626;
+  --color-party-i: #9333ea;
+  --color-party-other: #4b5563;
+  --color-party-d-border: #3b82f6;
+  --color-party-r-border: #ef4444;
+  --color-party-i-border: #a855f7;
+  --color-party-other-border: #6b7280;
+
+  /* Alert severity — light mode */
+  --color-alert-warning-border: #fca5a5;
+  --color-alert-warning-text: #b91c1c;
+  --color-alert-caution-border: #fcd34d;
+  --color-alert-caution-text: #b45309;
+  --color-alert-info-border: #93c5fd;
+  --color-alert-info-text: #1d4ed8;
+  --color-alert-good-border: #86efac;
+  --color-alert-good-text: #15803d;
+
+  /* AQI scale (EPA AirNow) — soft fill + strong text per level, light mode */
+  --color-aqi-good-soft: #dcfce7;
+  --color-aqi-good-strong: #166534;
+  --color-aqi-moderate-soft: #fef9c3;
+  --color-aqi-moderate-strong: #854d0e;
+  --color-aqi-sensitive-soft: #ffedd5;
+  --color-aqi-sensitive-strong: #9a3412;
+  --color-aqi-unhealthy-soft: #fee2e2;
+  --color-aqi-unhealthy-strong: #991b1b;
+  --color-aqi-very-unhealthy-soft: #f3e8ff;
+  --color-aqi-very-unhealthy-strong: #6b21a8;
+  --color-aqi-hazardous-soft: #fecdd3;
+  --color-aqi-hazardous-strong: #881337;
+
+  /* Slider controls (range track + drag handle) */
+  --color-track: #e5e7eb;
+  --color-handle: #6b7280;
+  --color-handle-hover: #4b5563;
+
+  /* Image hover scrim (over photos / illustrations) */
+  --color-overlay: rgba(0, 0, 0, 0.2);
 
   /* Font */
   --font-inter: 'Inter', sans-serif;
@@ -67,6 +109,38 @@
   /* Dark module */
   --color-module-hover: #252525;
   /* Hover state */
+
+  /* Alert severity — dark mode swap (borders darker, text brighter) */
+  --color-alert-warning-border: #b91c1c;
+  --color-alert-warning-text: #f87171;
+  --color-alert-caution-border: #d97706;
+  --color-alert-caution-text: #fbbf24;
+  --color-alert-info-border: #1d4ed8;
+  --color-alert-info-text: #93c5fd;
+  --color-alert-good-border: #15803d;
+  --color-alert-good-text: #86efac;
+
+  /* AQI scale — dark mode (soft fills get darker, strong text gets brighter) */
+  --color-aqi-good-soft: #14532d;
+  --color-aqi-good-strong: #bbf7d0;
+  --color-aqi-moderate-soft: #713f12;
+  --color-aqi-moderate-strong: #fef08a;
+  --color-aqi-sensitive-soft: #7c2d12;
+  --color-aqi-sensitive-strong: #fed7aa;
+  --color-aqi-unhealthy-soft: #7f1d1d;
+  --color-aqi-unhealthy-strong: #fecaca;
+  --color-aqi-very-unhealthy-soft: #581c87;
+  --color-aqi-very-unhealthy-strong: #e9d5ff;
+  --color-aqi-hazardous-soft: #881337;
+  --color-aqi-hazardous-strong: #fecdd3;
+
+  /* Slider controls — dark mode */
+  --color-track: #404040;
+  --color-handle: #a3a3a3;
+  --color-handle-hover: #d4d4d4;
+
+  /* Stronger scrim in dark mode so the overlay still reads on dark imagery */
+  --color-overlay: rgba(0, 0, 0, 0.45);
 }
 
 html {
@@ -118,13 +192,43 @@ body {
     background-color: var(--color-accent-dark);
   }
 
-  .bg-module {
-    background-color: var(--color-module);
-  }
+  /* Party identifier fills (used by representative badges) */
+  .bg-party-d { background-color: var(--color-party-d); }
+  .bg-party-r { background-color: var(--color-party-r); }
+  .bg-party-i { background-color: var(--color-party-i); }
+  .bg-party-other { background-color: var(--color-party-other); }
 
-  .hover\:bg-module-hover:hover {
-    background-color: var(--color-module-hover);
-  }
+  /* Party left-border accents — pair with `border-l-4` on the same element */
+  .border-l-party-d { border-left-color: var(--color-party-d-border); }
+  .border-l-party-r { border-left-color: var(--color-party-r-border); }
+  .border-l-party-i { border-left-color: var(--color-party-i-border); }
+  .border-l-party-other { border-left-color: var(--color-party-other-border); }
+
+  /* Party all-sides borders — use when the entire box is colored by party */
+  .border-party-d { border-color: var(--color-party-d-border); }
+  .border-party-r { border-color: var(--color-party-r-border); }
+  .border-party-i { border-color: var(--color-party-i-border); }
+  .border-party-other { border-color: var(--color-party-other-border); }
+
+  /* Party text colors — for inline sponsor names, captions, etc. */
+  .text-party-d { color: var(--color-party-d); }
+  .text-party-r { color: var(--color-party-r); }
+  .text-party-i { color: var(--color-party-i); }
+  .text-party-other { color: var(--color-party-other); }
+
+  /* Soft tinted backgrounds — pair with the matching `text-alert-*` / `text-light`
+     for translucent status pills (~12% tint of the foreground token). */
+  .bg-alert-info-soft { background-color: color-mix(in srgb, var(--color-alert-info-text) 12%, transparent); }
+  .bg-alert-good-soft { background-color: color-mix(in srgb, var(--color-alert-good-text) 12%, transparent); }
+  .bg-status-soft     { background-color: color-mix(in srgb, var(--color-text-light) 12%, transparent); }
+
+  /* Hover scrim utility for image overlays */
+  .bg-overlay { background-color: var(--color-overlay); }
+
+  /* Range-slider controls */
+  .bg-track { background-color: var(--color-track); }
+  .bg-handle { background-color: var(--color-handle); }
+  .hover\:bg-handle-strong:hover { background-color: var(--color-handle-hover); }
 
   /* Text */
   .text-main {
@@ -142,6 +246,32 @@ body {
   .text-accent-dark {
     color: var(--color-accent-dark);
   }
+
+  /* Alert severity text — pair with the matching `wf-alert-*` container */
+  .text-alert-warning { color: var(--color-alert-warning-text); }
+  .text-alert-caution { color: var(--color-alert-caution-text); }
+  .text-alert-info { color: var(--color-alert-info-text); }
+  .text-alert-good { color: var(--color-alert-good-text); }
+
+  /* Alert severity borders — for callouts that don't use the full wf-alert-* shell */
+  .border-alert-warning { border-color: var(--color-alert-warning-border); }
+  .border-alert-caution { border-color: var(--color-alert-caution-border); }
+  .border-alert-info { border-color: var(--color-alert-info-border); }
+  .border-alert-good { border-color: var(--color-alert-good-border); }
+
+  /* AQI scale — soft fill background paired with a strong-text utility per level */
+  .bg-aqi-good { background-color: var(--color-aqi-good-soft); }
+  .bg-aqi-moderate { background-color: var(--color-aqi-moderate-soft); }
+  .bg-aqi-sensitive { background-color: var(--color-aqi-sensitive-soft); }
+  .bg-aqi-unhealthy { background-color: var(--color-aqi-unhealthy-soft); }
+  .bg-aqi-very-unhealthy { background-color: var(--color-aqi-very-unhealthy-soft); }
+  .bg-aqi-hazardous { background-color: var(--color-aqi-hazardous-soft); }
+  .text-aqi-good { color: var(--color-aqi-good-strong); }
+  .text-aqi-moderate { color: var(--color-aqi-moderate-strong); }
+  .text-aqi-sensitive { color: var(--color-aqi-sensitive-strong); }
+  .text-aqi-unhealthy { color: var(--color-aqi-unhealthy-strong); }
+  .text-aqi-very-unhealthy { color: var(--color-aqi-very-unhealthy-strong); }
+  .text-aqi-hazardous { color: var(--color-aqi-hazardous-strong); }
 
   /* Border */
   .border-border {
@@ -161,13 +291,6 @@ body {
   .wf-shadow:hover {
     box-shadow: 2px 2px 0 0 var(--color-shadow);
     transform: translate(3px, 3px);
-  }
-
-  /* Escape hatch: opt out of the shadow when a card sits flush against
-     a container edge, inside another card, or in a tight grid where the
-     offset would clip. */
-  .wf-shadow-none {
-    box-shadow: none !important;
   }
 
   /* Standard wireframe card — outlined, no fill, offset accent shadow */
@@ -219,6 +342,33 @@ body {
   /* Wireframe badge/pill */
   .wf-badge {
     @apply inline-flex items-center px-2.5 py-0.5 text-xs font-mono whitespace-nowrap;
+  }
+
+  /* Numbered step badge — outlined square + centered digit. Box size, text
+     color, and tone all live on the `<StepNumber>` component; this base class
+     only owns the chrome (border + flex centering). The border has no explicit
+     color and inherits `currentColor` from the text color set by `tone`. */
+  .wf-step-number {
+    @apply border-2 flex items-center justify-center font-bold shrink-0;
+  }
+
+  /* Alert / callout boxes — colored border + standard padding. Inner text
+     is colored separately via the matching `text-alert-*` utility. */
+  .wf-alert-warning {
+    @apply p-4 border;
+    border-color: var(--color-alert-warning-border);
+  }
+  .wf-alert-caution {
+    @apply p-4 border;
+    border-color: var(--color-alert-caution-border);
+  }
+  .wf-alert-info {
+    @apply p-4 border;
+    border-color: var(--color-alert-info-border);
+  }
+  .wf-alert-good {
+    @apply p-4 border;
+    border-color: var(--color-alert-good-border);
   }
 
   /* Wireframe input */
@@ -309,11 +459,6 @@ body {
     background-color: color-mix(in srgb, var(--color-nav-text) 10%, transparent);
   }
 
-  /* Touch targets */
-  .touch-friendly {
-    @apply min-h-[44px] min-w-[44px];
-  }
-
   /* Hide scrollbar but keep scroll functionality */
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -332,15 +477,6 @@ body {
 
 .dark .hover\:bg-gray-100:hover {
   background-color: var(--color-module-hover) !important;
-}
-
-/* ─── Legacy component classes (for gradual migration) ─── */
-.text-card-block {
-  background-color: var(--color-card);
-  color: var(--color-text);
-  padding: 1.5rem;
-  border-radius: 0;
-  border: 1px solid var(--color-border);
 }
 
 /* Custom scrollbar */
@@ -384,57 +520,4 @@ body {
     width: 4px;
     height: 4px;
   }
-}
-
-/* ─── Isometric background component ────────────────── */
-
-.iso-viewport {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  z-index: -10;
-  background-color: var(--color-bg);
-  perspective: 2400px;
-  perspective-origin: 50% 50%;
-}
-
-.iso-grid {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform-style: preserve-3d;
-  transform: rotateX(35deg) rotateZ(-18deg);
-  /* No will-change — the grid's rotation is static, so the browser
-     has nothing to prepare for. `will-change` on a never-changing
-     property is wasted memory. */
-}
-
-.iso-cell {
-  position: absolute;
-  background-color: var(--color-card);
-  border: 1px solid var(--color-border);
-  /* Transitions need to be on the base class so the cell animates both UP
-     (when gaining .iso-cell-lifted) and DOWN (when losing it).
-     Transitions themselves are cheap — they only do work when a property
-     actually changes. The real layer-explosion culprits are below. */
-  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    background-color 500ms ease-out,
-    box-shadow 500ms ease-out;
-
-  /* DO NOT put `will-change` or `transform-style: preserve-3d` here.
-     Both promote every cell to its own GPU layer = 8,100 layers = death. */
-}
-
-.iso-cell-lifted {
-  transform: translateZ(22px);
-  background-color: var(--color-accent);
-  box-shadow:
-    0 0 0 1px var(--color-accent-dark),
-    5px 8px 12px rgba(0, 0, 0, 0.22);
-}
-
-.dark .iso-cell-lifted {
-  box-shadow:
-    0 0 0 1px var(--color-accent-dark),
-    5px 8px 14px rgba(0, 0, 0, 0.55);
 }

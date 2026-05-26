@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 
 interface ImageCardProps {
   children: React.ReactNode
@@ -37,22 +38,24 @@ export default function ImageCard({
       <div
         className={`
           absolute inset-0 flex items-center justify-center
-          bg-black/20 backdrop-blur-[2px]
+          bg-overlay backdrop-blur-[2px]
           transition-all duration-300 ease-out
           ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}
         `}
       >
-        <Link
+        <Button
+          as={Link}
+          variant="active"
           href={buttonLink}
           className={`
-            wf-btn-active px-6 py-3 font-semibold
+            px-6 py-3 font-semibold
             transition-all duration-200
             transform ${isHovered ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}
           `}
           style={{ transitionDelay: isHovered ? '100ms' : '0ms' }}
         >
           {buttonText}
-        </Link>
+        </Button>
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Database } from "../../../../../packages/shared/src/database.types"
 import { Bill, BillType } from "@/lib/types"
 import { formatBillCategory, formatTzDate } from "@/lib/utils"
+import { Card } from "@/components/ui/Card"
 
 export type ResultItemBadge = {
     label: string
@@ -42,19 +43,21 @@ export function BillSearchResult({ bill, reason, compact, dropSponsor }: BillSea
     const { title } = bill
     const date = formatTzDate(bill.date_of_introduction)
     const badges: ResultItemBadge[] = [
-        { label: formatBillCategory(bill.category), className: 'bg-blue-500/10 text-blue-500' },
+        { label: formatBillCategory(bill.category), className: 'bg-alert-info-soft text-alert-info' },
         {
             label: bill.latest_tracker_stage ?? 'Unknown Stage',
             className: bill.latest_tracker_stage
-                ? 'bg-green-500/10 text-green-500'
-                : 'bg-gray-500/10 text-gray-500',
+                ? 'bg-alert-good-soft text-alert-good'
+                : 'bg-status-soft text-light',
         },
     ]
 
     const getPartyColor = (party: string) => {
-        if (party.toLowerCase().includes('democrat')) return 'text-blue-600';
-        if (party.toLowerCase().includes('republican')) return 'text-red-600';
-        return 'text-gray-600';
+        const p = party.toLowerCase();
+        if (p.includes('democrat')) return 'text-party-d';
+        if (p.includes('republican')) return 'text-party-r';
+        if (p.includes('independent')) return 'text-party-i';
+        return 'text-party-other';
     };
 
     const coloredSponsorName = bill.sponsor ? (
@@ -116,7 +119,7 @@ export interface ArticleSearchResultProps {
 
 export function SearchCardShell({ title, alias, date, badges, metadata, sourceIconUrl, expanded, children }: SearchCardShellProps) {
     return (
-        <div className="wf-card block group">
+        <Card className="block group">
             <div className="flex items-center gap-2">
                 {sourceIconUrl && (
                     <img src={sourceIconUrl} alt="" className="w-4 h-4  shrink-0" />
@@ -163,7 +166,7 @@ export function SearchCardShell({ title, alias, date, badges, metadata, sourceIc
                     </div>
                 </div>
             )}
-        </div>
+        </Card>
     )
 }
 
@@ -176,13 +179,13 @@ export function ArticleSearchResult({ article }: ArticleSearchResultProps) {
     const date = formatTzDate(article.published_at)
     const sourceIconUrl = article.source_icon_url
     let badges: ResultItemBadge[] = [
-        { label: formatBillCategory(article.environmental_topic), className: 'bg-blue-500/10 text-blue-500' },
-        { label: article.impact_level ?? 'Unknown Impact Level', className: 'bg-green-500/10 text-green-500' },
-        { label: article.sentiment > 0 ? 'Positive' : 'Negative', className: article.sentiment > 0 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500' },
+        { label: formatBillCategory(article.environmental_topic), className: 'bg-alert-info-soft text-alert-info' },
+        { label: article.impact_level ?? 'Unknown Impact Level', className: 'bg-alert-good-soft text-alert-good' },
+        { label: article.sentiment > 0 ? 'Positive' : 'Negative', className: article.sentiment > 0 ? 'bg-alert-good-soft text-alert-good' : 'bg-status-soft text-alert-warning' },
     ]
 
     if (article.topics) {
-        badges = [...badges, ...article.topics.map((topic) => ({ label: topic, className: 'bg-blue-500/10 text-blue-500' }))]
+        badges = [...badges, ...article.topics.map((topic) => ({ label: topic, className: 'bg-alert-info-soft text-alert-info' }))]
     }
     const metadata: ResultMetadataLine[] = [
         { label: 'Source', value: article.source ?? 'Unknown source', clamp: true },

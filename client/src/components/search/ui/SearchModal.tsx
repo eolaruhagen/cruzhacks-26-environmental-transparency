@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from "react"
+import { Card } from "@/components/ui/Card"
+import { Button } from "@/components/ui/Button"
 
 export interface DiscreteFilter<K extends React.Key> {
     type: 'discrete'
@@ -94,7 +96,7 @@ export function SearchModal<K extends React.Key>({
     let firstNonTextSeen = false
 
     return (
-        <div className="wf-section space-y-6">
+        <Card variant="section" className="space-y-6">
             <SortBar options={sortState} activeKey={activeSortKey} onClick={onSortClick} />
             {activeFilters.map((filter) => {
                 let defaultOpen = true
@@ -104,7 +106,7 @@ export function SearchModal<K extends React.Key>({
                 }
                 return <SearchModalFilterOption key={filter.key} filter={filter} updateFilter={onFilterUpdate} defaultOpen={defaultOpen} />
             })}
-        </div>
+        </Card>
     )
 }
 
@@ -128,10 +130,11 @@ function SortBar({
                 {options.map((option) => {
                     const isActive = option.key === activeKey
                     return (
-                        <button
+                        <Button
                             key={option.key}
+                            variant={isActive ? 'active' : 'default'}
                             onClick={() => onClick(option.key)}
-                            className={`flex flex-col items-center justify-center leading-none !py-1 ${isActive ? 'wf-btn-active' : 'wf-btn'}`}
+                            className="flex flex-col items-center justify-center leading-none !py-1"
                             aria-pressed={isActive}
                             title={isActive ? 'Click to flip direction' : 'Click to sort by this field'}
                         >
@@ -141,7 +144,7 @@ function SortBar({
                                     {option.direction === 'asc' ? 'Ascending' : 'Descending'}
                                 </span>
                             )}
-                        </button>
+                        </Button>
                     )
                 })}
             </div>
@@ -218,13 +221,13 @@ function DiscreteFilterUI<K extends React.Key>({ filter, onToggle }: { filter: D
         <div>
             <div className="flex flex-wrap gap-2">
                 {filter.options.map((option) => (
-                    <button
+                    <Button
                         key={option.id}
+                        variant={filter.selected.has(option.id) ? 'active' : 'default'}
                         onClick={() => onToggle(option.id)}
-                        className={filter.selected.has(option.id) ? 'wf-btn-active' : 'wf-btn'}
                     >
                         {option.label}
-                    </button>
+                    </Button>
                 ))}
             </div>
         </div>

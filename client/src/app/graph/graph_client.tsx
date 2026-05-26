@@ -2,6 +2,8 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { kmeans } from 'ml-kmeans';
 import { BillWithScores, Subcategory, Cluster } from '@/lib/types';
+import { Card } from "@/components/ui/Card"
+import { Button } from "@/components/ui/Button"
 
 // Polar Scatter Chart Component
 interface PolarScatterChartProps {
@@ -388,7 +390,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
 
     // Early return for empty data (placed after all hooks)
     if (subcategoryNames.length === 0 || bills.length === 0) {
-        return <div className="text-gray-500">No data to display</div>;
+        return <div className="text-light">No data to display</div>;
     }
 
     // Format subcategory name from snake_case to Title Case
@@ -488,11 +490,11 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
             <div className="px-2 md:px-20">
                 {/* Year Range Slider */}
                 <div className="flex justify-center mb-3 px-2">
-                    <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 wf-card w-full sm:w-auto">
+                    <Card className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto">
                         <span className="text-sm font-medium text-main w-10">{selectedYearRange[0]}</span>
                         <div className="relative w-48 h-6">
                             {/* Track background */}
-                            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-gray-200" />
+                            <div className="absolute top-1/2 -translate-y-1/2 w-full h-1.5 bg-track" />
                             {/* Selected range highlight */}
                             <div
                                 className="absolute top-1/2 -translate-y-1/2 h-1.5 bg-accent"
@@ -503,14 +505,13 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                             />
                             {/* Center drag handle - small dark bar to drag both thumbs together, positioned 5px above */}
                             <div
-                                className="absolute cursor-grab active:cursor-grabbing hover:bg-gray-600 transition-colors"
+                                className="absolute cursor-grab active:cursor-grabbing bg-handle hover:bg-handle-strong transition-colors"
                                 style={{
                                     left: `${((selectedYearRange[0] + selectedYearRange[1]) / 2 - minYear) / (maxYear - minYear) * 100}%`,
                                     top: '-11px',
                                     transform: 'translate(-50%, -100%)',
                                     width: '20px',
                                     height: '6px',
-                                    backgroundColor: '#6b7280',
                                     borderRadius: '3px',
                                     zIndex: 5
                                 }}
@@ -584,58 +585,51 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                             />
                         </div>
                         <span className="text-sm font-medium text-main w-10">{selectedYearRange[1]}</span>
-                    </div>
+                    </Card>
                 </div>
 
                 {/* Playback controls - static size */}
                 <div className="flex justify-center mb-3 gap-2 flex-wrap">
-                    <button
+                    <Button
                         onClick={() => setPlaybackState(playbackState === 'reverse' ? 'paused' : 'reverse')}
-                        className={`w-10 h-10 flex items-center justify-center border transition-colors ${playbackState === 'reverse'
-                            ? 'wf-btn-active'
-                            : 'wf-btn'
-                            }`}
+                        variant={playbackState === 'reverse' ? 'active' : 'default'}
+                        className="w-10 h-10 flex items-center justify-center border transition-colors"
                         title="Reverse"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M19 12L7 5v14l12-7z" transform="scale(-1,1) translate(-24,0)" />
                         </svg>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={() => setPlaybackState('paused')}
-                        className={`w-10 h-10 flex items-center justify-center border transition-colors ${playbackState === 'paused'
-                            ? 'wf-btn-active'
-                            : 'wf-btn'
-                            }`}
+                        variant={playbackState === 'paused' ? 'active' : 'default'}
+                        className="w-10 h-10 flex items-center justify-center border transition-colors"
                         title="Pause"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <rect x="6" y="5" width="4" height="14" />
                             <rect x="14" y="5" width="4" height="14" />
                         </svg>
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         onClick={() => setPlaybackState(playbackState === 'playing' ? 'paused' : 'playing')}
-                        className={`w-10 h-10 flex items-center justify-center border transition-colors ${playbackState === 'playing'
-                            ? 'wf-btn-active'
-                            : 'wf-btn'
-                            }`}
+                        variant={playbackState === 'playing' ? 'active' : 'default'}
+                        className="w-10 h-10 flex items-center justify-center border transition-colors"
                         title="Play"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M8 5v14l11-7z" />
                         </svg>
-                    </button>
+                    </Button>
                 </div>
 
                 {/* Toggle button */}
                 <div className="flex justify-center mb-4">
-                    <button
+                    <Button
                         onClick={() => setShowClusters(!showClusters)}
-                        className="wf-btn"
                     >
                         {showClusters ? 'Show Individual Bills' : 'Show Clusters'}
-                    </button>
+                    </Button>
                 </div>
 
                 <svg width={size} height={size} className="mx-auto" style={{ overflow: 'visible', marginTop: '45px' }}>
@@ -732,7 +726,7 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                     {/* Axis labels (rendered LAST so they appear on top) */}
                     {axisLabels}
                 </svg>
-                <div className="text-center text-sm text-gray-500 mt-2">
+                <div className="text-center text-sm text-light mt-2">
                     {showClusters
                         ? `${clusters.length} clusters from ${bills.length} bills`
                         : `${bills.length} bills plotted`
@@ -747,12 +741,12 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                         <div
                             className="bg-nav px-4 py-2.5 flex justify-between items-center"
                         >
-                            <span className="text-sm text-white font-semibold">
+                            <span className="text-sm text-nav-text font-semibold">
                                 Cluster Bills ({finalClusters[hoveredCluster].bills.length})
                             </span>
                             <button
                                 onClick={() => setHoveredCluster(null)}
-                                className="text-white/70 hover:text-white text-lg leading-none"
+                                className="text-nav-text/70 hover:text-nav-text text-lg leading-none"
                             >
                                 ×
                             </button>
@@ -812,10 +806,10 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                         <div
                             className="bg-nav px-4 py-2.5 flex justify-between items-center"
                         >
-                            <span className="text-sm text-white font-semibold">Bill Details</span>
+                            <span className="text-sm text-nav-text font-semibold">Bill Details</span>
                             <button
                                 onClick={() => setSelectedBill(null)}
-                                className="text-white/70 hover:text-white text-lg leading-none"
+                                className="text-nav-text/70 hover:text-nav-text text-lg leading-none"
                             >
                                 ×
                             </button>
@@ -830,14 +824,16 @@ function PolarScatterChart({ bills, subcategoryNames, minYear, maxYear, selected
                                 <div className="text-sm text-main">{selectedBill.title || 'No title available'}</div>
                             </div>
                             {selectedBill.url && (
-                                <a
+                                <Button
+                                    as="a"
                                     href={selectedBill.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="inline-flex items-center wf-btn-active"
+                                    variant="active"
+                                    className="inline-flex items-center"
                                 >
                                     View Full Bill →
-                                </a>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -917,7 +913,7 @@ export default function GraphClient({ bills, subcategories }: GraphClientProps) 
             <div className="flex flex-col md:flex-row gap-4 md:gap-6">
                 {/* Sidebar - Full width on mobile, fixed width on desktop */}
                 <div className="w-full md:w-72 md:flex-shrink-0">
-                    <div className="wf-section space-y-4 md:space-y-5">
+                    <Card variant="section" className="space-y-4 md:space-y-5">
                         {/* Category Selector */}
                         <div>
                             <label className="wf-label block mb-2">Category</label>
@@ -990,13 +986,13 @@ export default function GraphClient({ bills, subcategories }: GraphClientProps) 
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </Card>
                 </div>
 
                 {/* Main Chart Area */}
                 <div className="flex-1 relative min-w-0">
                     {showInstructions && (
-                        <div className="absolute top-0 left-0 z-20 w-56 md:w-64 wf-card">
+                        <Card className="absolute top-0 left-0 z-20 w-56 md:w-64">
                             <div className="flex justify-between items-start mb-2">
                                 <h3 className="font-semibold text-main">Quick Tips</h3>
                                 <button
@@ -1020,7 +1016,7 @@ export default function GraphClient({ bills, subcategories }: GraphClientProps) 
                                     <span>Click bills in the side panel to view details</span>
                                 </li>
                             </ul>
-                        </div>
+                        </Card>
                     )}
                     <PolarScatterChart
                         bills={filteredBills}

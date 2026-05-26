@@ -15,6 +15,8 @@ import {
   Bar,
   Cell,
 } from 'recharts'
+import { Card } from "@/components/ui/Card"
+import { AlertBox } from "@/components/ui/AlertBox"
 
 
 // PARIS AGREEMENT DATA - Well-documented public data from NASA/NOAA/Scripps
@@ -198,7 +200,7 @@ const waterQualityData = [
 
 export function TemperatureChart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">Global Temperature Anomaly</h3>
       <p className="text-main/60 text-sm mb-4">°C above 1951-1980 baseline (NASA GISS)</p>
       <div className="h-[220px] sm:h-[260px] md:h-[300px]">
@@ -221,13 +223,13 @@ export function TemperatureChart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: NASA GISS Surface Temperature Analysis</p>
-    </div>
+    </Card>
   )
 }
 
 export function CO2Chart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">Atmospheric CO₂ Concentration</h3>
       <p className="text-main/60 text-sm mb-4">Parts per million (Mauna Loa Observatory)</p>
       <div className="h-[220px] sm:h-[260px] md:h-[300px]">
@@ -250,13 +252,13 @@ export function CO2Chart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: NOAA/Scripps Mauna Loa Observatory</p>
-    </div>
+    </Card>
   )
 }
 
 export function PM25Chart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">PM₂.₅ National Average</h3>
       <p className="text-main/60 text-sm mb-4">Annual mean (µg/m³) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
@@ -279,13 +281,13 @@ export function PM25Chart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
-    </div>
+    </Card>
   )
 }
 
 export function OzoneChart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">Ground-Level Ozone (O₃)</h3>
       <p className="text-main/60 text-sm mb-4">4th highest daily max 8-hr average (ppb) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
@@ -308,13 +310,13 @@ export function OzoneChart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
-    </div>
+    </Card>
   )
 }
 
 export function NO2Chart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">Nitrogen Dioxide (NO₂)</h3>
       <p className="text-main/60 text-sm mb-4">Annual mean (ppb) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
@@ -337,13 +339,13 @@ export function NO2Chart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
-    </div>
+    </Card>
   )
 }
 
 export function SO2Chart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">Sulfur Dioxide (SO₂)</h3>
       <p className="text-main/60 text-sm mb-4">1-hour 99th percentile (ppb) — EPA Air Trends</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
@@ -366,13 +368,13 @@ export function SO2Chart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: EPA Air Quality National Summary</p>
-    </div>
+    </Card>
   )
 }
 
 export function WaterQualityChart() {
   return (
-    <div className="wf-card">
+    <Card>
       <h3 className="font-bold text-main mb-1">Waters Meeting Quality Standards</h3>
       <p className="text-main/60 text-sm mb-4">% of assessed U.S. waters — EPA National Water Quality Inventory</p>
       <div className="h-[200px] sm:h-[220px] md:h-[250px]">
@@ -395,14 +397,14 @@ export function WaterQualityChart() {
         </ResponsiveContainer>
       </div>
       <p className="text-xs text-main/60 mt-3">Source: EPA Section 305(b) Reports to Congress</p>
-    </div>
+    </Card>
   )
 }
 
 // Summary component for API requirements
 export function DataSourceNotice() {
   return (
-    <div className="wf-section mb-8">
+    <Card variant="section" className="mb-8">
       <h3 className="font-bold text-main mb-3">Data Sources</h3>
       <div className="space-y-3 text-sm text-main/80">
         <p>
@@ -424,7 +426,7 @@ export function DataSourceNotice() {
           provides annual statistics back to 1980.
         </p>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -447,14 +449,15 @@ interface AirNowResponse {
   nationalAverages: PollutantData[]
 }
 
-// AQI category colors and labels
+// AQI category labels + token-driven classes. The literal `color` hex stays —
+// it's the marker color for the chart series (Recharts data palette).
 const getAQICategory = (aqi: number) => {
-  if (aqi <= 50) return { color: '#00e400', label: 'Good', bg: 'bg-green-100 dark:bg-green-900', text: 'text-green-800 dark:text-green-200' }
-  if (aqi <= 100) return { color: '#ffff00', label: 'Moderate', bg: 'bg-yellow-100 dark:bg-yellow-900', text: 'text-yellow-800 dark:text-yellow-200' }
-  if (aqi <= 150) return { color: '#ff7e00', label: 'Unhealthy for Sensitive', bg: 'bg-orange-100 dark:bg-orange-900', text: 'text-orange-800 dark:text-orange-200' }
-  if (aqi <= 200) return { color: '#ff0000', label: 'Unhealthy', bg: 'bg-red-100 dark:bg-red-900', text: 'text-red-800 dark:text-red-200' }
-  if (aqi <= 300) return { color: '#8f3f97', label: 'Very Unhealthy', bg: 'bg-purple-100 dark:bg-purple-900', text: 'text-purple-800 dark:text-purple-200' }
-  return { color: '#7e0023', label: 'Hazardous', bg: 'bg-rose-200 dark:bg-rose-900', text: 'text-rose-900 dark:text-rose-200' }
+  if (aqi <= 50) return { color: '#00e400', label: 'Good', bg: 'bg-aqi-good', text: 'text-aqi-good' }
+  if (aqi <= 100) return { color: '#ffff00', label: 'Moderate', bg: 'bg-aqi-moderate', text: 'text-aqi-moderate' }
+  if (aqi <= 150) return { color: '#ff7e00', label: 'Unhealthy for Sensitive', bg: 'bg-aqi-sensitive', text: 'text-aqi-sensitive' }
+  if (aqi <= 200) return { color: '#ff0000', label: 'Unhealthy', bg: 'bg-aqi-unhealthy', text: 'text-aqi-unhealthy' }
+  if (aqi <= 300) return { color: '#8f3f97', label: 'Very Unhealthy', bg: 'bg-aqi-very-unhealthy', text: 'text-aqi-very-unhealthy' }
+  return { color: '#7e0023', label: 'Hazardous', bg: 'bg-aqi-hazardous', text: 'text-aqi-hazardous' }
 }
 
 export function LiveAirQuality() {
@@ -484,7 +487,7 @@ export function LiveAirQuality() {
 
   if (loading) {
     return (
-      <div className="wf-card">
+      <Card>
         <h3 className="font-bold text-main mb-4">Current US Air Quality</h3>
         <div className="flex items-center justify-center h-[200px]">
           <div className="animate-pulse flex flex-col items-center">
@@ -492,36 +495,36 @@ export function LiveAirQuality() {
             <p className="text-main/60 text-sm">Loading live data from AirNow API...</p>
           </div>
         </div>
-      </div>
+      </Card>
     )
   }
 
   if (error) {
     return (
-      <div className="wf-card">
+      <Card>
         <h3 className="font-bold text-main mb-4">Current US Air Quality</h3>
-        <div className="p-4 border border-red-300 dark:border-red-700">
-          <p className="text-red-700 dark:text-red-400 text-sm">Failed to load air quality data: {error}</p>
-        </div>
-      </div>
+        <AlertBox variant="warning">
+          <p className="text-alert-warning text-sm">Failed to load air quality data: {error}</p>
+        </AlertBox>
+      </Card>
     )
   }
 
   if (!data || !data.nationalAverages || data.nationalAverages.length === 0) {
     return (
-      <div className="wf-card">
+      <Card>
         <h3 className="font-bold text-main mb-4">Current US Air Quality</h3>
-        <div className="p-4 border border-amber-300 dark:border-amber-700">
-          <p className="text-amber-700 dark:text-amber-400 text-sm">No air quality data available at this time.</p>
-        </div>
-      </div>
+        <AlertBox variant="caution">
+          <p className="text-alert-caution text-sm">No air quality data available at this time.</p>
+        </AlertBox>
+      </Card>
     )
   }
 
   const selectedData = data.nationalAverages.find(p => p.pollutant === selectedPollutant)
 
   return (
-    <div className="wf-card">
+    <Card>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
           <h3 className="font-bold text-main">Current US Air Quality (Live)</h3>
@@ -531,7 +534,7 @@ export function LiveAirQuality() {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-main/60">Data from:</span>
-          <span className="wf-badge text-green-700">EPA AirNow API</span>
+          <span className="wf-badge text-alert-good">EPA AirNow API</span>
         </div>
       </div>
 
@@ -575,14 +578,14 @@ export function LiveAirQuality() {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 border border-border">
                 <p className="text-xs text-main/60">Best City</p>
-                <p className="text-lg font-bold text-green-600">{selectedData.minAQI}</p>
+                <p className="text-lg font-bold text-alert-good">{selectedData.minAQI}</p>
                 <p className="text-xs text-main/70 truncate">
                   {selectedData.cityBreakdown[selectedData.cityBreakdown.length - 1]?.city}
                 </p>
               </div>
               <div className="p-3 border border-border">
                 <p className="text-xs text-main/60">Worst City</p>
-                <p className="text-lg font-bold text-red-600">{selectedData.maxAQI}</p>
+                <p className="text-lg font-bold text-alert-warning">{selectedData.maxAQI}</p>
                 <p className="text-xs text-main/70 truncate">
                   {selectedData.cityBreakdown[0]?.city}
                 </p>
@@ -619,13 +622,13 @@ export function LiveAirQuality() {
       <div className="mt-6 pt-4 wf-divider">
         <p className="text-xs text-main/60 mb-2">AQI Scale:</p>
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">0-50 Good</span>
-          <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">51-100 Moderate</span>
-          <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200">101-150 Sensitive</span>
-          <span className="px-2 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200">151-200 Unhealthy</span>
-          <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">201-300 Very Unhealthy</span>
+          <span className="px-2 py-1 bg-aqi-good text-aqi-good">0-50 Good</span>
+          <span className="px-2 py-1 bg-aqi-moderate text-aqi-moderate">51-100 Moderate</span>
+          <span className="px-2 py-1 bg-aqi-sensitive text-aqi-sensitive">101-150 Sensitive</span>
+          <span className="px-2 py-1 bg-aqi-unhealthy text-aqi-unhealthy">151-200 Unhealthy</span>
+          <span className="px-2 py-1 bg-aqi-very-unhealthy text-aqi-very-unhealthy">201-300 Very Unhealthy</span>
         </div>
       </div>
-    </div>
+    </Card>
   )
 }

@@ -2,6 +2,15 @@ import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import type { BillType } from "./types"
 
+/**
+ * Merge Tailwind class strings safely. `twMerge` resolves utility-class
+ * conflicts (e.g. `p-4` vs an incoming `p-3`) so the *last* class wins,
+ * which is the behavior every variant-prop component below relies on.
+ */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 
 export function formatBillCategory(category: BillType | null) {
   if (!category) return 'Unknown Category'
