@@ -10,4 +10,9 @@ export {
 } from "./utils/coordinated-group.ts";
 export { embedText, EmbeddingResponseSchema } from "./utils/embeddings.ts";
 export { getOpenRouter, ModelStream } from "./utils/llm.ts";
+export {
+    makeBunSubprocessRunner,
+    type SubprocessResult,
+    type SubprocessRunner,
+} from "./utils/subprocess.ts";
 export type { Database, Json } from "./database.types.ts";
