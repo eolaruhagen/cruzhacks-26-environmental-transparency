@@ -1,8 +1,8 @@
 name: Bill Sync
 
 on:
-  # Cron disabled — re-enable when the related-bills follow-up PR ships and
-  # the frontend cuts over to house_bills_2.
+  schedule:
+    - cron: '0 16 * * *'
   workflow_dispatch:
     inputs:
       source:

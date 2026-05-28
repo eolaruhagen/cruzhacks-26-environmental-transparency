@@ -1,8 +1,8 @@
 name: Bill Pipeline
 
 on:
-  # Cron disabled — re-enable when the related-bills follow-up PR ships and
-  # the frontend cuts over to house_bills_2.
+  schedule:
+    - cron: '*/20 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -28,8 +28,11 @@ jobs:
           SECRET_API_KEY:      ${{ secrets.SECRET_API_KEY }}
           CONGRESS_API_KEY:    ${{ secrets.CONGRESS_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          # Legacy pipeline runs ~18:00 PT, occasionally drifting to 19:00 PT.
-          # Buffer +/-15 min so an in-flight legacy run never collides with us.
-          BLACKOUT_WINDOWS:    '17:45-19:15'
+          # 08:00-09:00 PT: hold off the hour before bill-sync so the
+          # Congress.gov rate-limit window fully resets before sync fires.
+          # 16:45-19:15 PT: 1h buffer ahead of the legacy ~18:00 PT pipeline
+          # (occasionally drifts to 19:00) so an in-flight legacy run never
+          # collides with us.
+          BLACKOUT_WINDOWS:    '08:00-09:00;16:45-19:15'
           TIME_BUDGET_MS:      '540000'
         run: bun run pipeline
