@@ -15,17 +15,6 @@ jobs:
         with:
           version: latest
 
-      # Materialize @cruzhacks/shared into the functions tree so the
-      # supabase bundler can resolve `../lib/shared/` imports. Source of
-      # truth lives in packages/shared/src; the destination is gitignored.
-      # `supabase/functions/lib/` was previously a symlink-only dir; it
-      # vanished from the worktree when the symlink was removed, so cp's
-      # parent must be created explicitly.
-      - name: Materialize shared package
-        run: |
-          mkdir -p supabase/functions/lib
-          cp -R packages/shared/src supabase/functions/lib/shared
-
       - name: Deploy edge functions
         id: deploy
         run: supabase functions deploy --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
