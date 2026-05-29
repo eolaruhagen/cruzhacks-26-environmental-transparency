@@ -144,6 +144,60 @@ export type Database = {
           },
         ]
       }
+      bill_references: {
+        Row: {
+          bill_id: string
+          context: string | null
+          created_at: string
+          id: string
+          is_self_ref: boolean
+          raw: string
+          reference_id: string
+          source: Database["public"]["Enums"]["reference_source"]
+          span_end: number | null
+          span_start: number | null
+        }
+        Insert: {
+          bill_id: string
+          context?: string | null
+          created_at?: string
+          id?: string
+          is_self_ref?: boolean
+          raw: string
+          reference_id: string
+          source: Database["public"]["Enums"]["reference_source"]
+          span_end?: number | null
+          span_start?: number | null
+        }
+        Update: {
+          bill_id?: string
+          context?: string | null
+          created_at?: string
+          id?: string
+          is_self_ref?: boolean
+          raw?: string
+          reference_id?: string
+          source?: Database["public"]["Enums"]["reference_source"]
+          span_end?: number | null
+          span_start?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bill_references_bill_id_fkey"
+            columns: ["bill_id"]
+            isOneToOne: false
+            referencedRelation: "house_bills_2"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bill_references_reference_id_fkey"
+            columns: ["reference_id"]
+            isOneToOne: false
+            referencedRelation: "cited_references"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categories_embeddings: {
         Row: {
           bill_type: Database["public"]["Enums"]["bill_type"]
@@ -168,6 +222,30 @@ export type Database = {
           embedding?: unknown
           id?: string
           subcategory?: string
+        }
+        Relationships: []
+      }
+      cited_references: {
+        Row: {
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["reference_kind"]
+          normalized: Json
+          normalized_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["reference_kind"]
+          normalized?: Json
+          normalized_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["reference_kind"]
+          normalized?: Json
+          normalized_key?: string
         }
         Relationships: []
       }
@@ -366,6 +444,7 @@ export type Database = {
           law_type: string | null
           num_cosponsors: number
           origin_chamber: Database["public"]["Enums"]["chamber"]
+          references_extracted_at: string | null
           search_vector: unknown
           sponsor_bioguide_id: string | null
           subcategory_scores: Json | null
@@ -403,6 +482,7 @@ export type Database = {
           law_type?: string | null
           num_cosponsors?: number
           origin_chamber: Database["public"]["Enums"]["chamber"]
+          references_extracted_at?: string | null
           search_vector?: unknown
           sponsor_bioguide_id?: string | null
           subcategory_scores?: Json | null
@@ -440,6 +520,7 @@ export type Database = {
           law_type?: string | null
           num_cosponsors?: number
           origin_chamber?: Database["public"]["Enums"]["chamber"]
+          references_extracted_at?: string | null
           search_vector?: unknown
           sponsor_bioguide_id?: string | null
           subcategory_scores?: Json | null
@@ -628,6 +709,18 @@ export type Database = {
     }
     Functions: {
       check_and_reset_daily_limit: { Args: never; Returns: undefined }
+      fetch_reference_candidates: {
+        Args: { batch_size: number }
+        Returns: {
+          bill_number: number
+          bill_text: string
+          bill_type: Database["public"]["Enums"]["legislation_type"]
+          congress: number
+          id: string
+          latest_summary: string
+          title: string
+        }[]
+      }
       get_corpus_mean: {
         Args: { p_type: Database["public"]["Enums"]["artifact_type"] }
         Returns: number[]
@@ -784,6 +877,17 @@ export type Database = {
         | "HRES"
         | "SRES"
       party: "Democrat" | "Republican" | "Independent"
+      reference_kind:
+        | "named_law"
+        | "public_law"
+        | "usc"
+        | "usc_et_seq"
+        | "cfr"
+        | "fed_reg"
+        | "executive_order"
+        | "treaty"
+        | "stat_at_large"
+      reference_source: "bill_text" | "summary"
     }
     CompositeTypes: {
       bill_reference: {
@@ -938,6 +1042,19 @@ export const Constants = {
         "SRES",
       ],
       party: ["Democrat", "Republican", "Independent"],
+      reference_kind: [
+        "named_law",
+        "public_law",
+        "usc",
+        "usc_et_seq",
+        "cfr",
+        "fed_reg",
+        "executive_order",
+        "treaty",
+        "stat_at_large",
+      ],
+      reference_source: ["bill_text", "summary"],
     },
   },
 } as const
+
