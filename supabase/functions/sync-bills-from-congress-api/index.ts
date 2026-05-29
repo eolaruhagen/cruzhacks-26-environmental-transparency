@@ -14,7 +14,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database, Json } from "../lib/shared/database.types.ts";
+import type { Database, Json } from "@cruzhacks/shared/database.types.ts";
 
 const CONGRESS_API_BASE = "https://api.congress.gov/v3";
 const TIME_RESOURCE_LIMIT = 120;

@@ -18,7 +18,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../lib/shared/database.types.ts";
+import type { Database } from "@cruzhacks/shared/database.types.ts";
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/embeddings";
 const EMBEDDING_MODEL = "openai/text-embedding-3-small";

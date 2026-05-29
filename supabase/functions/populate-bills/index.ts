@@ -23,7 +23,7 @@
 
 import "@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "@supabase/supabase-js";
-import type { Database } from "../lib/shared/database.types.ts";
+import type { Database } from "@cruzhacks/shared/database.types.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
