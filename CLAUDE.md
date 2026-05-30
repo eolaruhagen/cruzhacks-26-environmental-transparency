@@ -72,3 +72,34 @@ exports already do. Section banners (`// --- name ---`) are fine as visual
 separators but shouldn't carry paragraphs of prose.
 
 When in doubt: delete the comment.
+
+## TypeScript casts
+
+Never write `as unknown as T` in production code. The double-cast disables the
+type checker wholesale and almost always hides a fixable modeling problem:
+
+- supabase-js result not matching your shape → align the Zod schema's inferred
+  type to the DB `Insert`/`Row` type, or regenerate `database.types.ts`. A cast
+  here frequently means the types are just stale.
+- a value that is genuinely JSON typed as `Record<string, unknown>` → type it as
+  `Json` at the source (the `jsonSchema` Zod validator), don't cast at the
+  boundary.
+- a loose / `unknown` value → narrow it with a type guard, not a cast.
+
+Single `as T` casts are also suspect — prefer a type guard or a precise type.
+
+Before adding ANY cast, confirm `bunx tsc --noEmit` actually fails without it.
+These casts are routinely cargo-culted in when the code already type-checks.
+
+The one acceptable use of `as unknown as T` is a test that deliberately
+constructs an invalid value to exercise a runtime validation guard. Keep it
+local to the test.
+
+## Zod schemas across packages
+
+`bill-pipline`, `packages/shared`, and the root each resolve their own `zod`
+install. Importing a *runtime Zod schema* from another package and composing it
+(e.g. as a field inside a local `z.strictObject`) silently corrupts parsing —
+sibling fields come back `undefined` because Zod's internal brand checks fail
+across instances, and tsc won't catch it. Define schemas in the package that
+composes them. Importing inferred **types** across packages is fine.
