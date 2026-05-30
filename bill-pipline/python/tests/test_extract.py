@@ -131,6 +131,16 @@ def test_extract_named_acts_simple() -> None:
     assert rec["normalized"]["law_number"] is None
 
 
+def test_extract_named_acts_name_has_no_embedded_whitespace() -> None:
+    # Hard-wrapped act name in bill text must not leak \n/\t into the stored
+    # normalized.name (which lands in the cited_references jsonb). Use a plain
+    # "the X Act" phrasing (no "amends") so a single candidate is returned.
+    rec = _only(extract_named_acts("Under the Clean\tAir\nAct the rule applies."))
+    name = rec["normalized"]["name"]
+    assert name == "Clean Air Act"
+    assert "\t" not in name and "\n" not in name
+
+
 def test_extract_named_acts_returns_raw_overlapping_candidates() -> None:
     # extract_named_acts is a multi-pass candidate generator; "amends" trips
     # both the "the X Act" pass and the "Amends X Act" pass, so two overlapping

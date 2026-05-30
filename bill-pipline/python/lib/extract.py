@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from typing import Final
 
 import spacy
@@ -377,7 +376,7 @@ def extract_spacy_named_laws(
             )
             continue
 
-        clean = re.sub(r"^[Tt]he\s+", "", phrase)
+        clean = clean_act_name(phrase)
         if not is_valid_law_span(clean):
             continue
         if FP_PREFIX_RE.match(clean):

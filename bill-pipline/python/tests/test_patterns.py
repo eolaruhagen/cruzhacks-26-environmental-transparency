@@ -29,6 +29,18 @@ def test_clean_act_name_empty_and_whitespace() -> None:
     assert clean_act_name("   ") == ""
 
 
+def test_clean_act_name_collapses_internal_whitespace() -> None:
+    # Bill text hard-wraps act names across lines; the raw match carries the
+    # embedded \n/\t, which must not survive into the stored display name.
+    assert clean_act_name("Clean\tAir\nAct") == "Clean Air Act"
+    assert clean_act_name("Clean   Air  Act") == "Clean Air Act"
+
+
+def test_clean_act_name_strips_trailing_punctuation() -> None:
+    assert clean_act_name("Clean Air Act,") == "Clean Air Act"
+    assert clean_act_name("the Clean Air Act.") == "Clean Air Act"
+
+
 # --- normalize_phrase_key ---
 
 

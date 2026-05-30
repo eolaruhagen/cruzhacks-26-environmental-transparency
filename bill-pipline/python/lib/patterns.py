@@ -222,13 +222,17 @@ _USC_SUBSECTION_RE: Final[re.Pattern[str]] = re.compile(r"\(.*$")
 
 
 def clean_act_name(raw: str) -> str:
-    name = raw.strip()
+    """Display form of a matched act name: collapse internal whitespace
+    (bill text hard-wraps act names across lines, leaking \\n/\\t into the
+    stored name), strip leading connectors, strip trailing punctuation.
+    Case is preserved — this is the human-facing name, not the grouping key."""
+    name = _WHITESPACE_RE.sub(" ", raw).strip()
     while True:
         cleaned = _LEADING_CONNECTORS_RE.sub("", name).strip()
         if cleaned == name:
             break
         name = cleaned
-    return name
+    return _TRAILING_PUNCT_RE.sub("", name).strip()
 
 
 def normalize_phrase_key(name: str) -> str:
