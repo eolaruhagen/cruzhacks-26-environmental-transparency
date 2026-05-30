@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+// Defined here (not imported from @cruzhacks/shared) on purpose: the packages
+// resolve separate zod installs, and composing a schema built by one zod
+// instance into a strictObject built by another silently corrupts the parse
+// (sibling fields come back undefined). Same-package zod only.
+export const jsonSchema = z.json();
+
 // ---------------------------------------------------------------------------
 // Reference kinds
 // ---------------------------------------------------------------------------
@@ -49,7 +55,7 @@ export const ExtractedReferenceSchema = z.strictObject({
     kind: ReferenceKindSchema,
     raw: z.string().min(1),
     normalized_key: z.string().min(1),
-    normalized: z.record(z.string(), z.unknown()).default({}),
+    normalized: jsonSchema.default({}),
     context: z.string().nullable().default(null),
     span_start: z.number().int().nonnegative().nullable().default(null),
     span_end: z.number().int().nonnegative().nullable().default(null),

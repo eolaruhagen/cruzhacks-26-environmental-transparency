@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
     type ExtractedReference,
+    jsonSchema,
     ReferenceKindSchema,
     ReferenceSourceSchema,
 } from "./types.ts";
@@ -23,7 +24,7 @@ export type CandidateBillRow = z.infer<typeof CandidateBillRowSchema>;
 export const CitedReferenceUpsertSchema = z.strictObject({
     kind: ReferenceKindSchema,
     normalized_key: z.string().min(1),
-    normalized: z.record(z.string(), z.unknown()),
+    normalized: jsonSchema,
 });
 export type CitedReferenceUpsert = z.infer<typeof CitedReferenceUpsertSchema>;
 
@@ -128,7 +129,12 @@ export async function upsertCitedReferences(
             });
         }
     }
-    const dedupedRows = Array.from(dedupedByKey.values());
+    // Sort by composite key so a multi-row upsert always takes row locks in a
+    // consistent order — cheap insurance against deadlocks if more than one
+    // worker ever runs concurrently.
+    const dedupedRows = Array.from(dedupedByKey.entries())
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([, row]) => row);
 
     const { data, error } = await backend.upsertCitedReferences(dedupedRows);
     if (error) {

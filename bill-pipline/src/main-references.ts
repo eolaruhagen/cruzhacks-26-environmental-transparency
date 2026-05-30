@@ -105,6 +105,21 @@ async function run(): Promise<void> {
                 error: (msg) => logger.error(msg),
             });
 
+            // Phase 1: bulk-upsert the DIM rows for the whole batch in one
+            // round-trip. Per-bill upserts deadlocked — environmental bills
+            // cite massively overlapping statutes, so concurrent upserts into
+            // cited_references grabbed the same row locks in different orders
+            // (AB-BA). A single batch-wide upsert has no concurrent sibling to
+            // cycle with, and dedupes harder across bills.
+            session.stage(`upsert-refs-${candidates.length}`);
+            const batchRefs = candidates.flatMap((row) => {
+                const result = results.get(row.id);
+                return result && !result.error ? result.references : [];
+            });
+            const keyToId = await upsertCitedReferences(backend, batchRefs);
+
+            // Phase 2: per-bill link writes are bill_id-scoped (delete+insert),
+            // so they parallelize without cross-bill contention.
             session.stage(`write-${candidates.length}`);
             const writeResults = await mapConcurrent(
                 candidates,
