@@ -7,6 +7,7 @@ const ConfigSchema = z.object({
     DISCORD_WEBHOOK_URL: z.string().url().optional(),
     BATCH_SIZE: z.coerce.number().int().positive().default(20),
     PER_BATCH_CONCURRENCY: z.coerce.number().int().positive().default(10),
+    MAX_BATCHES: z.coerce.number().int().positive().optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

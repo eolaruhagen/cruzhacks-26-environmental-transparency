@@ -27,9 +27,15 @@ export function makeClassify(apiKey: string): ClassifyFn {
             .text({ format: { type: "json_object" } })
             .execute();
         const text = await result.getText();
-        const parsed = ClassifyResultSchema.safeParse(JSON.parse(text));
+        let json: unknown;
+        try {
+            json = JSON.parse(text);
+        } catch {
+            throw new Error(`classify: non-JSON LLM response: ${text.slice(0, 1000)}`);
+        }
+        const parsed = ClassifyResultSchema.safeParse(json);
         if (!parsed.success) {
-            throw new Error(`classify: invalid LLM response: ${parsed.error.message}`);
+            throw new Error(`classify: invalid LLM response: ${parsed.error.message} | raw: ${text.slice(0, 1000)}`);
         }
         return parsed.data;
     };

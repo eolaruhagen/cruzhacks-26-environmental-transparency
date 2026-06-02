@@ -86,6 +86,10 @@ async function run(): Promise<void> {
             }
             totalBatches++;
 
+            if (cfg.MAX_BATCHES !== undefined && totalBatches >= cfg.MAX_BATCHES) {
+                session.set("stopped_early", "max_batches");
+                break;
+            }
             if (group.tripped) break;
         }
 
