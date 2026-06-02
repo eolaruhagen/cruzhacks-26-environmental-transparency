@@ -1,5 +1,6 @@
 import pino from "pino";
 import {
+    formatLegislationNumber,
     makeBunSubprocessRunner,
     mapConcurrent,
 } from "@cruzhacks/shared";
@@ -29,27 +30,6 @@ const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? "50");
 const PER_BATCH_CONCURRENCY = Number(process.env.PER_BATCH_CONCURRENCY ?? "5");
 const PYTHON_PATH = process.env.PYTHON_PATH ?? "python3";
 const EXTRACTOR_SCRIPT = process.env.EXTRACTOR_SCRIPT ?? "./python/extractor.py";
-
-// Display legislation_number as "H.R. 6782 (119)". The DB stores
-// bill_type as a public.legislation_type enum (HR, S, HJRES, SJRES,
-// HCONRES, SCONRES, HRES, SRES); we format it for the Python extractor
-// and for log/observability messages. The Python script accepts the
-// value for API symmetry but ignores it in Stage 1.
-const BILL_TYPE_DISPLAY: Record<string, string> = {
-    HR: "H.R.",
-    S: "S.",
-    HJRES: "H.J.Res.",
-    SJRES: "S.J.Res.",
-    HCONRES: "H.Con.Res.",
-    SCONRES: "S.Con.Res.",
-    HRES: "H.Res.",
-    SRES: "S.Res.",
-};
-
-function formatLegislationNumber(row: CandidateBillRow): string {
-    const display = BILL_TYPE_DISPLAY[row.bill_type] ?? row.bill_type;
-    return `${display} ${row.bill_number} (${row.congress})`;
-}
 
 function pickSource(row: CandidateBillRow): {
     text: string;
@@ -93,7 +73,11 @@ async function run(): Promise<void> {
                 const { text, source } = pickSource(row);
                 return {
                     bill_id: row.id,
-                    legislation_number: formatLegislationNumber(row),
+                    legislation_number: formatLegislationNumber(
+                        row.bill_type,
+                        row.bill_number,
+                        row.congress,
+                    ),
                     source,
                     text,
                 };

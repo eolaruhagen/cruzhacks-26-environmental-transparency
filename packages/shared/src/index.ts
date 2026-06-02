@@ -9,6 +9,7 @@ export {
     type TripStrategy,
 } from "./utils/coordinated-group.ts";
 export { embedText, EmbeddingResponseSchema } from "./utils/embeddings.ts";
+export { formatLegislationNumber } from "./utils/legislation.ts";
 export { getOpenRouter, ModelStream } from "./utils/llm.ts";
 export {
     makeBunSubprocessRunner,
