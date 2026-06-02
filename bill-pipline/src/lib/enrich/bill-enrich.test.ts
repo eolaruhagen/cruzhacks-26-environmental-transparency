@@ -49,11 +49,34 @@ test("ClassifyResultSchema: rejects unknown kind value", () => {
     expect(result.success).toEqual(false);
 });
 
-test("ClassifyResultSchema: rejects reasoning > 500 chars", () => {
+test("ClassifyResultSchema: truncates reasoning > 500 chars", () => {
     const result = ClassifyResultSchema.safeParse({
         kind: "classified",
         category: "energy_and_resources",
-        reasoning: "x".repeat(501),
+        reasoning: "x".repeat(600),
+    });
+    expect(result.success).toEqual(true);
+    if (result.success && result.data.kind === "classified") {
+        expect(result.data.reasoning.length).toEqual(500);
+    }
+});
+
+test("ClassifyResultSchema: truncates reason > 500 chars", () => {
+    const result = ClassifyResultSchema.safeParse({
+        kind: "insufficient_info",
+        reason: "y".repeat(700),
+    });
+    expect(result.success).toEqual(true);
+    if (result.success && result.data.kind === "insufficient_info") {
+        expect(result.data.reason.length).toEqual(500);
+    }
+});
+
+test("ClassifyResultSchema: rejects empty reasoning", () => {
+    const result = ClassifyResultSchema.safeParse({
+        kind: "classified",
+        category: "energy_and_resources",
+        reasoning: "",
     });
     expect(result.success).toEqual(false);
 });
@@ -147,6 +170,43 @@ test("buildEmbedText: includes everything when all present", () => {
             "Policy area: Environmental Protection\n\n" +
             "SECTION 1...",
     );
+});
+
+test("buildEmbedText: caps total length at 20k default with huge latest_summary", () => {
+    const out = buildEmbedText({
+        title: "T",
+        latest_summary: "s".repeat(50_000),
+        subject_terms: [],
+        bill_policy_area: null,
+        bill_text: null,
+    });
+    expect(out.length).toBeLessThanOrEqual(20_000);
+});
+
+test("buildEmbedText: respects maxTotalChars override", () => {
+    const out = buildEmbedText(
+        {
+            title: "T".repeat(200),
+            latest_summary: "s".repeat(500),
+            subject_terms: [],
+            bill_policy_area: null,
+            bill_text: null,
+        },
+        { maxTotalChars: 100 },
+    );
+    expect(out.length).toBeLessThanOrEqual(100);
+});
+
+test("buildEmbedText: normal small row keeps title and summary intact", () => {
+    const out = buildEmbedText({
+        title: "Clean Air Act",
+        latest_summary: "Amends emissions standards.",
+        subject_terms: [],
+        bill_policy_area: null,
+        bill_text: null,
+    });
+    expect(out.includes("Clean Air Act")).toEqual(true);
+    expect(out.includes("Amends emissions standards.")).toEqual(true);
 });
 
 // ---------------------------------------------------------------------------

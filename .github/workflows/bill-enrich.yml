@@ -2,7 +2,7 @@ name: Bill Enrich
 
 on:
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
@@ -29,4 +29,5 @@ jobs:
           OPENROUTER_API_KEY:  ${{ secrets.OPENROUTER_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           TIME_BUDGET_MS:      '540000'
+          MAX_BATCHES:         '10'
         run: bun run enrich
