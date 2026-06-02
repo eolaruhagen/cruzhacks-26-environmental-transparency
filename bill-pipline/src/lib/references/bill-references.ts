@@ -144,6 +144,16 @@ export async function upsertCitedReferences(
     }
 
     const returned = data ?? [];
+    // The upsert sends one row per unique (kind, normalized_key); the select
+    // must return exactly that many. A short count means the RETURNING set was
+    // truncated (PostgREST max_rows) or a concurrent upsert left a gap — either
+    // way the keyToId map would be silently partial, so fail loudly and let the
+    // batch retry rather than write dangling reference_ids.
+    if (returned.length !== dedupedRows.length) {
+        throw new Error(
+            `upsertCitedReferences: sent ${dedupedRows.length} rows, backend returned ${returned.length} (incomplete RETURNING — truncation or concurrent-upsert gap)`,
+        );
+    }
     const keyToId = new Map<string, string>();
     for (const row of returned) {
         keyToId.set(`${row.kind}:${row.normalized_key}`, row.id);

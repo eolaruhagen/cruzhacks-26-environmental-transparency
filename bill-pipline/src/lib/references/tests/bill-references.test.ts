@@ -291,7 +291,7 @@ test("upsertCitedReferences: cross-kind same-key returns distinct ids per kind",
     expect(idA).not.toEqual(idB);
 });
 
-test("upsertCitedReferences: throws when backend omits a key from results", async () => {
+test("upsertCitedReferences: throws on short RETURNING (fewer rows than sent)", async () => {
     const fake = makeBackend();
     const refs: ExtractedReference[] = [
         makeExtractedRef({ normalized_key: "usc:42:7401" }),
@@ -302,8 +302,35 @@ test("upsertCitedReferences: throws when backend omits a key from results", asyn
             raw: "Missing Law",
         }),
     ];
+    // Two unique composites sent, only one returned — the incomplete-RETURNING
+    // guard must catch this before we build a partial keyToId map.
     fake.nextUpsertResult = {
         data: [{ id: REF_ID_A, kind: "usc", normalized_key: "usc:42:7401" }],
+        error: null,
+    };
+    await expect(upsertCitedReferences(fake.backend, refs)).rejects.toThrow(
+        "sent 2 rows, backend returned 1",
+    );
+});
+
+test("upsertCitedReferences: throws when a returned row has the wrong key", async () => {
+    const fake = makeBackend();
+    const refs: ExtractedReference[] = [
+        makeExtractedRef({ normalized_key: "usc:42:7401" }),
+        makeExtractedRef({
+            kind: "named_law",
+            normalized_key: "named:missing law",
+            normalized: { name: "Missing" },
+            raw: "Missing Law",
+        }),
+    ];
+    // Right COUNT (2), but one row comes back under a key we never sent, so the
+    // per-ref lookup must still throw for the composite it can't resolve.
+    fake.nextUpsertResult = {
+        data: [
+            { id: REF_ID_A, kind: "usc", normalized_key: "usc:42:7401" },
+            { id: REF_ID_B, kind: "named_law", normalized_key: "named:WRONG" },
+        ],
         error: null,
     };
     await expect(upsertCitedReferences(fake.backend, refs)).rejects.toThrow(

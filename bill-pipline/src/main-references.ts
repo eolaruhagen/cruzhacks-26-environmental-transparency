@@ -138,11 +138,6 @@ async function run(): Promise<void> {
                         return { kind: "failed" as const };
                     }
 
-                    const keyToId = await upsertCitedReferences(
-                        backend,
-                        result.references,
-                    );
-
                     const linkRows: BillReferenceInsert[] = result.references.map(
                         (ref) => ({
                             reference_id: keyToId.get(
