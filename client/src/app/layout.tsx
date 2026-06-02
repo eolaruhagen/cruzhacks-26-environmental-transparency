@@ -11,10 +11,6 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'EcoGlass',
   description: 'CruzHacks 2026 - EcoGlass Project',
-  icons: {
-    icon: '/EcoGlass.png',
-    apple: '/EcoGlass.png',
-  },
 }
 
 export default function RootLayout({
