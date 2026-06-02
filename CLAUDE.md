@@ -16,6 +16,7 @@ multi-day, 24h+ sessions. To preserve the main agent's context window:
   belongs in Explore subagents — return findings, not raw tool output.
 - Inline edits and small targeted changes don't need a subagent; the overhead
   isn't worth it under ~50 lines or for trivial modifications.
+- IN SUBAGENT USAGE. Prefer Sonnet 4.6 with `high` effort unless explicitly told otherwise.
 
 ## Database migrations
 
