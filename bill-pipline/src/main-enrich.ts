@@ -84,6 +84,9 @@ async function run(): Promise<void> {
                     totalFailed++;
                 }
             }
+            const fulfilledThisBatch = results.filter(
+                (r) => r.status === "fulfilled",
+            ).length;
             totalBatches++;
 
             if (cfg.MAX_BATCHES !== undefined && totalBatches >= cfg.MAX_BATCHES) {
@@ -91,6 +94,14 @@ async function run(): Promise<void> {
                 break;
             }
             if (group.tripped) break;
+            if (fulfilledThisBatch === 0) {
+                session.set("stopped_early", "no_progress");
+                logger.warn(
+                    { batch: totalBatches },
+                    "batch made no progress; stopping to avoid re-fetch storm",
+                );
+                break;
+            }
         }
 
         session.set("batches", String(totalBatches));

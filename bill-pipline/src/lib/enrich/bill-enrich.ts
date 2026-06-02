@@ -9,11 +9,11 @@ export const ClassifyResultSchema = z.discriminatedUnion("kind", [
     z.object({
         kind: z.literal("classified"),
         category: BillCategoryEnum,
-        reasoning: z.string().min(1).max(500),
+        reasoning: z.string().min(1).transform((s) => s.slice(0, 500)),
     }),
     z.object({
         kind: z.literal("insufficient_info"),
-        reason: z.string().min(1).max(500),
+        reason: z.string().min(1).transform((s) => s.slice(0, 500)),
     }),
 ]);
 export type ClassifyResult = z.infer<typeof ClassifyResultSchema>;
@@ -54,9 +54,10 @@ export function buildEmbedText(
         bill_policy_area: string | null;
         bill_text: string | null;
     },
-    options?: { maxBillTextChars?: number },
+    options?: { maxBillTextChars?: number; maxTotalChars?: number },
 ): string {
     const maxBillTextChars = options?.maxBillTextChars ?? 4000;
+    const maxTotalChars = options?.maxTotalChars ?? 20_000;
     const parts: string[] = [];
 
     if (row.title.length > 0) parts.push(row.title);
@@ -73,7 +74,7 @@ export function buildEmbedText(
         parts.push(row.bill_text.slice(0, maxBillTextChars));
     }
 
-    return parts.join("\n\n");
+    return parts.join("\n\n").slice(0, maxTotalChars);
 }
 
 // ---------------------------------------------------------------------------
