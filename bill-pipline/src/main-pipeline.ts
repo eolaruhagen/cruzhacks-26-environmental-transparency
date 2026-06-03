@@ -15,7 +15,7 @@ import { partitionPoisonMessages } from "./lib/runtime/queue-partition.ts";
 import { makeBillWriteBackend } from "./lib/pipeline/make-bill-write-backend.ts";
 import { makeObservability } from "./lib/runtime/observability.ts";
 
-const logger = pino({ name: "bill-pipeline" });
+const logger = pino({ name: "bill-pipeline", level: process.env.LOG_LEVEL ?? "info" });
 
 const QUEUE_BATCH_SIZE = 20;
 const VISIBILITY_TIMEOUT_SEC = 300;
@@ -64,7 +64,7 @@ async function runPipeline(): Promise<void> {
         session.set("max_reads", String(maxReads));
 
         const queue = new PgmqInteraction("house_bills_queue_new", supabase);
-        const congressClient = new CongressClient({ apiKey: congressApiKey });
+        const congressClient = new CongressClient({ apiKey: congressApiKey, retryOptions: { logger } });
         const billBackend = makeBillWriteBackend(supabase);
 
         const textGroup = createCoordinatedGroup<TextThrottleRetry>({

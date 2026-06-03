@@ -11,7 +11,7 @@ import { csvBillSource, type CsvSource } from "./lib/sync/csv-bill-source.ts";
 import { makeObservability } from "./lib/runtime/observability.ts";
 import { getTimeBudgetMs, isRunningLow } from "./lib/runtime/time-budget.ts";
 
-const logger = pino({ name: "bill-sync" });
+const logger = pino({ name: "bill-sync", level: process.env.LOG_LEVEL ?? "info" });
 
 const BATCH_SIZE = 250;
 const RATE_LIMIT_FALLBACK_MS = 60 * 60 * 1000;
@@ -74,7 +74,7 @@ async function runSync(): Promise<void> {
         }
 
         const queue = new PgmqInteraction("house_bills_queue_new", supabase);
-        const congressClient = new CongressClient({ apiKey: congressApiKey });
+        const congressClient = new CongressClient({ apiKey: congressApiKey, retryOptions: { logger } });
 
         try {
             if (source === "csv") {

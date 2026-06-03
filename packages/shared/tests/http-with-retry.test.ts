@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { HttpResponseError } from "../src/utils/http/error.ts";
 import { type HttpResult, isHttpSuccess } from "../src/utils/http/result.ts";
-import { isRetryableStatus, withRetry } from "../src/utils/http/with-retry.ts";
+import { type RetryLogger, isRetryableStatus, withRetry } from "../src/utils/http/with-retry.ts";
 
 // ---------------------------------------------------------------------------
 // isRetryableStatus
@@ -226,4 +226,91 @@ test("withRetry: jitter adds up to jitterMs to each backoff", async () => {
     });
     // base + 0.5 * jitter = 100 + 25, 200 + 25
     expect(sleeps).toEqual([125, 225]);
+});
+
+// ---------------------------------------------------------------------------
+// withRetry — logger breadcrumbs
+// ---------------------------------------------------------------------------
+
+function makeLogger(): { logger: RetryLogger; calls: Array<{ obj: object; msg: string }> } {
+    const calls: Array<{ obj: object; msg: string }> = [];
+    const logger: RetryLogger = { debug: (obj, msg) => calls.push({ obj, msg }) };
+    return { logger, calls };
+}
+
+test("withRetry: logger records retryable-status attempt, backoff, and ok attempt", async () => {
+    const { logger, calls } = makeLogger();
+    let attempts = 0;
+    const op = (_signal: AbortSignal): Promise<HttpResult<string>> => {
+        attempts++;
+        if (attempts === 1) return Promise.resolve(new HttpResponseError(503, "/x"));
+        return Promise.resolve({ kind: "ok", status: 200, data: "ok" });
+    };
+    const result = await withRetry(op, { sleep: noSleep, rng: fixedRng, logger });
+    expect(isHttpSuccess(result)).toBe(true);
+
+    const attemptCalls = calls.filter((c) => c.msg === "http attempt");
+    const backoffCalls = calls.filter((c) => c.msg === "http retry backoff");
+    expect(attemptCalls.length).toBe(2);
+    expect(backoffCalls.length).toBe(1);
+
+    const first = attemptCalls[0]!.obj as Record<string, unknown>;
+    expect(first.outcome).toBe("retryable-status");
+    expect(first.status).toBe(503);
+    expect(first.attempt).toBe(1);
+
+    const second = attemptCalls[1]!.obj as Record<string, unknown>;
+    expect(second.outcome).toBe("ok");
+    expect(second.attempt).toBe(2);
+});
+
+test("withRetry: logger records aborted outcome on AbortError", async () => {
+    const { logger, calls } = makeLogger();
+    let attempts = 0;
+    const op = (signal: AbortSignal): Promise<HttpResult<string>> => {
+        attempts++;
+        return new Promise((_resolve, reject) => {
+            signal.addEventListener("abort", () => {
+                reject(new DOMException("aborted", "AbortError"));
+            });
+        });
+    };
+    await withRetry(op, {
+        maxAttempts: 1,
+        timeoutMs: 5,
+        sleep: noSleep,
+        rng: fixedRng,
+        logger,
+    }).catch(() => {});
+
+    expect(attempts).toBe(1);
+    const attemptCalls = calls.filter((c) => c.msg === "http attempt");
+    expect(attemptCalls.length).toBe(1);
+    const logged = attemptCalls[0]!.obj as Record<string, unknown>;
+    expect(logged.outcome).toBe("aborted");
+});
+
+test("withRetry: logger records the label in logged objects", async () => {
+    const { logger, calls } = makeLogger();
+    const op = (_signal: AbortSignal): Promise<HttpResult<string>> =>
+        Promise.resolve({ kind: "ok", status: 200, data: "ok" });
+    await withRetry(op, { sleep: noSleep, rng: fixedRng, logger, label: "api.congress.gov/v3/bill" });
+
+    const attemptCalls = calls.filter((c) => c.msg === "http attempt");
+    expect(attemptCalls.length).toBeGreaterThan(0);
+    const logged = attemptCalls[0]!.obj as Record<string, unknown>;
+    expect(logged.label).toBe("api.congress.gov/v3/bill");
+});
+
+test("withRetry: omitting logger does not throw and does not alter outcomes", async () => {
+    let attempts = 0;
+    const op = (_signal: AbortSignal): Promise<HttpResult<string>> => {
+        attempts++;
+        if (attempts === 1) return Promise.resolve(new HttpResponseError(503, "/x"));
+        return Promise.resolve({ kind: "ok", status: 200, data: "ok" });
+    };
+    // No logger — must behave identically to the base retry behaviour.
+    const result = await withRetry(op, { sleep: noSleep, rng: fixedRng });
+    expect(attempts).toBe(2);
+    expect(isHttpSuccess(result)).toBe(true);
 });

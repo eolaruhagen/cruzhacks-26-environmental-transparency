@@ -9,6 +9,8 @@ export { getValidated } from "./get-validated.ts";
 export {
     DEFAULT_RETRY_OPTIONS,
     isRetryableStatus,
+    type RetryLogger,
     type RetryOptions,
+    type RetryTuning,
     withRetry,
 } from "./with-retry.ts";
