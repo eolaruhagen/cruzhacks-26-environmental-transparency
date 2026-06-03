@@ -1,4 +1,7 @@
 import React from 'react'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { StepNumber } from '@/components/ui/StepNumber'
 
 export default function ExecutiveBranchPage() {
   return (
@@ -19,7 +22,7 @@ export default function ExecutiveBranchPage() {
         </header>
 
         {/* Introduction */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-4">The Executive Branch: Beyond Just the President</h2>
           <p className="text-main/80 leading-relaxed mb-4">
             While Congress writes the laws, the executive branch brings them to life. Headed by the President,
@@ -37,7 +40,7 @@ export default function ExecutiveBranchPage() {
             of Energy have enormous discretion in setting standards, issuing permits, and pursuing enforcement—making
             the executive branch the frontline of environmental protection.
           </p>
-        </section>
+        </Card>
 
         {/* President's Legislative Powers */}
         <section className="mb-12">
@@ -46,7 +49,7 @@ export default function ExecutiveBranchPage() {
           </h2>
 
           <div className="space-y-6">
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">Signing Bills into Law</h3>
               <p className="text-main/80 leading-relaxed">
                 When Congress passes a bill, it goes to the President&apos;s desk. The President has 10 days
@@ -54,9 +57,9 @@ export default function ExecutiveBranchPage() {
                 becomes law immediately. The President may also issue a <strong>signing statement</strong>
                 explaining their interpretation of the law.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">The Veto Power</h3>
               <p className="text-main/80 leading-relaxed">
                 The President can reject legislation by vetoing it. Congress can override a veto with a
@@ -64,9 +67,9 @@ export default function ExecutiveBranchPage() {
                 a veto often shapes legislation before it reaches the President&apos;s desk, giving the executive
                 significant influence over the legislative process.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">Setting the Agenda</h3>
               <p className="text-main/80 leading-relaxed">
                 Through the <strong>State of the Union</strong> address and other communications, the President
@@ -75,21 +78,21 @@ export default function ExecutiveBranchPage() {
                 proposal</strong> is another powerful tool—it signals which programs the executive branch
                 wants to fund or cut.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">Pocket Veto</h3>
               <p className="text-main/80 leading-relaxed">
                 If Congress adjourns before the President&apos;s 10-day window expires and the President hasn&apos;t
                 signed the bill, it dies automatically—a &quot;pocket veto.&quot; Unlike a regular veto, Congress
                 cannot override a pocket veto.
               </p>
-            </div>
+            </Card>
           </div>
         </section>
 
         {/* Executive Orders Section */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-6">
             Executive Orders & Actions
           </h2>
@@ -101,7 +104,7 @@ export default function ExecutiveBranchPage() {
           </p>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="wf-card">
+            <Card>
               <h3 className="font-semibold text-main mb-2">What They Can Do</h3>
               <ul className="text-main/80 text-sm space-y-2">
                 <li>• Direct agencies to prioritize certain enforcement</li>
@@ -110,9 +113,9 @@ export default function ExecutiveBranchPage() {
                 <li>• Declare national emergencies</li>
                 <li>• Reorganize executive branch agencies</li>
               </ul>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-semibold text-main mb-2">What They Cannot Do</h3>
               <ul className="text-main/80 text-sm space-y-2">
                 <li>• Create laws that Congress hasn&apos;t authorized</li>
@@ -121,17 +124,17 @@ export default function ExecutiveBranchPage() {
                 <li>• Prevent judicial review</li>
                 <li>• Bind future administrations permanently</li>
               </ul>
-            </div>
+            </Card>
           </div>
 
-          <div className="wf-card mt-6">
+          <Card className="mt-6">
             <p className="text-main/80 text-sm">
               <strong>Environmental Example:</strong> Presidents have used executive orders to establish
               national monuments, set emissions targets for federal buildings, require environmental justice
               reviews, and withdraw areas from oil drilling—all without new legislation.
             </p>
-          </div>
-        </section>
+          </Card>
+        </Card>
 
         {/* Cabinet & Agencies */}
         <section className="mb-12">
@@ -146,42 +149,42 @@ export default function ExecutiveBranchPage() {
           </p>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">EPA</h3>
               <p className="text-main/70 text-sm">
                 Environmental Protection Agency—sets pollution standards, issues permits, enforces
                 environmental laws, and conducts research.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Department of Interior</h3>
               <p className="text-main/70 text-sm">
                 Manages federal lands, national parks, and wildlife refuges. Oversees oil, gas, and
                 mineral extraction on public lands.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Department of Energy</h3>
               <p className="text-main/70 text-sm">
                 Oversees energy policy, nuclear security, and research into renewable energy and
                 energy efficiency technologies.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Department of Agriculture</h3>
               <p className="text-main/70 text-sm">
                 Manages national forests, conservation programs, and agricultural environmental
                 regulations. Oversees the Forest Service.
               </p>
-            </div>
+            </Card>
           </div>
         </section>
 
         {/* Regulatory Process */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-6">The Rulemaking Process</h2>
 
           <p className="text-main/80 leading-relaxed mb-6">
@@ -192,7 +195,7 @@ export default function ExecutiveBranchPage() {
 
           <div className="space-y-4">
             <div className="flex gap-4">
-              <div className="w-10 h-10 border-2 border-accent text-accent flex items-center justify-center font-bold shrink-0">1</div>
+              <StepNumber size="sm">1</StepNumber>
               <div>
                 <h3 className="font-semibold text-main">Proposed Rule</h3>
                 <p className="text-main/70 text-sm">Agency publishes proposed rule in the Federal Register</p>
@@ -200,7 +203,7 @@ export default function ExecutiveBranchPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-10 h-10 border-2 border-accent text-accent flex items-center justify-center font-bold shrink-0">2</div>
+              <StepNumber size="sm">2</StepNumber>
               <div>
                 <h3 className="font-semibold text-main">Public Comment</h3>
                 <p className="text-main/70 text-sm">Citizens and organizations submit comments (typically 30-90 days)</p>
@@ -208,7 +211,7 @@ export default function ExecutiveBranchPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-10 h-10 border-2 border-accent text-accent flex items-center justify-center font-bold shrink-0">3</div>
+              <StepNumber size="sm">3</StepNumber>
               <div>
                 <h3 className="font-semibold text-main">Agency Review</h3>
                 <p className="text-main/70 text-sm">Agency must consider and respond to substantive comments</p>
@@ -216,7 +219,7 @@ export default function ExecutiveBranchPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-10 h-10 border-2 border-accent text-accent flex items-center justify-center font-bold shrink-0">4</div>
+              <StepNumber size="sm">4</StepNumber>
               <div>
                 <h3 className="font-semibold text-main">Final Rule</h3>
                 <p className="text-main/70 text-sm">Agency publishes final rule, which takes effect after specified date</p>
@@ -224,15 +227,15 @@ export default function ExecutiveBranchPage() {
             </div>
           </div>
 
-          <div className="wf-card mt-6">
+          <Card className="mt-6">
             <p className="text-main/80 text-sm">
               <strong>You can participate!</strong> Anyone can submit comments on proposed rules at{' '}
               <a href="https://regulations.gov" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
                 regulations.gov
               </a>. Your voice matters in shaping how laws are implemented.
             </p>
-          </div>
-        </section>
+          </Card>
+        </Card>
 
         {/* Checks & Balances */}
         <section className="mb-12">
@@ -241,34 +244,34 @@ export default function ExecutiveBranchPage() {
           </h2>
 
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="wf-card text-center">
+            <Card className="text-center">
               <h3 className="font-bold text-main mb-2">Congressional Oversight</h3>
               <p className="text-main/70 text-sm">
                 Congress can hold hearings, subpoena documents, control agency budgets, and pass laws
                 overriding executive actions.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card text-center">
+            <Card className="text-center">
               <h3 className="font-bold text-main mb-2">Judicial Review</h3>
               <p className="text-main/70 text-sm">
                 Courts can strike down executive orders and agency rules that exceed legal authority
                 or violate the Constitution.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card text-center">
+            <Card className="text-center">
               <h3 className="font-bold text-main mb-2">Elections</h3>
               <p className="text-main/70 text-sm">
                 Every four years, voters decide whether to continue or change the executive branch&apos;s
                 direction through presidential elections.
               </p>
-            </div>
+            </Card>
           </div>
         </section>
 
         {/* CTA Section */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-4">
             Why This Matters for You
           </h2>
@@ -280,20 +283,23 @@ export default function ExecutiveBranchPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <a
+            <Button
+              as="a"
+              variant="active"
               href="/representatives"
-              className="wf-btn-active px-6 py-3 font-semibold text-center"
+              className="px-6 py-3 font-semibold text-center"
             >
               Find Your Representatives
-            </a>
-            <a
+            </Button>
+            <Button
+              as="a"
               href="/legislative-process"
-              className="wf-btn px-6 py-3 font-semibold text-center"
+              className="px-6 py-3 font-semibold text-center"
             >
               How Bills Become Laws
-            </a>
+            </Button>
           </div>
-        </section>
+        </Card>
 
         {/* Back Link */}
         <div className="mt-8">

@@ -1,6 +1,7 @@
 import React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Card } from '@/components/ui/Card'
 
 
 export function PageNavCard({ title, description, href, icon }: {
@@ -10,7 +11,7 @@ export function PageNavCard({ title, description, href, icon }: {
     icon: React.ReactNode
 }) {
     return (
-        <Link href={href} className="block wf-card group">
+        <Card as={Link} href={href} className="block group">
             <div className="flex items-start gap-4">
                 <div className="w-10 h-10 flex items-center justify-center shrink-0">
                     {icon}
@@ -22,7 +23,7 @@ export function PageNavCard({ title, description, href, icon }: {
                     </p>
                 </div>
             </div>
-        </Link>
+        </Card>
     )
 }
 
@@ -57,9 +58,11 @@ export function BentoFeatureCard({
     const descClass = prominent ? 'text-base' : 'text-sm'
 
     return (
-        <Link
+        <Card
+            as={Link}
+            variant="glass-card"
             href={feature.href}
-            className={`wf-glass-card wf-shadow group flex flex-col h-full ${padding} ${spanClass}`}
+            className={`wf-shadow group flex flex-col h-full ${padding} ${spanClass}`}
         >
             <svg
                 className={`text-accent ${iconClass}`}
@@ -80,7 +83,7 @@ export function BentoFeatureCard({
             <p className={`${descClass} text-light leading-relaxed`}>
                 {feature.description}
             </p>
-        </Link>
+        </Card>
     )
 }
 

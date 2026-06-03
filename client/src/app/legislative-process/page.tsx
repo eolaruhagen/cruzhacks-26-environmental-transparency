@@ -1,4 +1,7 @@
 import React from 'react'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { StepNumber } from '@/components/ui/StepNumber'
 
 export default function LegislativeProcessPage() {
   return (
@@ -25,10 +28,10 @@ export default function LegislativeProcessPage() {
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* House of Representatives */}
-            <div className="wf-card text-center">
+            <Card className="text-center">
               <div className="flex flex-col items-center gap-3 mb-4">
-                <div className="w-12 h-12 border border-blue-300 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 border border-party-d flex items-center justify-center">
+                  <svg className="w-6 h-6 text-party-d" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
@@ -37,7 +40,7 @@ export default function LegislativeProcessPage() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-2 text-main">
-                  <span className="font-semibold text-blue-400">435</span>
+                  <span className="font-semibold text-party-d">435</span>
                   <span>voting members</span>
                 </div>
 
@@ -55,13 +58,13 @@ export default function LegislativeProcessPage() {
                   </ul>
                 </div>
               </div>
-            </div>
+            </Card>
 
             {/* Senate */}
-            <div className="wf-card text-center">
+            <Card className="text-center">
               <div className="flex flex-col items-center gap-3 mb-4">
-                <div className="w-12 h-12 border border-red-300 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-12 h-12 border border-party-r flex items-center justify-center">
+                  <svg className="w-6 h-6 text-party-r" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
                   </svg>
                 </div>
@@ -70,7 +73,7 @@ export default function LegislativeProcessPage() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-center gap-2 text-main">
-                  <span className="font-semibold text-red-400">100</span>
+                  <span className="font-semibold text-party-r">100</span>
                   <span>members (2 per state)</span>
                 </div>
 
@@ -89,26 +92,24 @@ export default function LegislativeProcessPage() {
                   </ul>
                 </div>
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Key Difference Note */}
-          <div className="wf-card mt-6">
+          <Card className="mt-6">
             <p className="text-main text-sm">
               <strong className="text-main">Key Difference:</strong> The House represents population (more populous states have more representatives),
               while the Senate ensures equal state representation. Both chambers must pass identical versions of a bill for it to become law.
             </p>
-          </div>
+          </Card>
         </section>
 
         {/* Process Steps */}
         <div className="space-y-8">
           {/* Step 1 */}
-          <section className="wf-section">
+          <Card as="section" variant="section">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-xl shrink-0">
-                1
-              </div>
+              <StepNumber size="lg">1</StepNumber>
               <div>
                 <h2 className="text-2xl font-semibold text-main mb-2">Bill Introduction</h2>
                 <p className="text-main/80 leading-relaxed">
@@ -117,14 +118,12 @@ export default function LegislativeProcessPage() {
                 </p>
               </div>
             </div>
-          </section>
+          </Card>
 
           {/* Step 2 */}
-          <section className="wf-section">
+          <Card as="section" variant="section">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-xl shrink-0">
-                2
-              </div>
+              <StepNumber size="lg">2</StepNumber>
               <div>
                 <h2 className="text-2xl font-semibold text-main mb-2">Committee Review</h2>
                 <p className="text-main/80 leading-relaxed">
@@ -133,14 +132,12 @@ export default function LegislativeProcessPage() {
                 </p>
               </div>
             </div>
-          </section>
+          </Card>
 
           {/* Step 3 */}
-          <section className="wf-section">
+          <Card as="section" variant="section">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-xl shrink-0">
-                3
-              </div>
+              <StepNumber size="lg">3</StepNumber>
               <div>
                 <h2 className="text-2xl font-semibold text-main mb-2">Floor Debate & Vote</h2>
                 <p className="text-main/80 leading-relaxed">
@@ -149,14 +146,12 @@ export default function LegislativeProcessPage() {
                 </p>
               </div>
             </div>
-          </section>
+          </Card>
 
           {/* Step 4 */}
-          <section className="wf-section">
+          <Card as="section" variant="section">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-xl shrink-0">
-                4
-              </div>
+              <StepNumber size="lg">4</StepNumber>
               <div>
                 <h2 className="text-2xl font-semibold text-main mb-2">Other Chamber</h2>
                 <p className="text-main/80 leading-relaxed">
@@ -165,14 +160,12 @@ export default function LegislativeProcessPage() {
                 </p>
               </div>
             </div>
-          </section>
+          </Card>
 
           {/* Step 5 */}
-          <section className="wf-section">
+          <Card as="section" variant="section">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-xl shrink-0">
-                5
-              </div>
+              <StepNumber size="lg">5</StepNumber>
               <div>
                 <h2 className="text-2xl font-semibold text-main mb-2">Presidential Action</h2>
                 <p className="text-main/80 leading-relaxed">
@@ -182,14 +175,12 @@ export default function LegislativeProcessPage() {
                 </p>
               </div>
             </div>
-          </section>
+          </Card>
 
           {/* Step 6 */}
-          <section className="wf-section">
+          <Card as="section" variant="section">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent-dark text-accent-dark flex items-center justify-center font-bold text-xl shrink-0">
-                ✓
-              </div>
+              <StepNumber size="lg" tone="dark">✓</StepNumber>
               <div>
                 <h2 className="text-2xl font-semibold text-main mb-2">Becomes Law</h2>
                 <p className="text-main/80 leading-relaxed">
@@ -198,11 +189,11 @@ export default function LegislativeProcessPage() {
                 </p>
               </div>
             </div>
-          </section>
+          </Card>
         </div>
 
         {/* Environmental Focus */}
-        <section className="mt-12 wf-section">
+        <Card as="section" variant="section" className="mt-12">
           <h2 className="text-2xl font-bold text-main mb-4">
             Environmental Legislation
           </h2>
@@ -211,13 +202,15 @@ export default function LegislativeProcessPage() {
             Environment and Public Works Committee. Major environmental laws like the Clean Air Act,
             Clean Water Act, and Endangered Species Act followed this process.
           </p>
-          <a
+          <Button
+            as="a"
             href="/representatives"
-            className="wf-btn-active inline-block px-6 py-3 font-semibold"
+            variant="active"
+            className="inline-block px-6 py-3 font-semibold"
           >
             View Your Representatives
-          </a>
-        </section>
+          </Button>
+        </Card>
 
         {/* Back Link */}
         <div className="mt-8">

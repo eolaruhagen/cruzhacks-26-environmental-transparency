@@ -1,5 +1,6 @@
 import React from 'react'
 import MyRepClient from './MyRepClient'
+import { Card } from '@/components/ui/Card'
 
 export default function MyRepPage() {
   return (
@@ -22,7 +23,7 @@ export default function MyRepPage() {
         </header>
 
         {/* Why This Matters Section */}
-        <section className="wf-section mb-10">
+        <Card as="section" variant="section" className="mb-10">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             Why This Matters
           </h2>
@@ -70,7 +71,7 @@ export default function MyRepPage() {
               </div>
             </div>
           </div>
-        </section>
+        </Card>
 
         {/* Interactive Client Component */}
         <MyRepClient />

@@ -6,6 +6,8 @@ import {
     type BentoImageItem,
 } from '@/components/landing/LandingPage'
 import MovingLeafBg from '@/components/threejs/MovingLeafBg'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 
 
 // ─── Tracking: live data tools, top of the page, prominent ────────
@@ -74,7 +76,7 @@ export default function Home() {
             <main className="relative">
                 {/* ─── Hero ──────────────────────────────────────── */}
                 <section className="min-h-[calc(75vh-4rem)] flex items-center justify-center px-4 py-16">
-                    <div className="wf-glass max-w-2xl w-full">
+                    <Card variant="glass" className="max-w-2xl w-full">
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-main mb-4 leading-tight">
                             Track  <span className="text-accent underline">every</span> environmental bill in Congress
                         </h1>
@@ -84,20 +86,20 @@ export default function Home() {
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-3 mb-10">
-                            <Link href="/representatives" className="wf-btn-active text-center">
+                            <Button as={Link} href="/representatives" variant="active" className="text-center">
                                 Find My Representatives
-                            </Link>
-                            <Link href="/search" className="wf-btn text-center">
+                            </Button>
+                            <Button as={Link} href="/search" className="text-center">
                                 Search Bills
-                            </Link>
+                            </Button>
                         </div>
-                    </div>
+                    </Card>
                 </section>
 
                 {/* ─── Tracking ──────────────────────────────────── */}
                 <section className="px-4 pb-32">
                     <div className="max-w-5xl mx-auto">
-                        <div className="wf-glass mb-10">
+                        <Card variant="glass" className="mb-10">
                             <p className="wf-label text-accent mb-3">Tracking</p>
                             <h2 className="text-3xl md:text-4xl font-bold text-main mb-3 leading-tight">
                                 Pick a tool to dig into the data.
@@ -105,7 +107,7 @@ export default function Home() {
                             <p className="text-base md:text-lg text-light leading-relaxed max-w-xl">
                                 Live, pulled from Congress.gov, the EPA, and other public sources.
                             </p>
-                        </div>
+                        </Card>
 
                         {/* Row 1: two large primary cards (3 + 3 of 6 cols) */}
                         {/* Row 2: three medium cards (2 + 2 + 2 of 6 cols) */}

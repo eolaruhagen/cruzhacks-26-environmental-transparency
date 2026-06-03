@@ -10,6 +10,9 @@ import {
   DataSourceNotice,
   LiveAirQuality,
 } from './ClimateCharts'
+import { Card } from "@/components/ui/Card"
+import { Button } from "@/components/ui/Button"
+import { AlertBox } from "@/components/ui/AlertBox"
 
 export default function ClimateImpactPage() {
   return (
@@ -40,18 +43,18 @@ export default function ClimateImpactPage() {
             <p className="wf-label mt-1">Global Climate Goals</p>
           </div>
 
-          <div className="wf-section mb-6">
+          <Card variant="section" className="mb-6">
             <p className="text-main/80 leading-relaxed mb-4">
               The Paris Agreement&apos;s primary goal is to limit global warming to <strong>well below 2°C</strong>,
               preferably <strong>1.5°C</strong>, compared to pre-industrial levels (1850–1900). Every fraction
               of a degree matters—0.5°C can mean the difference between manageable adaptation and catastrophic change.
             </p>
-            <div className="p-4 border border-red-300 dark:border-red-700">
-              <p className="text-red-700 dark:text-red-400 text-sm font-medium">
+            <AlertBox variant="warning">
+              <p className="text-alert-warning text-sm font-medium">
                 Current trajectory: We&apos;re on track for approximately 2.7°C warming by 2100 under current policies.
               </p>
-            </div>
-          </div>
+            </AlertBox>
+          </Card>
 
           {/* Paris Agreement Charts */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
@@ -61,7 +64,7 @@ export default function ClimateImpactPage() {
 
           {/* Metric Cards */}
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="wf-card">
+            <Card>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-main">Global Temperature Anomaly</h3>
                 <span className="wf-badge text-accent">Primary</span>
@@ -76,9 +79,9 @@ export default function ClimateImpactPage() {
                   Source: <a href="https://data.giss.nasa.gov/gistemp/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">NASA GISS</a>
                 </p>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-main">Atmospheric CO₂</h3>
                 <span className="wf-badge text-accent">Driver</span>
@@ -93,9 +96,9 @@ export default function ClimateImpactPage() {
                   Current: ~424 ppm | <a href="https://keelingcurve.ucsd.edu/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Mauna Loa</a>
                 </p>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-main">Annual Emissions</h3>
                 <span className="wf-badge text-accent">Action</span>
@@ -110,7 +113,7 @@ export default function ClimateImpactPage() {
                   Current: ~59 GtCO₂e | <a href="https://climateactiontracker.org/" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">Climate Action Tracker</a>
                 </p>
               </div>
-            </div>
+            </Card>
           </div>
         </section>
 
@@ -121,13 +124,13 @@ export default function ClimateImpactPage() {
             <p className="wf-label mt-1">Atmospheric Health & Air Quality</p>
           </div>
 
-          <div className="wf-section mb-6">
+          <Card variant="section" className="mb-6">
             <p className="text-main/80 leading-relaxed">
               The Clean Air Act focuses on <strong>&quot;Criteria Pollutants&quot;</strong> that directly affect human health.
               These are highly localized—your air quality can differ from a city just miles away. The <strong>Air
               Quality Index (AQI)</strong> is the public-facing summary of these measurements.
             </p>
-          </div>
+          </Card>
 
           {/* Live Air Quality - Real-time from AirNow API */}
           <div className="mb-6">
@@ -146,7 +149,7 @@ export default function ClimateImpactPage() {
 
           {/* Metric Cards */}
           <div className="grid md:grid-cols-2 gap-4 mb-6">
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">PM₂.₅ & PM₁₀</h3>
               <p className="text-main/70 text-sm mb-3">
                 Fine particulate matter small enough to enter lungs and bloodstream. The most dangerous
@@ -162,9 +165,9 @@ export default function ClimateImpactPage() {
                   <p className="text-xl font-bold text-accent">≤ 12 µg/m³</p>
                 </div>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Ground-Level Ozone (O₃)</h3>
               <p className="text-main/70 text-sm mb-3">
                 Primary component of smog. Forms when pollutants from cars and industry react with sunlight.
@@ -174,9 +177,9 @@ export default function ClimateImpactPage() {
                 <p className="text-xs text-main/60">8-hour Standard</p>
                 <p className="text-xl font-bold text-accent">≤ 70 ppb</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Nitrogen Dioxide (NO₂)</h3>
               <p className="text-main/70 text-sm mb-3">
                 Primarily from vehicle exhaust and power plants. High levels indicate heavy traffic or
@@ -186,9 +189,9 @@ export default function ClimateImpactPage() {
                 <p className="text-xs text-main/60">1-hour Standard</p>
                 <p className="text-xl font-bold text-accent">≤ 100 ppb</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Sulfur Dioxide (SO₂)</h3>
               <p className="text-main/70 text-sm mb-3">
                 From burning fossil fuels, especially coal. Causes acid rain and respiratory issues.
@@ -198,18 +201,18 @@ export default function ClimateImpactPage() {
                 <p className="text-xs text-main/60">1-hour Standard</p>
                 <p className="text-xl font-bold text-accent">≤ 75 ppb</p>
               </div>
-            </div>
+            </Card>
           </div>
 
-          <div className="p-4 border border-blue-300 dark:border-blue-700">
-            <p className="text-blue-700 dark:text-blue-400 text-sm">
+          <AlertBox variant="info">
+            <p className="text-alert-info text-sm">
               <strong>Check Your Air:</strong> Visit{' '}
               <a href="https://www.airnow.gov/" target="_blank" rel="noopener noreferrer" className="underline">AirNow.gov</a>{' '}
               or{' '}
               <a href="https://openaq.org/" target="_blank" rel="noopener noreferrer" className="underline">OpenAQ</a>{' '}
               for real-time air quality data in your area and global comparisons.
             </p>
-          </div>
+          </AlertBox>
         </section>
 
         {/* Section 3: Clean Water Act */}
@@ -219,13 +222,13 @@ export default function ClimateImpactPage() {
             <p className="wf-label mt-1">Aquatic Health & Water Quality</p>
           </div>
 
-          <div className="wf-section mb-6">
+          <Card variant="section" className="mb-6">
             <p className="text-main/80 leading-relaxed">
               The Clean Water Act&apos;s goal is to make all U.S. waters <strong>&quot;fishable and swimmable.&quot;</strong>
               Water quality is complex and varies by location and intended use. These metrics provide the
               most accessible snapshot of watershed health.
             </p>
-          </div>
+          </Card>
 
           {/* Water Quality Chart */}
           <div className="mb-6">
@@ -234,7 +237,7 @@ export default function ClimateImpactPage() {
 
           {/* Metric Cards */}
           <div className="grid md:grid-cols-3 gap-4 mb-6">
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Impaired Waters</h3>
               <p className="text-main/70 text-sm mb-3">
                 Percentage of water bodies failing to meet quality standards for their intended use
@@ -245,9 +248,9 @@ export default function ClimateImpactPage() {
                 <p className="text-xl font-bold text-accent">0%</p>
                 <p className="text-xs text-main/60 mt-1">Current U.S. avg: ~50% impaired</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Nutrient Loading</h3>
               <p className="text-main/70 text-sm mb-3">
                 Nitrogen & Phosphorus levels (mg/L). Main cause of &quot;Dead Zones&quot; and toxic algae blooms.
@@ -258,9 +261,9 @@ export default function ClimateImpactPage() {
                 <p className="text-xl font-bold text-accent">≤ 0.1 mg/L</p>
                 <p className="text-xs text-main/60 mt-1">(varies by water body type)</p>
               </div>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main mb-2">Dissolved Oxygen (DO)</h3>
               <p className="text-main/70 text-sm mb-3">
                 Fish and aquatic life need oxygen. Low DO levels indicate ecosystem collapse, often
@@ -271,16 +274,16 @@ export default function ClimateImpactPage() {
                 <p className="text-xl font-bold text-accent">≥ 5 mg/L</p>
                 <p className="text-xs text-main/60 mt-1">Below 2 mg/L = &quot;Dead Zone&quot;</p>
               </div>
-            </div>
+            </Card>
           </div>
 
-          <div className="p-4 border border-cyan-300 dark:border-cyan-700">
-            <p className="text-cyan-700 dark:text-cyan-400 text-sm">
+          <AlertBox variant="info">
+            <p className="text-alert-info text-sm">
               <strong>Check Your Water:</strong> Use the EPA&apos;s{' '}
               <a href="https://mywaterway.epa.gov/" target="_blank" rel="noopener noreferrer" className="underline">How&apos;s My Waterway</a>{' '}
               app to enter any zip code and see the health of your local watershed.
             </p>
-          </div>
+          </AlertBox>
         </section>
 
         {/* Section 4: Biodiversity */}
@@ -290,7 +293,7 @@ export default function ClimateImpactPage() {
             <p className="wf-label mt-1">Biodiversity & Ecosystem Health</p>
           </div>
 
-          <div className="wf-section mb-6">
+          <Card variant="section" className="mb-6">
             <p className="text-main/80 leading-relaxed mb-4">
               The <strong>Living Planet Index (LPI)</strong> tracks the average change in population size of
               thousands of vertebrate species worldwide. It&apos;s increasingly used alongside climate metrics
@@ -301,16 +304,16 @@ export default function ClimateImpactPage() {
               A declining LPI suggests that even if we meet &quot;Net Zero&quot; carbon goals, we may still be losing
               the &quot;infrastructure&quot; of nature—pollinators, food chains, and ecosystem services we depend on.
             </p>
-          </div>
+          </Card>
 
-          <div className="wf-card mb-6">
+          <Card className="mb-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h3 className="font-bold text-main text-lg mb-1">Global Living Planet Index</h3>
                 <p className="text-main/70 text-sm">Average vertebrate population change since 1970</p>
               </div>
               <div className="text-center md:text-right">
-                <p className="text-4xl font-bold text-red-600">-69%</p>
+                <p className="text-4xl font-bold text-alert-warning">-69%</p>
                 <p className="text-xs text-main/60">as of 2022 report</p>
               </div>
             </div>
@@ -320,19 +323,19 @@ export default function ClimateImpactPage() {
                 just 50 years. Freshwater species (-83%) and tropical regions are hit hardest.
               </p>
             </div>
-          </div>
+          </Card>
 
-          <div className="p-4 border border-green-300 dark:border-green-700">
-            <p className="text-green-700 dark:text-green-400 text-sm">
+          <AlertBox variant="good">
+            <p className="text-alert-good text-sm">
               <strong>Source:</strong> WWF{' '}
               <a href="https://livingplanet.panda.org/" target="_blank" rel="noopener noreferrer" className="underline">Living Planet Report</a>{' '}
               — Updated every two years with data from the Zoological Society of London.
             </p>
-          </div>
+          </AlertBox>
         </section>
 
         {/* Why These Metrics Matter */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-4">Why Track These Metrics?</h2>
           <div className="grid md:grid-cols-2 gap-6">
             <div>
@@ -364,30 +367,33 @@ export default function ClimateImpactPage() {
               </p>
             </div>
           </div>
-        </section>
+        </Card>
 
         {/* CTA */}
-        <section className="mb-12 wf-section p-8 text-center">
+        <Card as="section" variant="section" className="mb-12 p-8 text-center">
           <h2 className="text-2xl font-bold text-main mb-4">Take Action</h2>
           <p className="text-main/80 mb-6 max-w-2xl mx-auto">
             Your representatives vote on climate policy, EPA funding, and environmental regulations.
             Find out who represents you and how they&apos;ve voted on environmental issues.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a
+            <Button
+              as="a"
+              variant="active"
               href="/representatives"
-              className="wf-btn-active px-6 py-3 font-semibold"
+              className="px-6 py-3 font-semibold"
             >
               Find Your Representatives
-            </a>
-            <a
+            </Button>
+            <Button
+              as="a"
               href="/environmental-protection"
-              className="wf-btn px-6 py-3 font-semibold"
+              className="px-6 py-3 font-semibold"
             >
               Environmental Law Basics
-            </a>
+            </Button>
           </div>
-        </section>
+        </Card>
 
         {/* Back Link */}
         <div className="mt-8">

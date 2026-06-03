@@ -1,4 +1,7 @@
 import React from 'react'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { StepNumber } from '@/components/ui/StepNumber'
 
 export default function EnvironmentalProtectionPage() {
   return (
@@ -19,7 +22,7 @@ export default function EnvironmentalProtectionPage() {
         </header>
 
         {/* Introduction */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-4">Why Environmental Law Matters</h2>
           <p className="text-main/80 leading-relaxed mb-4">
             Environmental law is the collection of regulations, statutes, and common law that governs how humans interact
@@ -36,7 +39,7 @@ export default function EnvironmentalProtectionPage() {
             economic stability, and the survival of countless species. Effective environmental law is our primary
             tool for addressing these challenges at scale.
           </p>
-        </section>
+        </Card>
 
         {/* History Section */}
         <section className="mb-12">
@@ -45,16 +48,16 @@ export default function EnvironmentalProtectionPage() {
           </h2>
 
           <div className="space-y-6">
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1960s: The Awakening</h3>
               <p className="text-main/80 leading-relaxed">
                 Rachel Carson&apos;s &quot;Silent Spring&quot; (1962) exposed the dangers of pesticides like DDT, sparking
                 public awareness. Rivers caught fire, smog choked cities, and Americans demanded change.
                 This grassroots movement laid the foundation for modern environmental legislation.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1970: The Environmental Decade Begins</h3>
               <p className="text-main/80 leading-relaxed">
                 The first Earth Day mobilized 20 million Americans. President Nixon created the
@@ -62,18 +65,18 @@ export default function EnvironmentalProtectionPage() {
                 Policy Act (NEPA)</strong>, requiring environmental impact assessments for federal projects.
                 The <strong>Clean Air Act</strong> followed, setting air quality standards.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1972-1980: Landmark Legislation</h3>
               <p className="text-main/80 leading-relaxed">
                 The <strong>Clean Water Act</strong> (1972) tackled water pollution. The <strong>Endangered Species Act</strong> (1973)
                 protected threatened wildlife. <strong>CERCLA/Superfund</strong> (1980) addressed toxic waste cleanup.
                 These laws established the federal government&apos;s role as environmental guardian.
               </p>
-            </div>
+            </Card>
 
-            <div className="wf-card border-l-4 border-l-accent">
+            <Card className="border-l-4 border-l-accent">
               <h3 className="font-semibold text-main text-lg mb-2">1990s-Present: Climate Focus</h3>
               <p className="text-main/80 leading-relaxed">
                 The <strong>Clean Air Act Amendments</strong> (1990) addressed acid rain and ozone depletion.
@@ -81,7 +84,7 @@ export default function EnvironmentalProtectionPage() {
                 international agreements like the Paris Climate Accord. Environmental justice—ensuring
                 pollution doesn&apos;t disproportionately harm marginalized communities—has become a key priority.
               </p>
-            </div>
+            </Card>
           </div>
         </section>
 
@@ -92,7 +95,7 @@ export default function EnvironmentalProtectionPage() {
           </h2>
 
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main text-lg mb-2">Clean Air Act (1970)</h3>
               <p className="text-main/60 text-sm mb-3">Regulates air emissions from stationary and mobile sources</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -101,9 +104,9 @@ export default function EnvironmentalProtectionPage() {
                 <li>• Controls vehicle emissions</li>
                 <li>• Addresses acid rain and ozone depletion</li>
               </ul>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main text-lg mb-2">Clean Water Act (1972)</h3>
               <p className="text-main/60 text-sm mb-3">Establishes structure for regulating pollutant discharges</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -112,9 +115,9 @@ export default function EnvironmentalProtectionPage() {
                 <li>• Protects wetlands</li>
                 <li>• Funds wastewater treatment infrastructure</li>
               </ul>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main text-lg mb-2">Endangered Species Act (1973)</h3>
               <p className="text-main/60 text-sm mb-3">Protects critically imperiled species and their habitats</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -123,9 +126,9 @@ export default function EnvironmentalProtectionPage() {
                 <li>• Prohibits &quot;take&quot; of listed species</li>
                 <li>• Requires federal agencies to consult on impacts</li>
               </ul>
-            </div>
+            </Card>
 
-            <div className="wf-card">
+            <Card>
               <h3 className="font-bold text-main text-lg mb-2">NEPA (1970)</h3>
               <p className="text-main/60 text-sm mb-3">National Environmental Policy Act</p>
               <ul className="text-main/80 text-sm space-y-1">
@@ -134,17 +137,17 @@ export default function EnvironmentalProtectionPage() {
                 <li>• Ensures public participation</li>
                 <li>• Applies to all major federal actions</li>
               </ul>
-            </div>
+            </Card>
           </div>
         </section>
 
         {/* How Laws Protect */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-6">How Environmental Laws Actually Protect Us</h2>
 
           <div className="space-y-6">
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">1</div>
+              <StepNumber size="md">1</StepNumber>
               <div>
                 <h3 className="font-semibold text-main mb-1">Setting Standards</h3>
                 <p className="text-main/80">
@@ -155,7 +158,7 @@ export default function EnvironmentalProtectionPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">2</div>
+              <StepNumber size="md">2</StepNumber>
               <div>
                 <h3 className="font-semibold text-main mb-1">Requiring Permits</h3>
                 <p className="text-main/80">
@@ -166,7 +169,7 @@ export default function EnvironmentalProtectionPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">3</div>
+              <StepNumber size="md">3</StepNumber>
               <div>
                 <h3 className="font-semibold text-main mb-1">Enforcement & Penalties</h3>
                 <p className="text-main/80">
@@ -177,7 +180,7 @@ export default function EnvironmentalProtectionPage() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-12 h-12 border-2 border-accent text-accent flex items-center justify-center font-bold text-lg shrink-0">4</div>
+              <StepNumber size="md">4</StepNumber>
               <div>
                 <h3 className="font-semibold text-main mb-1">Citizen Suits</h3>
                 <p className="text-main/80">
@@ -187,10 +190,10 @@ export default function EnvironmentalProtectionPage() {
               </div>
             </div>
           </div>
-        </section>
+        </Card>
 
         {/* Your Role Section */}
-        <section className="mb-12 wf-section">
+        <Card as="section" variant="section" className="mb-12">
           <h2 className="text-2xl font-bold text-main mb-4">
             Your Role in Environmental Protection
           </h2>
@@ -202,20 +205,23 @@ export default function EnvironmentalProtectionPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4">
-            <a
+            <Button
+              as="a"
               href="/representatives"
-              className="wf-btn-active px-6 py-3 font-semibold text-center"
+              variant="active"
+              className="px-6 py-3 font-semibold text-center"
             >
               Find Your Representatives
-            </a>
-            <a
+            </Button>
+            <Button
+              as="a"
               href="/legislative-process"
-              className="wf-btn px-6 py-3 font-semibold text-center"
+              className="px-6 py-3 font-semibold text-center"
             >
               Learn the Legislative Process
-            </a>
+            </Button>
           </div>
-        </section>
+        </Card>
 
         {/* Quote */}
         <section className="mb-12 text-center">

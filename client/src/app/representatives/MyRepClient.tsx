@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Bill, RepBill, RadarBill, Subcategory, Representative } from '@/lib/types'
 import { BillSearchResult } from '@/components/search/ui/SearchResultItem'
+import { Card } from "@/components/ui/Card"
+import { Button } from "@/components/ui/Button"
 
 // Mini Policy Radar Component
 interface MiniPolicyRadarProps {
@@ -183,12 +185,12 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
 
   if (loading) {
     return (
-      <div className="wf-section">
+      <Card variant="section">
         <div className="flex flex-col items-center justify-center h-64">
           <div className="inline-block animate-spin h-10 w-10 border-4 border-accent border-r-transparent"></div>
           <p className="mt-4 text-light">Loading policy radar...</p>
         </div>
-      </div>
+      </Card>
     )
   }
 
@@ -289,7 +291,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
   })
 
   return (
-    <div className="wf-section">
+    <Card variant="section">
       <h3 className="text-xl font-bold mb-4 text-light">
         Policy Radar
       </h3>
@@ -300,10 +302,11 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
           const count = categoryBillCounts[cat] || 0
           const isSelected = selectedCategory === cat
           return (
-            <button
+            <Button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={isSelected ? 'wf-btn-active-transparent text-left p-3' : `wf-btn text-left p-3 ${count === 0 ? 'opacity-50' : ''}`}
+              variant={isSelected ? "active-transparent" : "default"}
+              className={`text-left p-3 ${!isSelected && count === 0 ? 'opacity-50' : ''}`}
             >
               <p className={`text-sm font-medium truncate ${isSelected ? 'text-accent' : 'text-main'}`}>
                 {formatCategoryName(cat)}
@@ -311,7 +314,7 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
               <p className={`text-lg font-bold ${isSelected ? 'text-accent' : count > 0 ? 'text-accent' : 'text-light'}`}>
                 {count} {count === 1 ? 'bill' : 'bills'}
               </p>
-            </button>
+            </Button>
           )
         })}
       </div>
@@ -378,20 +381,22 @@ function MiniPolicyRadar({ repName }: MiniPolicyRadarProps) {
             </button>
           </div>
           <h4 className="font-semibold text-main mb-3">{selectedBill.title}</h4>
-          <a
+          <Button
+            as="a"
             href={selectedBill.url || '#'}
             target="_blank"
             rel="noopener noreferrer"
-            className="wf-btn-active inline-flex items-center gap-2"
+            variant="active"
+            className="inline-flex items-center gap-2"
           >
             View on Congress.gov
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
-          </a>
+          </Button>
         </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -515,22 +520,22 @@ export default function MyRepClient() {
     setSelectedRep(null)
   }
 
-  // High contrast party badge colors
+  // High contrast party badge colors — token-driven so a theme swap reaches them
   const getPartyBadge = (party: string) => {
     const p = party.toLowerCase()
-    if (p.includes('democrat')) return 'bg-blue-600 text-white'
-    if (p.includes('republican')) return 'bg-red-600 text-white'
-    if (p.includes('independent')) return 'bg-purple-600 text-white'
-    return 'bg-gray-600 text-white'
+    if (p.includes('democrat')) return 'bg-party-d text-white'
+    if (p.includes('republican')) return 'bg-party-r text-white'
+    if (p.includes('independent')) return 'bg-party-i text-white'
+    return 'bg-party-other text-white'
   }
 
-  // Card border accent
+  // Card left-border accent — pair with `border-l-4` on the element
   const getPartyBorder = (party: string) => {
     const p = party.toLowerCase()
-    if (p.includes('democrat')) return 'border-l-blue-500'
-    if (p.includes('republican')) return 'border-l-red-500'
-    if (p.includes('independent')) return 'border-l-purple-500'
-    return 'border-l-gray-500'
+    if (p.includes('democrat')) return 'border-l-party-d'
+    if (p.includes('republican')) return 'border-l-party-r'
+    if (p.includes('independent')) return 'border-l-party-i'
+    return 'border-l-party-other'
   }
 
   // View: Selected Representative Details
@@ -549,7 +554,7 @@ export default function MyRepClient() {
         </button>
 
         {/* Representative Card */}
-        <div className="wf-section mb-6">
+        <Card variant="section" className="mb-6">
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 md:gap-8">
             {/* Photo */}
             <div className="shrink-0 mx-auto sm:mx-0">
@@ -600,7 +605,7 @@ export default function MyRepClient() {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Mini Policy Radar */}
         <div className="mt-6">
@@ -608,16 +613,17 @@ export default function MyRepClient() {
         </div>
 
         {/* Environmental Bills Section */}
-        <div className="mt-6 wf-section">
+        <Card variant="section" className="mt-6">
           <h3 className="text-xl font-bold text-main mb-4 flex items-center gap-2">
             Environmental Legislation
           </h3>
 
           {/* Tabs */}
           <div className="flex gap-2 mb-4">
-            <button
+            <Button
               onClick={() => setActiveBillsTab('sponsored')}
-              className={activeBillsTab === 'sponsored' ? 'wf-btn-active-transparent flex-1' : 'wf-btn flex-1'}
+              variant={activeBillsTab === 'sponsored' ? "active-transparent" : "default"}
+              className="flex-1"
             >
               Sponsored
               {sponsoredBills.length > 0 && (
@@ -625,10 +631,11 @@ export default function MyRepClient() {
                   {sponsoredBills.length}
                 </span>
               )}
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => setActiveBillsTab('cosponsored')}
-              className={activeBillsTab === 'cosponsored' ? 'wf-btn-active-transparent flex-1' : 'wf-btn flex-1'}
+              variant={activeBillsTab === 'cosponsored' ? "active-transparent" : "default"}
+              className="flex-1"
             >
               Cosponsored
               {cosponsoredBills.length > 0 && (
@@ -636,7 +643,7 @@ export default function MyRepClient() {
                   {cosponsoredBills.length}
                 </span>
               )}
-            </button>
+            </Button>
           </div>
 
           {/* Bills List */}
@@ -680,7 +687,7 @@ export default function MyRepClient() {
               )}
             </div>
           )}
-        </div>
+        </Card>
       </div>
     )
   }
@@ -693,7 +700,7 @@ export default function MyRepClient() {
     return (
       <div>
         {/* Header */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-8 wf-section">
+        <Card variant="section" className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
             <p className="text-main font-medium">
               Congress members for <span className="font-bold text-accent">{stateName}</span>
@@ -702,18 +709,17 @@ export default function MyRepClient() {
               {senators.length} Senator{senators.length !== 1 ? 's' : ''} -- {reps.length} Representative{reps.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button
+          <Button
             onClick={() => {
               setSubmittedState('')
               setRepresentatives([])
               setSelectedState('')
               setStateName('')
             }}
-            className="wf-btn"
           >
             ← Change State
-          </button>
-        </div>
+          </Button>
+        </Card>
 
         {/* Senators Section */}
         {senators.length > 0 && (
@@ -812,7 +818,7 @@ export default function MyRepClient() {
   return (
     <div className="max-w-lg mx-auto">
       {/* Selection Card */}
-      <div className="wf-section text-center">
+      <Card variant="section" className="text-center">
         <div className="w-16 h-16 mx-auto mb-5 flex items-center justify-center">
           <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -847,15 +853,16 @@ export default function MyRepClient() {
           </div>
 
           {error && (
-            <div className="p-3 border border-red-500/50">
-              <p className="text-red-500 text-sm">{error}</p>
+            <div className="p-3 border border-alert-warning">
+              <p className="text-alert-warning text-sm">{error}</p>
             </div>
           )}
 
-          <button
+          <Button
             type="submit"
             disabled={!selectedState || isLoading}
-            className="wf-btn-active w-full py-4 text-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
+            variant="active"
+            className="w-full py-4 text-lg font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -868,9 +875,9 @@ export default function MyRepClient() {
             ) : (
               'Find My Representatives'
             )}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
       {/* Data Source */}
       <p className="mt-6 text-center text-sm text-light">
