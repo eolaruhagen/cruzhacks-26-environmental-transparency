@@ -62,7 +62,7 @@ export function BentoFeatureCard({
             as={Link}
             variant="glass-card"
             href={feature.href}
-            className={`wf-shadow group flex flex-col h-full ${padding} ${spanClass}`}
+            className={`group flex flex-col h-full ${padding} ${spanClass}`}
         >
             <svg
                 className={`text-accent ${iconClass}`}
@@ -103,7 +103,7 @@ export function BentoImageCard({
     return (
         <Link
             href={item.href}
-            className={`group relative block overflow-hidden border border-border wf-shadow ${heightClass} ${spanClass}`}
+            className={`group relative block overflow-hidden border border-border transition-colors hover:border-accent ${heightClass} ${spanClass}`}
         >
             <Image
                 src={item.src}
