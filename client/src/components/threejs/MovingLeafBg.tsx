@@ -883,7 +883,7 @@ export default function MovingLeafBg() {
         const windowSize = new Window(window)
 
         const canvas = new ThreeScene()
-            .withOrthographicCamera(windowSize.width, windowSize.height)
+            .withOrthographicCamera(windowSize.width, windowSize.height, -5000, 5000)
             .withRenderer(windowSize.width, windowSize.height, true)
             //.withAxesHelper()
             .build()
