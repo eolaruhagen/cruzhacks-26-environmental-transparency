@@ -2,9 +2,18 @@ import { HttpResponseError } from "./error.ts";
 import type { HttpResult } from "./result.ts";
 
 /**
- * Retry policy for `withRetry`. Defaults are tuned for a per-cron-tick
- * worker — worst-case 3-attempt failure for one HTTP call is ~16s, leaving
- * room for many batches per invocation before the time budget runs out.
+ * Minimal structured-logger interface. No pino import — callers inject their
+ * own logger; absent logger ⇒ silent (no logging at all).
+ */
+export interface RetryLogger {
+    debug(obj: object, msg: string): void;
+}
+
+/**
+ * Tuning knobs + test seams for `withRetry`. Defaults are tuned for a
+ * per-cron-tick worker — worst-case 3-attempt failure for one HTTP call is
+ * ~16s, leaving room for many batches per invocation before the time budget
+ * runs out.
  *
  *   timeoutMs:     5_000   → per-attempt timeout via AbortController
  *   maxAttempts:   3       → initial + up to 2 retries
@@ -13,7 +22,7 @@ import type { HttpResult } from "./result.ts";
  *   jitterMs:      250     → +random(0..jitterMs) on each backoff
  *   maxBackoffMs:  1_500   → hard ceiling on a single backoff wait
  */
-export interface RetryOptions {
+export interface RetryTuning {
     timeoutMs?: number;
     maxAttempts?: number;
     baseBackoffMs?: number;
@@ -28,7 +37,13 @@ export interface RetryOptions {
     rng?: () => number;
 }
 
-export const DEFAULT_RETRY_OPTIONS: Required<RetryOptions> = {
+/** Full options passed to `withRetry`. */
+export interface RetryOptions extends RetryTuning {
+    logger?: RetryLogger;
+    label?: string;
+}
+
+export const DEFAULT_RETRY_OPTIONS: Required<RetryTuning> = {
     timeoutMs: 5_000,
     maxAttempts: 3,
     baseBackoffMs: 250,
@@ -62,13 +77,16 @@ export async function withRetry<T>(
     opts?: RetryOptions,
 ): Promise<HttpResult<T>> {
     const cfg = { ...DEFAULT_RETRY_OPTIONS, ...opts };
+    const log = cfg.logger;
+    const { label, maxAttempts } = cfg;
     let lastError: HttpResponseError | undefined;
     let lastThrown: unknown;
 
-    for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), cfg.timeoutMs);
         let result: HttpResult<T> | undefined;
+        const t0 = Date.now();
         try {
             result = await op(controller.signal);
             lastThrown = undefined;
@@ -77,23 +95,35 @@ export async function withRetry<T>(
         } finally {
             clearTimeout(timer);
         }
+        const ms = Date.now() - t0;
 
-        if (result && result.kind === "ok") return result;
+        if (result && result.kind === "ok") {
+            log?.debug({ label, attempt, maxAttempts, ms, outcome: "ok" }, "http attempt");
+            return result;
+        }
         if (result instanceof HttpResponseError) {
+            const outcome = isRetryableStatus(result.status) ? "retryable-status" : "non-retryable-status";
+            log?.debug({ label, attempt, maxAttempts, ms, outcome, status: result.status }, "http attempt");
             // Non-retryable status: bail immediately, don't sleep.
             if (!isRetryableStatus(result.status)) return result;
             lastError = result;
+        } else if (lastThrown !== undefined) {
+            const outcome = lastThrown instanceof Error && lastThrown.name === "AbortError"
+                ? "aborted"
+                : "error";
+            log?.debug({ label, attempt, maxAttempts, ms, outcome }, "http attempt");
         }
 
         // Decide whether to attempt again. After the last attempt we exit
         // the loop without sleeping.
-        if (attempt >= cfg.maxAttempts) break;
+        if (attempt >= maxAttempts) break;
 
         // Exponential backoff with optional jitter, capped.
         const exp = cfg.baseBackoffMs * Math.pow(cfg.backoffFactor, attempt - 1);
         const cappedBase = Math.min(exp, cfg.maxBackoffMs);
         const jitter = Math.floor(cfg.rng() * cfg.jitterMs);
         const wait = cappedBase + jitter;
+        log?.debug({ label, attempt, backoffMs: wait }, "http retry backoff");
         await cfg.sleep(wait);
     }
 

@@ -210,10 +210,16 @@ export class CongressClient {
     const url = this.resolveUrl(urlOrPath);
     const result = await withRetry(
       (signal) => sharedGetValidated(this.fetchImpl, url, schema, { signal }),
-      this.retryOptions,
+      { ...this.retryOptions, label: CongressClient.logLabel(url) },
     );
     if (result instanceof HttpResponseError) throw result;
     return result.data;
+  }
+
+  // query string carries api_key — never log the full URL.
+  private static logLabel(url: string): string {
+    const u = new URL(url);
+    return `${u.host}${u.pathname}`;
   }
 
   private resolveUrl(urlOrPath: string): string {
