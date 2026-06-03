@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from lib.patterns import (
     CONTEXT_CHARS,
     EO_RE,
@@ -16,29 +18,23 @@ from lib.patterns import (
 # --- clean_act_name ---
 
 
-def test_clean_act_name_strips_leading_connectors_repeatedly() -> None:
-    assert clean_act_name("and of the Clean Air Act") == "Clean Air Act"
-
-
-def test_clean_act_name_leaves_clean_name_unchanged() -> None:
-    assert clean_act_name("Clean Air Act") == "Clean Air Act"
-
-
-def test_clean_act_name_empty_and_whitespace() -> None:
-    assert clean_act_name("") == ""
-    assert clean_act_name("   ") == ""
-
-
-def test_clean_act_name_collapses_internal_whitespace() -> None:
-    # Bill text hard-wraps act names across lines; the raw match carries the
-    # embedded \n/\t, which must not survive into the stored display name.
-    assert clean_act_name("Clean\tAir\nAct") == "Clean Air Act"
-    assert clean_act_name("Clean   Air  Act") == "Clean Air Act"
-
-
-def test_clean_act_name_strips_trailing_punctuation() -> None:
-    assert clean_act_name("Clean Air Act,") == "Clean Air Act"
-    assert clean_act_name("the Clean Air Act.") == "Clean Air Act"
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("and of the Clean Air Act", "Clean Air Act"),
+        ("Clean Air Act", "Clean Air Act"),
+        ("", ""),
+        ("   ", ""),
+        # Bill text hard-wraps act names across lines; embedded \n/\t must not
+        # survive into the stored display name.
+        ("Clean\tAir\nAct", "Clean Air Act"),
+        ("Clean   Air  Act", "Clean Air Act"),
+        ("Clean Air Act,", "Clean Air Act"),
+        ("the Clean Air Act.", "Clean Air Act"),
+    ],
+)
+def test_clean_act_name(raw: str, expected: str) -> None:
+    assert clean_act_name(raw) == expected
 
 
 # --- normalize_phrase_key ---
@@ -100,43 +96,35 @@ def test_context_clamps_at_end() -> None:
 # --- is_valid_law_span ---
 
 
-def test_is_valid_law_span_accepts_real_acts() -> None:
-    assert is_valid_law_span("Clean Air Act") is True
-    assert is_valid_law_span("National Environmental Policy Act") is True
-
-
-def test_is_valid_law_span_rejects_fp_prefix() -> None:
-    assert is_valid_law_span("Section 5") is False
-    assert is_valid_law_span("Article 3 of the treaty") is False
-
-
-def test_is_valid_law_span_rejects_clause_fragment() -> None:
-    assert is_valid_law_span("shall submit a report") is False
-
-
-def test_is_valid_law_span_rejects_all_lowercase_no_content() -> None:
-    assert is_valid_law_span("lowercase no content") is False
-
-
-def test_is_valid_law_span_rejects_overlong() -> None:
-    overlong = "Clean Air " * 20 + "Act"
-    assert len(overlong) > 120
-    assert is_valid_law_span(overlong) is False
-
-
-def test_is_valid_law_span_rejects_single_token() -> None:
-    assert is_valid_law_span("Act") is False
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        ("Clean Air Act", True),
+        ("National Environmental Policy Act", True),
+        ("Section 5", False),
+        ("Article 3 of the treaty", False),
+        ("shall submit a report", False),
+        ("lowercase no content", False),
+        ("Clean Air " * 20 + "Act", False),  # overlong (>120 chars)
+        ("Act", False),  # single token
+    ],
+)
+def test_is_valid_law_span(text: str, expected: bool) -> None:
+    assert is_valid_law_span(text) is expected
 
 
 # --- raw regex sanity ---
 
 
-def test_publaw_re_variants() -> None:
-    for s in ("Public Law 117-58", "Pub. L. 117-58", "P.L. 117-58"):
-        m = PUBLAW_RE.search(s)
-        assert m is not None
-        assert m.group("cong") == "117"
-        assert m.group("num") == "58"
+@pytest.mark.parametrize(
+    "s",
+    ["Public Law 117-58", "Pub. L. 117-58", "P.L. 117-58"],
+)
+def test_publaw_re_variants(s: str) -> None:
+    m = PUBLAW_RE.search(s)
+    assert m is not None
+    assert m.group("cong") == "117"
+    assert m.group("num") == "58"
 
 
 def test_usc_re_plain_and_et_seq() -> None:
@@ -151,8 +139,11 @@ def test_usc_re_plain_and_et_seq() -> None:
     assert et.group("et_seq") is not None
 
 
-def test_eo_re_variants() -> None:
-    for s in ("Executive Order 14008", "E.O. 14008", "EO 14008"):
-        m = EO_RE.search(s)
-        assert m is not None
-        assert m.group("num") == "14008"
+@pytest.mark.parametrize(
+    "s",
+    ["Executive Order 14008", "E.O. 14008", "EO 14008"],
+)
+def test_eo_re_variants(s: str) -> None:
+    m = EO_RE.search(s)
+    assert m is not None
+    assert m.group("num") == "14008"

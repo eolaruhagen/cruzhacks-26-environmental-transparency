@@ -90,17 +90,21 @@ STAT_RE: Final[re.Pattern[str]] = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 
-NAMED_ACT_WITH_PL_RE: Final[re.Pattern[str]] = re.compile(
-    r"""
-    (?:the\s+)?
-    (?P<act_name>
+_ACT_NAME_PAT = r"""(?P<act_name>
         (?:
             [A-Z][A-Za-z0-9,'\-]*\s+
             | (?:and|of|for|the|to|on|in|at|by|or|with)\s+
         ){1,14}
         Act
         (?:\s+of\s+\d{4})?
-    )
+    )"""
+
+NAMED_ACT_WITH_PL_RE: Final[re.Pattern[str]] = re.compile(
+    r"""
+    (?:the\s+)?
+    """
+    + _ACT_NAME_PAT
+    + r"""
     \s*
     \(
         (?:Public\s+Law|Pub\.?\s*L\.?|P\.L\.)
@@ -116,14 +120,9 @@ NAMED_ACT_WITH_PL_RE: Final[re.Pattern[str]] = re.compile(
 NAMED_ACT_RE: Final[re.Pattern[str]] = re.compile(
     r"""
     (?:the\s+)
-    (?P<act_name>
-        (?:
-            [A-Z][A-Za-z0-9,'\-]*\s+
-            | (?:and|of|for|the|to|on|in|at|by|or|with)\s+
-        ){1,14}
-        Act
-        (?:\s+of\s+\d{4})?
-    )
+    """
+    + _ACT_NAME_PAT
+    + r"""
     \b
     """,
     re.VERBOSE,
@@ -133,14 +132,9 @@ AMENDS_ACT_RE: Final[re.Pattern[str]] = re.compile(
     r"""
     (?:Amends|amends|amending|Amending)\s+
     (?:the\s+)?
-    (?P<act_name>
-        (?:
-            [A-Z][A-Za-z0-9,'\-]*\s+
-            | (?:and|of|for|the|to|on|in|at|by|or|with)\s+
-        ){1,14}
-        Act
-        (?:\s+of\s+\d{4})?
-    )
+    """
+    + _ACT_NAME_PAT
+    + r"""
     \b
     """,
     re.VERBOSE,
@@ -187,17 +181,13 @@ TERMINAL_RE: Final[re.Pattern[str]] = re.compile(
 )
 
 ENV_ACRONYMS: Final[dict[str, str]] = {
-    "CERCLA": "CERCLA",
-    "NEPA": "NEPA",
     "TSCA": "Toxic Substances Control Act",
-    "RCRA": "RCRA",
     "CAA": "Clean Air Act",
     "CWA": "Clean Water Act",
     "SDWA": "Safe Drinking Water Act",
     "ESA": "Endangered Species Act",
     "MMPA": "Marine Mammal Protection Act",
     "NMSA": "National Marine Sanctuaries Act",
-    "FIFRA": "FIFRA",
     "EPCRA": "Emergency Planning and Community Right-To-Know Act of 1986",
     "ANILCA": "Alaska National Interest Lands Conservation Act",
     "FLPMA": "Federal Land Policy and Management Act",
@@ -217,7 +207,6 @@ _LEADING_CONNECTORS_RE: Final[re.Pattern[str]] = re.compile(
 
 _TRAILING_PUNCT_RE: Final[re.Pattern[str]] = re.compile(r"[\s.,;:!?]+$")
 _WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"\s+")
-_LEADING_THE_RE: Final[re.Pattern[str]] = re.compile(r"^the\s+", re.IGNORECASE)
 _USC_SUBSECTION_RE: Final[re.Pattern[str]] = re.compile(r"\(.*$")
 
 
@@ -236,10 +225,10 @@ def clean_act_name(raw: str) -> str:
 
 
 def normalize_phrase_key(name: str) -> str:
-    """Lowercase, trim, drop leading 'the ', collapse whitespace, strip
+    """Lowercase, trim, drop leading connectors (incl. 'the'), collapse whitespace, strip
     trailing punctuation. No alias collapse — that's Stage 2."""
     s = name.strip().lower()
-    s = _LEADING_THE_RE.sub("", s)
+    s = _LEADING_CONNECTORS_RE.sub("", s)
     s = _WHITESPACE_RE.sub(" ", s)
     s = _TRAILING_PUNCT_RE.sub("", s)
     return s.strip()

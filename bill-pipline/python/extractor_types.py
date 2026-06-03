@@ -20,47 +20,6 @@ CharSpan = tuple[int, int]
 NormalizedFields = dict[str, object]
 
 
-class UscNormalized(TypedDict):
-    title: int
-    section: str
-
-
-class UscEtSeqNormalized(UscNormalized):
-    pass
-
-
-class PublicLawNormalized(TypedDict):
-    law_number: str
-
-
-class NamedLawNormalized(TypedDict):
-    name: str
-    law_number: str | None
-
-
-class TreatyNormalized(TypedDict):
-    name: str
-
-
-class CfrNormalized(TypedDict):
-    title: int
-    part: str
-
-
-class FedRegNormalized(TypedDict):
-    volume: int
-    page: int
-
-
-class ExecutiveOrderNormalized(TypedDict):
-    order_number: int
-
-
-class StatAtLargeNormalized(TypedDict):
-    volume: int
-    page: int
-
-
 class InputRecord(TypedDict):
     bill_id: str
     legislation_number: str

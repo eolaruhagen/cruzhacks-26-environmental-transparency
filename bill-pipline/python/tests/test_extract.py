@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from extractor_types import ExtractedReference
 from lib.extract import (
     dedup_named_laws,
@@ -35,6 +37,20 @@ def _only(refs: list[ExtractedReference]) -> ExtractedReference:
 
 def _pairs(refs: list[ExtractedReference]) -> set[tuple[str, str]]:
     return {(r["kind"], r["normalized_key"]) for r in refs}
+
+
+def _make_ref(**overrides: object) -> ExtractedReference:
+    base: ExtractedReference = {
+        "kind": "named_law",
+        "raw": "Clean Air Act",
+        "normalized_key": "named:clean air act",
+        "normalized": {"name": "Clean Air Act", "law_number": None},
+        "context": "",
+        "span_start": 0,
+        "span_end": 13,
+        "is_self_ref": False,
+    }
+    return {**base, **overrides}  # type: ignore[return-value]
 
 
 # --- per-kind extractors ---
@@ -181,76 +197,58 @@ def test_resolve_overlaps_eo_absorbs_parenthetical_fedreg() -> None:
 
 
 def test_resolve_overlaps_treaty_beats_named_law() -> None:
-    treaty: ExtractedReference = {
-        "kind": "treaty",
-        "raw": "Stockholm Convention",
-        "normalized_key": "treaty:stockholm convention",
-        "normalized": {"name": "Stockholm Convention"},
-        "context": "the Stockholm Convention",
-        "span_start": 4,
-        "span_end": 24,
-        "is_self_ref": False,
-    }
-    named: ExtractedReference = {
-        "kind": "named_law",
-        "raw": "the Stockholm Convention",
-        "normalized_key": "named:stockholm convention",
-        "normalized": {"name": "Stockholm Convention", "law_number": None},
-        "context": "the Stockholm Convention",
-        "span_start": 0,
-        "span_end": 24,
-        "is_self_ref": False,
-    }
+    treaty = _make_ref(
+        kind="treaty",
+        raw="Stockholm Convention",
+        normalized_key="treaty:stockholm convention",
+        normalized={"name": "Stockholm Convention"},
+        context="the Stockholm Convention",
+        span_start=4,
+        span_end=24,
+    )
+    named = _make_ref(
+        kind="named_law",
+        raw="the Stockholm Convention",
+        normalized_key="named:stockholm convention",
+        normalized={"name": "Stockholm Convention", "law_number": None},
+        context="the Stockholm Convention",
+        span_start=0,
+        span_end=24,
+    )
     resolved = resolve_overlaps([named, treaty])
     assert _pairs(resolved) == {("treaty", "treaty:stockholm convention")}
 
 
 def test_resolve_overlaps_longest_span_wins() -> None:
-    short: ExtractedReference = {
-        "kind": "named_law",
-        "raw": "Clean Air Act",
-        "normalized_key": "named:clean air act",
-        "normalized": {"name": "Clean Air Act", "law_number": None},
-        "context": "",
-        "span_start": 10,
-        "span_end": 23,
-        "is_self_ref": False,
-    }
-    long_: ExtractedReference = {
-        "kind": "named_law",
-        "raw": "the Clean Air Act Amendments",
-        "normalized_key": "named:clean air act amendments",
-        "normalized": {"name": "Clean Air Act Amendments", "law_number": None},
-        "context": "",
-        "span_start": 6,
-        "span_end": 34,
-        "is_self_ref": False,
-    }
+    short = _make_ref(span_start=10, span_end=23)
+    long_ = _make_ref(
+        raw="the Clean Air Act Amendments",
+        normalized_key="named:clean air act amendments",
+        normalized={"name": "Clean Air Act Amendments", "law_number": None},
+        span_start=6,
+        span_end=34,
+    )
     resolved = resolve_overlaps([short, long_])
     assert [r["normalized_key"] for r in resolved] == ["named:clean air act amendments"]
 
 
 def test_resolve_overlaps_keeps_non_overlapping() -> None:
-    a: ExtractedReference = {
-        "kind": "usc",
-        "raw": "a",
-        "normalized_key": "usc:1:1",
-        "normalized": {"title": 1, "section": "1"},
-        "context": "",
-        "span_start": 0,
-        "span_end": 10,
-        "is_self_ref": False,
-    }
-    b: ExtractedReference = {
-        "kind": "cfr",
-        "raw": "b",
-        "normalized_key": "cfr:1:1",
-        "normalized": {"title": 1, "part": "1"},
-        "context": "",
-        "span_start": 20,
-        "span_end": 30,
-        "is_self_ref": False,
-    }
+    a = _make_ref(
+        kind="usc",
+        raw="a",
+        normalized_key="usc:1:1",
+        normalized={"title": 1, "section": "1"},
+        span_start=0,
+        span_end=10,
+    )
+    b = _make_ref(
+        kind="cfr",
+        raw="b",
+        normalized_key="cfr:1:1",
+        normalized={"title": 1, "part": "1"},
+        span_start=20,
+        span_end=30,
+    )
     resolved = resolve_overlaps([a, b])
     assert _pairs(resolved) == {("usc", "usc:1:1"), ("cfr", "cfr:1:1")}
 
@@ -292,6 +290,7 @@ def test_dedup_named_laws_collapses_regex_and_spacy_duplicate() -> None:
 
 # --- extract_references_from_text (integration) ---
 
+
 SMOKE_TEXT = (
     "Amends the Clean Air Act (42 U.S.C. 7401 et seq.) to add new requirements. "
     "References Public Law 117-58 and Executive Order 14008 (86 Fed. Reg. 7619). "
@@ -307,14 +306,30 @@ SMOKE_EXPECTED = {
 }
 
 
-def test_integration_smoke_exact_pairs() -> None:
-    refs = extract_references_from_text(SMOKE_TEXT)
-    assert _pairs(refs) == SMOKE_EXPECTED
+@pytest.fixture(scope="module")
+def smoke_refs() -> list[ExtractedReference]:
+    return extract_references_from_text(SMOKE_TEXT)
 
 
-def test_integration_no_fedreg_survives_eo_absorption() -> None:
-    refs = extract_references_from_text(SMOKE_TEXT)
-    assert all(r["kind"] != "fed_reg" for r in refs)
+def test_integration_smoke_exact_pairs(
+    smoke_refs: list[ExtractedReference],
+) -> None:
+    assert _pairs(smoke_refs) == SMOKE_EXPECTED
+
+
+def test_integration_no_fedreg_survives_eo_absorption(
+    smoke_refs: list[ExtractedReference],
+) -> None:
+    assert all(r["kind"] != "fed_reg" for r in smoke_refs)
+
+
+def test_integration_records_have_exact_shape_and_not_self_ref(
+    smoke_refs: list[ExtractedReference],
+) -> None:
+    assert smoke_refs
+    for rec in smoke_refs:
+        assert set(rec.keys()) == EXPECTED_KEYS
+        assert rec["is_self_ref"] is False
 
 
 def test_integration_empty_and_whitespace() -> None:
@@ -326,14 +341,6 @@ def test_integration_legislation_number_ignored() -> None:
     without = _pairs(extract_references_from_text(SMOKE_TEXT))
     with_arg = _pairs(extract_references_from_text(SMOKE_TEXT, "H.R. 999"))
     assert without == with_arg
-
-
-def test_integration_records_have_exact_shape_and_not_self_ref() -> None:
-    refs = extract_references_from_text(SMOKE_TEXT)
-    assert refs
-    for rec in refs:
-        assert set(rec.keys()) == EXPECTED_KEYS
-        assert rec["is_self_ref"] is False
 
 
 def test_integration_spacy_acronym_uses_surface_key_expansion_in_name() -> None:

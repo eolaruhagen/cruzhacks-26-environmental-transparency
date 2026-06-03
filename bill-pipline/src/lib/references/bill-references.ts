@@ -1,8 +1,7 @@
 import { z } from "zod";
 import {
     type ExtractedReference,
-    jsonSchema,
-    ReferenceKindSchema,
+    ExtractedReferenceSchema,
     ReferenceSourceSchema,
 } from "./types.ts";
 
@@ -21,21 +20,22 @@ export const CandidateBillRowSchema = z.strictObject({
 });
 export type CandidateBillRow = z.infer<typeof CandidateBillRowSchema>;
 
-export const CitedReferenceUpsertSchema = z.strictObject({
-    kind: ReferenceKindSchema,
-    normalized_key: z.string().min(1),
-    normalized: jsonSchema,
+export const CitedReferenceUpsertSchema = ExtractedReferenceSchema.pick({
+    kind: true,
+    normalized_key: true,
+    normalized: true,
 });
 export type CitedReferenceUpsert = z.infer<typeof CitedReferenceUpsertSchema>;
 
-export const BillReferenceInsertSchema = z.strictObject({
+export const BillReferenceInsertSchema = ExtractedReferenceSchema.pick({
+    raw: true,
+    context: true,
+    span_start: true,
+    span_end: true,
+    is_self_ref: true,
+}).extend({
     reference_id: z.uuid(),
-    raw: z.string().min(1),
-    context: z.string().nullable(),
-    span_start: z.number().int().nonnegative().nullable(),
-    span_end: z.number().int().nonnegative().nullable(),
     source: ReferenceSourceSchema,
-    is_self_ref: z.boolean(),
 });
 export type BillReferenceInsert = z.infer<typeof BillReferenceInsertSchema>;
 
@@ -91,18 +91,16 @@ export async function fetchReferenceCandidates(
         );
     }
 
-    const rows = data ?? [];
-    const validated: CandidateBillRow[] = [];
-    for (const [i, row] of rows.entries()) {
-        const parsed = CandidateBillRowSchema.safeParse(row);
-        if (!parsed.success) {
+    try {
+        return z.array(CandidateBillRowSchema).parse(data ?? []);
+    } catch (err) {
+        if (err instanceof z.ZodError) {
             throw new Error(
-                `fetchReferenceCandidates: invalid row at index ${i}: ${parsed.error.message}`,
+                `fetchReferenceCandidates: invalid row at index ${String(err.issues[0]?.path[0] ?? "?")}: ${err.message}`,
             );
         }
-        validated.push(parsed.data);
+        throw err;
     }
-    return validated;
 }
 
 /**

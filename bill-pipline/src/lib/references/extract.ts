@@ -112,16 +112,10 @@ export async function extractReferences(
     for (const bill of bills) {
         if (results.has(bill.bill_id)) continue;
         const trimmedStderr = stderr.slice(-500).trim();
-        const stderrSuffix = trimmedStderr.length > 0
-            ? ` (stderr: ${trimmedStderr})`
-            : "";
-        const exitSuffix = exitCode !== 0
-            ? ` (python exit code ${exitCode})`
-            : "";
         results.set(bill.bill_id, {
             bill_id: bill.bill_id,
             references: [],
-            error: `no result returned from extractor${exitSuffix}${stderrSuffix}`,
+            error: `no result returned from extractor${exitCode !== 0 ? ` (python exit code ${exitCode})` : ""}${trimmedStderr.length > 0 ? ` (stderr: ${trimmedStderr})` : ""}`,
         });
     }
 

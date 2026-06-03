@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Final
 
 import spacy
@@ -15,7 +16,6 @@ from lib.patterns import (
     AMENDS_ACT_RE,
     CFR_INVERTED_RE,
     CFR_STANDARD_RE,
-    CONTEXT_CHARS,
     EO_RE,
     ENV_ACRONYMS,
     FEDREG_RE,
@@ -259,6 +259,21 @@ def extract_treaties(text: str) -> list[ExtractedReference]:
     return results
 
 
+def _make_named_law_ref(
+    m: re.Match[str], text: str, raw_name: str, law_number: str | None = None
+) -> ExtractedReference:
+    return {
+        "kind": "named_law",
+        "raw": m.group(0),
+        "normalized_key": f"named:{normalize_phrase_key(raw_name)}",
+        "normalized": {"name": raw_name, "law_number": law_number},
+        "context": context(text, m.start(), m.end()),
+        "span_start": m.start(),
+        "span_end": m.end(),
+        "is_self_ref": False,
+    }
+
+
 def extract_named_acts(text: str) -> list[ExtractedReference]:
     """Three-pass named-act extraction: paired-with-PL, "the X Act",
     "Amends X Act". Inner passes skip spans already subsumed by an earlier
@@ -271,18 +286,7 @@ def extract_named_acts(text: str) -> list[ExtractedReference]:
         if not raw_name:
             continue
         law_number = f"{m.group('pl_cong')}-{m.group('pl_num')}"
-        candidates.append(
-            {
-                "kind": "named_law",
-                "raw": m.group(0),
-                "normalized_key": f"named:{normalize_phrase_key(raw_name)}",
-                "normalized": {"name": raw_name, "law_number": law_number},
-                "context": context(text, m.start(), m.end()),
-                "span_start": m.start(),
-                "span_end": m.end(),
-                "is_self_ref": False,
-            }
-        )
+        candidates.append(_make_named_law_ref(m, text, raw_name, law_number))
 
     paired_spans: set[CharSpan] = {
         (c["span_start"], c["span_end"])
@@ -296,18 +300,7 @@ def extract_named_acts(text: str) -> list[ExtractedReference]:
         raw_name = clean_act_name(m.group("act_name"))
         if not raw_name or raw_name.lower() in ("act", "the act", "this act"):
             continue
-        candidates.append(
-            {
-                "kind": "named_law",
-                "raw": m.group(0),
-                "normalized_key": f"named:{normalize_phrase_key(raw_name)}",
-                "normalized": {"name": raw_name, "law_number": None},
-                "context": context(text, m.start(), m.end()),
-                "span_start": m.start(),
-                "span_end": m.end(),
-                "is_self_ref": False,
-            }
-        )
+        candidates.append(_make_named_law_ref(m, text, raw_name))
 
     current_spans: set[CharSpan] = {
         (c["span_start"], c["span_end"])
@@ -321,18 +314,7 @@ def extract_named_acts(text: str) -> list[ExtractedReference]:
         raw_name = clean_act_name(m.group("act_name"))
         if not raw_name:
             continue
-        candidates.append(
-            {
-                "kind": "named_law",
-                "raw": m.group(0),
-                "normalized_key": f"named:{normalize_phrase_key(raw_name)}",
-                "normalized": {"name": raw_name, "law_number": None},
-                "context": context(text, m.start(), m.end()),
-                "span_start": m.start(),
-                "span_end": m.end(),
-                "is_self_ref": False,
-            }
-        )
+        candidates.append(_make_named_law_ref(m, text, raw_name))
 
     return candidates
 
@@ -364,11 +346,7 @@ def extract_spacy_named_laws(
                     "raw": phrase,
                     "normalized_key": f"named:{phrase.lower()}",
                     "normalized": {"name": expanded, "law_number": None},
-                    "context": text[
-                        max(0, start - CONTEXT_CHARS) : min(
-                            len(text), end + CONTEXT_CHARS
-                        )
-                    ],
+                    "context": context(text, start, end),
                     "span_start": start,
                     "span_end": end,
                     "is_self_ref": False,
@@ -389,11 +367,7 @@ def extract_spacy_named_laws(
                 "raw": phrase,
                 "normalized_key": f"named:{normalize_phrase_key(clean)}",
                 "normalized": {"name": clean, "law_number": None},
-                "context": text[
-                    max(0, start - CONTEXT_CHARS) : min(
-                        len(text), end + CONTEXT_CHARS
-                    )
-                ],
+                "context": context(text, start, end),
                 "span_start": start,
                 "span_end": end,
                 "is_self_ref": False,

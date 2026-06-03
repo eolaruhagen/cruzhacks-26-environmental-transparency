@@ -26,100 +26,40 @@ interface RecordedCall {
     payload: unknown;
 }
 
-function makeBackend(): {
-    backend: ReferencesBackend;
-    calls: RecordedCall[];
-    nextCandidatesResult: {
-        data: CandidateBillRow[] | null;
-        error: { message: string } | null;
-    };
-    nextUpsertResult: {
-        data: UpsertReturnedRow[] | null;
-        error: { message: string } | null;
-    };
-    nextDeleteResult: { error: { message: string } | null };
-    nextInsertResult: { error: { message: string } | null };
-    nextMarkResult: { error: { message: string } | null };
-} {
+function makeBackend() {
     const calls: RecordedCall[] = [];
-    const state = {
-        nextCandidatesResult: { data: [], error: null } as {
-            data: CandidateBillRow[] | null;
-            error: { message: string } | null;
-        },
-        nextUpsertResult: { data: [], error: null } as {
-            data: UpsertReturnedRow[] | null;
-            error: { message: string } | null;
-        },
-        nextDeleteResult: { error: null } as {
-            error: { message: string } | null;
-        },
-        nextInsertResult: { error: null } as {
-            error: { message: string } | null;
-        },
-        nextMarkResult: { error: null } as {
-            error: { message: string } | null;
-        },
+    const fake = {
+        calls,
+        nextCandidatesResult: { data: [] as CandidateBillRow[] | null, error: null as { message: string } | null },
+        nextUpsertResult: { data: [] as UpsertReturnedRow[] | null, error: null as { message: string } | null },
+        nextDeleteResult: { error: null as { message: string } | null },
+        nextInsertResult: { error: null as { message: string } | null },
+        nextMarkResult: { error: null as { message: string } | null },
+        backend: null as unknown as ReferencesBackend,
     };
-    const backend: ReferencesBackend = {
+    fake.backend = {
         fetchCandidates: (batchSize) => {
             calls.push({ method: "fetchCandidates", payload: batchSize });
-            return Promise.resolve(state.nextCandidatesResult);
+            return Promise.resolve(fake.nextCandidatesResult);
         },
         upsertCitedReferences: (rows) => {
             calls.push({ method: "upsertCitedReferences", payload: rows });
-            return Promise.resolve(state.nextUpsertResult);
+            return Promise.resolve(fake.nextUpsertResult);
         },
         deleteBillReferences: (billId) => {
             calls.push({ method: "deleteBillReferences", payload: billId });
-            return Promise.resolve(state.nextDeleteResult);
+            return Promise.resolve(fake.nextDeleteResult);
         },
         insertBillReferences: (billId, rows) => {
-            calls.push({
-                method: "insertBillReferences",
-                payload: { billId, rows },
-            });
-            return Promise.resolve(state.nextInsertResult);
+            calls.push({ method: "insertBillReferences", payload: { billId, rows } });
+            return Promise.resolve(fake.nextInsertResult);
         },
         markExtracted: (billId) => {
             calls.push({ method: "markExtracted", payload: billId });
-            return Promise.resolve(state.nextMarkResult);
+            return Promise.resolve(fake.nextMarkResult);
         },
     };
-    return {
-        backend,
-        calls,
-        get nextCandidatesResult() {
-            return state.nextCandidatesResult;
-        },
-        set nextCandidatesResult(v) {
-            state.nextCandidatesResult = v;
-        },
-        get nextUpsertResult() {
-            return state.nextUpsertResult;
-        },
-        set nextUpsertResult(v) {
-            state.nextUpsertResult = v;
-        },
-        get nextDeleteResult() {
-            return state.nextDeleteResult;
-        },
-        set nextDeleteResult(v) {
-            state.nextDeleteResult = v;
-        },
-        get nextInsertResult() {
-            return state.nextInsertResult;
-        },
-        set nextInsertResult(v) {
-            state.nextInsertResult = v;
-        },
-        get nextMarkResult() {
-            return state.nextMarkResult;
-        },
-        set nextMarkResult(v) {
-            state.nextMarkResult = v;
-        },
-    };
+    return fake;
 }
 
 const validCandidateRow: CandidateBillRow = {
@@ -432,21 +372,16 @@ test("replaceBillReferences: invalid row → no DELETE, no INSERT, throws with i
     expect(fake.calls.length).toEqual(0);
 });
 
-test("replaceBillReferences: rejects empty billId without calling backend", async () => {
-    const fake = makeBackend();
-    await expect(
-        replaceBillReferences(fake.backend, "", [validInsertRow]),
-    ).rejects.toThrow("replaceBillReferences");
-    expect(fake.calls).toEqual([]);
-});
-
-test("replaceBillReferences: rejects non-string billId without calling backend", async () => {
-    const fake = makeBackend();
-    await expect(
-        replaceBillReferences(fake.backend, 42, [validInsertRow]),
-    ).rejects.toThrow("replaceBillReferences");
-    expect(fake.calls).toEqual([]);
-});
+test.each([["", "empty string"], [42, "non-string"]])(
+    "replaceBillReferences: rejects %s billId without calling backend",
+    async (billId) => {
+        const fake = makeBackend();
+        await expect(
+            replaceBillReferences(fake.backend, billId, [validInsertRow]),
+        ).rejects.toThrow("replaceBillReferences");
+        expect(fake.calls).toEqual([]);
+    },
+);
 
 // ---------------------------------------------------------------------------
 // markExtracted
@@ -460,21 +395,16 @@ test("markExtracted: forwards billId to backend on happy path", async () => {
     expect(fake.calls[0].payload).toEqual(BILL_ID);
 });
 
-test("markExtracted: rejects empty billId", async () => {
-    const fake = makeBackend();
-    await expect(markExtracted(fake.backend, "")).rejects.toThrow(
-        "markExtracted",
-    );
-    expect(fake.calls).toEqual([]);
-});
-
-test("markExtracted: rejects non-string billId", async () => {
-    const fake = makeBackend();
-    await expect(markExtracted(fake.backend, 42)).rejects.toThrow(
-        "markExtracted",
-    );
-    expect(fake.calls).toEqual([]);
-});
+test.each([["", "empty string"], [42, "non-string"]])(
+    "markExtracted: rejects %s billId",
+    async (billId) => {
+        const fake = makeBackend();
+        await expect(markExtracted(fake.backend, billId)).rejects.toThrow(
+            "markExtracted",
+        );
+        expect(fake.calls).toEqual([]);
+    },
+);
 
 test("markExtracted: throws with bill_id=... backend error context", async () => {
     const fake = makeBackend();

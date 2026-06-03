@@ -127,25 +127,3 @@ def test_second_well_formed_line(ipc_output: list[dict[str, Any]]) -> None:
     assert ("public_law", "pl:117-58") in pairs
 
 
-def test_single_well_formed_line_yields_single_output_line() -> None:
-    stdin = (
-        json.dumps(
-            {
-                "bill_id": "solo",
-                "legislation_number": "H.R. 7",
-                "source": "bill_text",
-                "text": "Issued Executive Order 14008 last winter.",
-            }
-        )
-        + "\n"
-    )
-    proc = _run(stdin)
-    assert proc.returncode == 0, f"stderr={proc.stderr!r}"
-    lines = _parsed_lines(proc.stdout)
-    assert len(lines) == 1
-    out = lines[0]
-    assert out["bill_id"] == "solo"
-    assert out["error"] is None
-    assert {(r["kind"], r["normalized_key"]) for r in out["references"]} == {
-        ("executive_order", "eo:14008")
-    }

@@ -145,9 +145,7 @@ async function run(): Promise<void> {
                 },
             );
 
-            for (let i = 0; i < writeResults.length; i++) {
-                const r = writeResults[i]!;
-                const row = candidates[i]!;
+            for (const r of writeResults) {
                 if (r.status === "fulfilled") {
                     if (r.value.kind === "processed") {
                         totalProcessed += 1;
@@ -156,13 +154,8 @@ async function run(): Promise<void> {
                         totalFailed += 1;
                     }
                 } else {
-                    const reason = r.reason instanceof Error
-                        ? r.reason.message
-                        : String(r.reason);
-                    logger.warn(
-                        { billId: row.id, reason },
-                        "write step threw",
-                    );
+                    const reason = r.reason instanceof Error ? r.reason.message : String(r.reason);
+                    logger.warn({ reason }, "write step threw");
                     totalFailed += 1;
                 }
             }
