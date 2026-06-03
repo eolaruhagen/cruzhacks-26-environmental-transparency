@@ -3,35 +3,23 @@
 @tailwind utilities;
 
 :root {
-  /* Color Palette - Light Mode: warm paper tone, cards pop via offset accent shadow */
-  --color-bg: #EDEBE4;
-  /* Warm off-white paper tone — more saturated than cards so offset shadow reads */
-  --color-nav: #FAF8F2;
-  /* Light near-white navbar in light mode */
-  --color-nav-text: #1a1a1a;
-  /* Dark nav text in light mode */
-  --color-nav-border: #1a1a1a;
-  /* Nav link hover/active border in light mode */
-  --color-card: #FAF8F2;
-  /* Near-white card surface, lighter than bg */
-  --color-card-hover: #F0EEE8;
-  /* Slightly darker on hover */
-  --color-text: #1a1a1a;
-  /* Near-black text */
-  --color-text-light: #6b6b6b;
-  /* Medium gray for secondary text */
+  /* Light mode — cool-neutral institutional canvas; borders carry depth, no shadows */
+  --color-bg: #F6F7F6;
+  --color-nav: #FFFFFF;
+  --color-nav-text: #14171A;
+  --color-nav-border: #14171A;
+  --color-card: #FFFFFF;
+  --color-card-hover: #F1F3F1;
+  --color-text: #14171A;
+  --color-text-light: #5B6166;
   --color-accent: #3A5A40;
-  /* Deep forest green — accent + shadow color */
-  --color-accent-dark: #2d4a34;
-  /* Darker green hover */
-  --color-border: #1a1a1a;
-  /* Near-black border — heavier so offset shadow reads like a neobrutalist box */
+  --color-accent-dark: #2D4A34;
+  --color-border: #DBDEDB;
+  /* Emphasis edge / rules / active state — the old near-black border */
+  --color-border-strong: #14171A;
   --color-shadow: #3A5A40;
-  /* Offset card shadow — solid accent green */
-  --color-module: #ffffff;
-  /* White panels — referenced by the `.dark .bg-white` override */
-  --color-module-hover: #f5f5f5;
-  /* Hover state for modules — referenced by the `.dark .hover:bg-gray-100` override */
+  --color-module: #FFFFFF;
+  --color-module-hover: #F1F3F1;
 
   /* Party identifiers — same across light/dark; convention is constant */
   --color-party-d: #2563eb;
@@ -79,36 +67,23 @@
   --font-inter: 'Inter', sans-serif;
 }
 
-/* Dark Mode Color Palette */
+/* Dark mode — functional, coherent counterpart; secondary to the light hero */
 .dark {
-  --color-bg: #242424;
-  /* Lifted dark bg — shadow/border contrast actually reads at this level */
-  --color-nav: #1a1a1a;
-  /* Darker navbar — anchors the top of the page */
-  --color-nav-text: #e5e5e5;
-  /* Light nav text in dark mode */
-  --color-nav-border: #e5e5e5;
-  /* Nav link hover/active border in dark mode */
-  --color-card: #2f2f2f;
-  /* Card surface lifted above bg so offset shadow reads behind */
-  --color-card-hover: #3a3a3a;
-  /* Lighter on hover */
-  --color-text: #e5e5e5;
-  /* Light gray text */
-  --color-text-light: #999999;
-  /* Muted gray secondary text */
-  --color-accent: #8ab88a;
-  /* Brighter forest green — pops more against lifted bg */
-  --color-accent-dark: #a5c9a5;
-  /* Even lighter green hover */
-  --color-border: #6a6a6a;
-  /* Lifted dark border — reads clearly */
+  --color-bg: #0F1211;
+  --color-nav: #0B0E0D;
+  --color-nav-text: #E6E8E6;
+  --color-nav-border: #E6E8E6;
+  --color-card: #161A18;
+  --color-card-hover: #1C211E;
+  --color-text: #E6E8E6;
+  --color-text-light: #9AA0A0;
+  --color-accent: #8AB88A;
+  --color-accent-dark: #A5C9A5;
+  --color-border: #2A2F2C;
+  --color-border-strong: #E6E8E6;
   --color-shadow: #8ab88a;
-  /* Offset card shadow — bright green, pops against lifted dark bg */
-  --color-module: #1a1a1a;
-  /* Dark module */
-  --color-module-hover: #252525;
-  /* Hover state */
+  --color-module: #0B0E0D;
+  --color-module-hover: #161A18;
 
   /* Alert severity — dark mode swap (borders darker, text brighter) */
   --color-alert-warning-border: #b91c1c;
@@ -278,39 +253,39 @@ body {
     border-color: var(--color-border);
   }
 
+  .border-border-strong {
+    border-color: var(--color-border-strong);
+  }
+
   /* ─── Wireframe theme utilities ─────────────────── */
 
-  /* Offset solid-color shadow — neobrutalist card lift. Apply to any wf-*
-     box you want to pop. Baked into .wf-card and .wf-section by default.
-     Includes a matching press-in on :hover so it's a drop-in utility. */
+  /* Flat lift utility — a hairline border that tightens to accent on hover.
+     Degrades gracefully for consumers that previously relied on the offset
+     shadow. Don't stack on an element that already owns a border. */
   .wf-shadow {
-    box-shadow: 5px 5px 0 0 var(--color-shadow);
-    transition: box-shadow 150ms ease-out, transform 150ms ease-out;
+    border: 1px solid var(--color-border);
+    transition: border-color 150ms;
   }
 
   .wf-shadow:hover {
-    box-shadow: 2px 2px 0 0 var(--color-shadow);
-    transform: translate(3px, 3px);
+    border-color: var(--color-accent);
   }
 
-  /* Standard wireframe card — outlined, no fill, offset accent shadow */
+  /* Standard card — hairline outline, hover tightens the edge + shifts fill */
   .wf-card {
     @apply border border-border p-5;
-    box-shadow: 5px 5px 0 0 var(--color-shadow);
-    transition: border-color 150ms, box-shadow 150ms ease-out, transform 150ms ease-out;
+    transition: border-color 150ms, background-color 150ms;
   }
 
   .wf-card:hover {
-    border-color: var(--color-accent);
-    /* Press-in effect: shrink shadow + translate card so it meets the ground */
-    box-shadow: 2px 2px 0 0 var(--color-shadow);
-    transform: translate(3px, 3px);
+    border-color: var(--color-border-strong);
+    background-color: var(--color-card-hover);
   }
 
-  /* Wireframe section — heavier border, more padding, same offset shadow */
+  /* Section — same hairline shell with a top rule for a tracker-header feel */
   .wf-section {
     @apply border border-border p-6;
-    box-shadow: 6px 6px 0 0 var(--color-shadow);
+    border-top: 2px solid var(--color-border-strong);
   }
 
   /* Wireframe button — outlined, no fill */
@@ -320,7 +295,7 @@ body {
   }
 
   .wf-btn:hover {
-    border-color: var(--color-accent);
+    border-color: var(--color-border-strong);
     color: var(--color-accent);
   }
 
@@ -398,40 +373,41 @@ body {
     @apply border-t border-border;
   }
 
-  /* Glass panel — frosted background for content floating over the animated
-     isometric background. Semi-transparent + blur lets the grid show through
-     subtly while keeping text readable. */
+  /* Glass panel — frosted surface floating over the animated 3D background.
+     Blur is load-bearing (the grid shows through); keep it. Cool-white tint,
+     hairline border, no shadow. */
   .wf-glass {
     @apply border border-border p-6;
-    background-color: rgba(250, 250, 250, 0.9);
+    background-color: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
 
   .dark .wf-glass {
-    background-color: rgba(15, 15, 15, 0.86);
+    background-color: rgba(15, 18, 17, 0.82);
   }
 
   /* Glass card — smaller variant for nav cards over the background */
   .wf-glass-card {
     @apply border border-border p-5;
-    background-color: rgba(250, 250, 250, 0.9);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     transition: border-color 150ms, background-color 150ms;
   }
 
   .wf-glass-card:hover {
     border-color: var(--color-accent);
-    background-color: rgba(250, 250, 250, 0.85);
+    background-color: rgba(255, 255, 255, 0.88);
   }
 
   .dark .wf-glass-card {
-    background-color: rgba(15, 15, 15, 0.9);
+    background-color: rgba(15, 18, 17, 0.82);
   }
 
   .dark .wf-glass-card:hover {
-    background-color: rgba(15, 15, 15, 0.8);
+    border-color: var(--color-accent);
+    background-color: rgba(15, 18, 17, 0.9);
   }
 
   /* Nav text color — responsive to light/dark mode */
@@ -490,7 +466,7 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
+  background: var(--color-border-strong);
   border-radius: 0;
 }
 

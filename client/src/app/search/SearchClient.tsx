@@ -259,7 +259,7 @@ function VirtualizedBillList({ bills, onNeedMore }: { bills: Bill[]; onNeedMore?
     return (
         <div
             ref={parentRef}
-            className="h-[600px] overflow-auto px-4"
+            className="lg:h-[calc(100vh-1rem)] overflow-auto px-1 sm:px-4"
             style={{ contain: 'strict' }}
         >
             <div
@@ -311,17 +311,19 @@ export default function SearchClient() {
     });
 
     return (
-        <>
-            <SearchModal
-                activeFilters={activeFilters}
-                sortState={sortState}
-                activeSortKey={activeSortKey}
-                onFilterUpdate={updateFilter}
-                onSortClick={handleSortClick}
-            />
+        <div className="flex flex-col lg:flex-row lg:gap-6 lg:items-start">
+            <aside className="lg:w-[340px] lg:shrink-0 lg:sticky lg:top-24">
+                <SearchModal
+                    activeFilters={activeFilters}
+                    sortState={sortState}
+                    activeSortKey={activeSortKey}
+                    onFilterUpdate={updateFilter}
+                    onSortClick={handleSortClick}
+                />
+            </aside>
 
             {/* Results */}
-            <div className="mt-6">
+            <div className="flex-1 min-w-0 mt-6 lg:mt-0">
                 {isLoading && (
                     <p className="text-xs font-mono uppercase tracking-widest text-light mb-3">
                         Searching...
@@ -348,6 +350,6 @@ export default function SearchClient() {
                     </p>
                 )}
             </div>
-        </>
+        </div>
     );
 }
